@@ -58,6 +58,39 @@ html[data-theme='dark'] {
     linear-gradient(180deg, #060c17 0%, #040812 58%, #03070f 100%);
   --globe-stage-vignette:
     radial-gradient(circle at 38% 46%, transparent 44%, rgba(3, 5, 11, 0.42) 82%, rgba(2, 4, 9, 0.72) 100%);
+  --globe-ambient-glow:
+    radial-gradient(circle at center, rgba(60, 102, 213, 0.14), rgba(31, 48, 101, 0.06) 48%, transparent 74%);
+  --globe-loading-glow: 0 0 24px rgba(91, 140, 255, 0.12);
+  --globe-surface: #1a2030;
+  --globe-specular: #2c3643;
+  --globe-emissive: #080c14;
+  --globe-emissive-intensity: 0.09;
+  --globe-shininess: 6;
+  --globe-surface-opacity: 1;
+  --globe-boundary-color: rgba(90, 170, 200, 0.8);
+  --globe-atmosphere: #4a6fa5;
+  --globe-atmosphere-altitude: 0.025;
+  --globe-fog: #050a12;
+  --globe-fog-density: 0.00128;
+  --globe-ambient-light: #d8e0ea;
+  --globe-ambient-light-intensity: 0.82;
+  --globe-key-light: #9bacbe;
+  --globe-key-light-intensity: 0.22;
+  --globe-fill-light: #6f7b8d;
+  --globe-fill-light-intensity: 0.12;
+  --globe-rim-light: #4b70d7;
+  --globe-rim-light-intensity: 0.08;
+  --globe-online-point: #2a9d8f;
+  --globe-offline-point: #6b7a85;
+  --globe-ring-rgb: 59, 227, 129;
+  --globe-ring-opacity: 0.42;
+  --globe-ring-speed: 0.58;
+  --globe-halo-opacity: 0.22;
+  --globe-graticule-color: transparent;
+  --globe-tooltip-bg: rgba(9, 14, 24, 0.96);
+  --globe-tooltip-border: rgba(91, 140, 255, 0.24);
+  --globe-tooltip-title: #edf4ff;
+  --globe-tooltip-text: #9fb1cb;
   --panel-floating-bg:
     linear-gradient(180deg, rgba(19, 28, 47, 0.94), rgba(9, 14, 24, 0.92)),
     rgba(8, 13, 24, 0.78);
@@ -141,11 +174,44 @@ html[data-theme='light'] {
   --button-subtle-border: rgba(148, 163, 184, 0.24);
   --button-subtle-hover-border: rgba(63, 114, 255, 0.26);
   --globe-stage-bg:
-    radial-gradient(circle at 36% 18%, rgba(123, 150, 219, 0.18), transparent 30%),
-    radial-gradient(circle at 62% 56%, rgba(171, 188, 224, 0.18), transparent 34%),
+    radial-gradient(circle at 36% 18%, rgba(91, 140, 255, 0.1), transparent 30%),
+    radial-gradient(circle at 62% 56%, rgba(148, 163, 184, 0.08), transparent 34%),
     linear-gradient(180deg, #f5f8fc 0%, #e9eff7 56%, #dde6f1 100%);
   --globe-stage-vignette:
     radial-gradient(circle at 38% 46%, transparent 46%, rgba(218, 227, 240, 0.46) 84%, rgba(208, 219, 236, 0.74) 100%);
+  --globe-ambient-glow:
+    radial-gradient(circle at center, rgba(91, 140, 255, 0.12), rgba(200, 220, 235, 0.06) 48%, transparent 74%);
+  --globe-loading-glow: 0 0 20px rgba(140, 166, 219, 0.14);
+  --globe-surface: #e8f4f1;
+  --globe-specular: #a9b6cb;
+  --globe-emissive: #c8e8e0;
+  --globe-emissive-intensity: 0.035;
+  --globe-shininess: 6;
+  --globe-surface-opacity: 0.95;
+  --globe-boundary-color: rgba(55, 150, 150, 0.88);
+  --globe-atmosphere: #c8ddf0;
+  --globe-atmosphere-altitude: 0.015;
+  --globe-fog: #eef3f9;
+  --globe-fog-density: 0.00105;
+  --globe-ambient-light: #f6f9fd;
+  --globe-ambient-light-intensity: 0.88;
+  --globe-key-light: #b4c3da;
+  --globe-key-light-intensity: 0.2;
+  --globe-fill-light: #d6e0ee;
+  --globe-fill-light-intensity: 0.1;
+  --globe-rim-light: #5b8cff;
+  --globe-rim-light-intensity: 0.06;
+  --globe-online-point: #2a9d8f;
+  --globe-offline-point: #8a9aa5;
+  --globe-ring-rgb: 32, 168, 122;
+  --globe-ring-opacity: 0.26;
+  --globe-ring-speed: 0.42;
+  --globe-halo-opacity: 0.18;
+  --globe-graticule-color: rgba(120, 170, 160, 0.15);
+  --globe-tooltip-bg: rgba(255, 255, 255, 0.96);
+  --globe-tooltip-border: rgba(148, 163, 184, 0.26);
+  --globe-tooltip-title: #182235;
+  --globe-tooltip-text: #516178;
   --panel-floating-bg:
     linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 248, 255, 0.96)),
     rgba(248, 251, 255, 0.88);
