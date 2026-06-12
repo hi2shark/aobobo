@@ -10,100 +10,99 @@ function projectLngLat(lng, lat) {
   };
 }
 
-function drawBaseGradient(ctx, theme) {
+function drawBase(ctx, theme) {
   const isLight = theme === 'light';
-
-  const baseGradient = ctx.createLinearGradient(0, 0, 0, TEXTURE_HEIGHT);
-  if (isLight) {
-    baseGradient.addColorStop(0, '#ffffff');
-    baseGradient.addColorStop(0.5, '#f8fbfc');
-    baseGradient.addColorStop(1, '#eff6f7');
-  } else {
-    baseGradient.addColorStop(0, '#1c2632');
-    baseGradient.addColorStop(0.5, '#172029');
-    baseGradient.addColorStop(1, '#111820');
-  }
-
-  ctx.fillStyle = baseGradient;
+  ctx.fillStyle = isLight ? '#e8f4f1' : '#000000';
   ctx.fillRect(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 
-  const sheen = ctx.createRadialGradient(
-    TEXTURE_WIDTH * 0.28,
-    TEXTURE_HEIGHT * 0.22,
-    0,
+  const gradient = ctx.createRadialGradient(
     TEXTURE_WIDTH * 0.5,
     TEXTURE_HEIGHT * 0.5,
-    TEXTURE_WIDTH * 0.95,
+    TEXTURE_HEIGHT * 0.25,
+    TEXTURE_WIDTH * 0.5,
+    TEXTURE_HEIGHT * 0.5,
+    TEXTURE_HEIGHT * 0.75,
   );
-
-  if (isLight) {
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-    sheen.addColorStop(0.35, 'rgba(255, 255, 255, 0.25)');
-    sheen.addColorStop(1, 'rgba(170, 210, 215, 0.18)');
-  } else {
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
-    sheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
-    sheen.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  }
-
-  ctx.fillStyle = sheen;
+  gradient.addColorStop(0, isLight ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, isLight ? 'rgba(180,195,210,0.18)' : 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 }
 
-function drawBoundaries(ctx, geojson, theme) {
+function drawLandmass(ctx, geojson, theme) {
   const isLight = theme === 'light';
-  ctx.strokeStyle = isLight ? 'rgba(55, 150, 150, 0.88)' : 'rgba(90, 170, 200, 0.8)';
-  ctx.lineWidth = isLight ? 1.5 : 1.1;
+  ctx.fillStyle = isLight ? '#c8d0db' : '#2a303a';
+  ctx.strokeStyle = isLight ? 'rgba(140,155,175,0.22)' : 'rgba(60,70,85,0.35)';
+  ctx.lineWidth = isLight ? 1 : 0.8;
   ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
 
-  geojson.features.forEach((feature) => {
-    const { geometry } = feature;
+  ctx.beginPath();
+  geojson.features.forEach(({ geometry }) => {
     if (!geometry) return;
 
-    const rings = [];
+    const polygons = [];
     if (geometry.type === 'Polygon') {
-      rings.push(...geometry.coordinates);
+      polygons.push(geometry.coordinates);
     } else if (geometry.type === 'MultiPolygon') {
-      geometry.coordinates.forEach((polygon) => rings.push(...polygon));
+      polygons.push(...geometry.coordinates);
     }
 
-    rings.forEach((ring) => {
-      if (ring.length < 2) return;
-      ctx.beginPath();
-      ring.forEach(([lng, lat], index) => {
-        const { x, y } = projectLngLat(lng, lat);
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          // Handle antimeridian wrap to avoid drawing lines across the whole texture
-          const prev = ring[index - 1];
-          const dx = Math.abs(lng - prev[0]);
-          if (dx > 180) {
-            ctx.stroke();
-            ctx.beginPath();
+    polygons.forEach((polygon) => {
+      polygon.forEach((ring) => {
+        if (ring.length < 3) return;
+        let first = true;
+        let prevLng = null;
+        ring.forEach((point) => {
+          const [lng, lat] = point;
+          if (prevLng !== null && Math.abs(lng - prevLng) > 180) {
+            ctx.closePath();
+            first = true;
+          }
+          const { x, y } = projectLngLat(lng, lat);
+          if (first) {
             ctx.moveTo(x, y);
+            first = false;
           } else {
             ctx.lineTo(x, y);
           }
-        }
+          prevLng = lng;
+        });
+        ctx.closePath();
       });
-      ctx.stroke();
     });
   });
+
+  ctx.fill('evenodd');
+  ctx.stroke();
 }
 
-function createCleanGlobeTexture(theme = 'dark', boundaryGeojson = null) {
+function addNoise(ctx, theme) {
+  const isLight = theme === 'light';
+  const imageData = ctx.getImageData(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+  const { data } = imageData;
+  const amount = isLight ? 4 : 8;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * amount;
+    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+export function createGlobeTexture(theme = 'dark', boundaryGeojson = null) {
   const canvas = document.createElement('canvas');
   canvas.width = TEXTURE_WIDTH;
   canvas.height = TEXTURE_HEIGHT;
   const ctx = canvas.getContext('2d');
 
-  drawBaseGradient(ctx, theme);
+  drawBase(ctx, theme);
 
   if (boundaryGeojson) {
-    drawBoundaries(ctx, boundaryGeojson, theme);
+    drawLandmass(ctx, boundaryGeojson, theme);
   }
+
+  addNoise(ctx, theme);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -112,53 +111,6 @@ function createCleanGlobeTexture(theme = 'dark', boundaryGeojson = null) {
   return texture;
 }
 
-function createStarTexture() {
-  const width = 2048;
-  const height = 1024;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, width, height);
-
-  for (let i = 0; i < 2200; i += 1) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    const radius = Math.random() * 1.0 + 0.3;
-    const alpha = Math.random() * 0.5 + 0.15;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-    ctx.fill();
-  }
-
-  for (let i = 0; i < 60; i += 1) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    const radius = Math.random() * 1.3 + 0.8;
-    const alpha = Math.random() * 0.35 + 0.35;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200, 220, 255, ${alpha})`;
-    ctx.fill();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-export function createGlobeTexture(theme = 'dark', boundaryGeojson = null) {
-  return createCleanGlobeTexture(theme, boundaryGeojson);
-}
-
-export function createStarfieldTexture() {
-  return createStarTexture();
-}
-
 export function disposeGlobeTextures() {
-  // No-op: textures are created on demand and disposed with materials
+  // Textures are created on demand and disposed with materials
 }

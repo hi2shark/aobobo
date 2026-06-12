@@ -24,7 +24,6 @@ import {
 } from 'vue';
 import * as THREE from 'three';
 import Globe from 'globe.gl';
-import graticuleData from '@/assets/globe/graticule.json';
 import worldBoundaryData from '@/assets/globe/world-boundaries.json';
 import {
   createGlobeTexture,
@@ -34,78 +33,7 @@ import {
 const INITIAL_POINT_OF_VIEW = {
   lat: 24.5,
   lng: 114,
-  altitude: 1.96,
-};
-
-const GRATICULE_PATHS = graticuleData.features.map((feature) => ({
-  coords: feature.geometry.coordinates.map(([lng, lat]) => ({ lat, lng })),
-}));
-
-const FALLBACK_PALETTE = {
-  dark: {
-    surface: '#1a2030',
-    specular: '#2c3643',
-    emissive: '#080c14',
-    emissiveIntensity: 0.06,
-    shininess: 6,
-    surfaceOpacity: 1,
-    atmosphere: '#4a6fa5',
-    atmosphereAltitude: 0.025,
-    fog: '#050a12',
-    fogDensity: 0.00128,
-    ambient: '#d8e0ea',
-    ambientIntensity: 0.82,
-    keyLight: '#9bacbe',
-    keyLightIntensity: 0.22,
-    fillLight: '#6f7b8d',
-    fillLightIntensity: 0.12,
-    rimLight: '#4b70d7',
-    rimLightIntensity: 0.08,
-    onlinePoint: '#2a9d8f',
-    offlinePoint: '#6b7a85',
-    onlineRing: '59, 227, 129',
-    ringOpacity: 0.42,
-    ringSpeed: 0.58,
-    haloOpacity: 0.22,
-    graticuleColor: 'transparent',
-    boundaryColor: 'rgba(90, 170, 200, 0.8)',
-    tooltipBg: 'rgba(9, 14, 24, 0.96)',
-    tooltipBorder: 'rgba(91, 140, 255, 0.24)',
-    tooltipTitle: '#edf4ff',
-    tooltipText: '#9fb1cb',
-  },
-  light: {
-    surface: '#e8f4f1',
-    specular: '#a9b6cb',
-    emissive: '#c8e8e0',
-    emissiveIntensity: 0.035,
-    shininess: 6,
-    surfaceOpacity: 0.92,
-    atmosphere: '#c8ddf0',
-    atmosphereAltitude: 0.015,
-    fog: '#eef3f9',
-    fogDensity: 0.00105,
-    ambient: '#f6f9fd',
-    ambientIntensity: 0.88,
-    keyLight: '#b4c3da',
-    keyLightIntensity: 0.2,
-    fillLight: '#d6e0ee',
-    fillLightIntensity: 0.1,
-    rimLight: '#5b8cff',
-    rimLightIntensity: 0.06,
-    onlinePoint: '#2a9d8f',
-    offlinePoint: '#8a9aa5',
-    onlineRing: '32, 168, 122',
-    ringOpacity: 0.26,
-    ringSpeed: 0.42,
-    haloOpacity: 0.18,
-    graticuleColor: 'rgba(120, 170, 160, 0.18)',
-    boundaryColor: 'rgba(55, 150, 150, 0.88)',
-    tooltipBg: 'rgba(255, 255, 255, 0.96)',
-    tooltipBorder: 'rgba(148, 163, 184, 0.26)',
-    tooltipTitle: '#182235',
-    tooltipText: '#516178',
-  },
+  altitude: 1.75,
 };
 
 const props = defineProps({
@@ -134,92 +62,51 @@ const isReady = ref(false);
 const initError = ref(false);
 
 let globe = null;
-let currentMaterial = null;
-
-function readCssVar(name, fallback = '') {
-  if (typeof document === 'undefined') {
-    return fallback;
-  }
-
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
-
-  return value || fallback;
-}
-
-function readNumberCssVar(name, fallback) {
-  const value = Number.parseFloat(readCssVar(name, String(fallback)));
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function hexToRgb(hex) {
-  const normalized = hex.replace('#', '');
-  if (normalized.length !== 6) {
-    return null;
-  }
-
-  return {
-    r: Number.parseInt(normalized.slice(0, 2), 16),
-    g: Number.parseInt(normalized.slice(2, 4), 16),
-    b: Number.parseInt(normalized.slice(4, 6), 16),
-  };
-}
-
-function toRgba(color, alpha) {
-  if (!color) {
-    return `rgba(0, 0, 0, ${alpha})`;
-  }
-
-  if (color.startsWith('rgba(') || color.startsWith('rgb(')) {
-    return color;
-  }
-
-  const rgb = hexToRgb(color);
-  if (!rgb) {
-    return color;
-  }
-
-  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-}
 
 function getThemePalette(theme) {
-  const fallback = FALLBACK_PALETTE[theme === 'light' ? 'light' : 'dark'];
+  if (theme === 'light') {
+    return {
+      surface: '#fbfdff',
+      specular: '#a9b6cb',
+      emissive: '#dde5ef',
+      atmosphere: '#8ca6db',
+      fog: '#eef3f9',
+      ambient: '#f6f9fd',
+      keyLight: '#b4c3da',
+      fillLight: '#d6e0ee',
+      rimLight: '#91a8d8',
+      onlinePoint: '#27c46c',
+      offlinePoint: '#95a0ad',
+      onlineRing: '39, 196, 108',
+      tooltipBg: 'rgba(255, 255, 255, 0.96)',
+      tooltipBorder: 'rgba(148, 163, 184, 0.26)',
+      tooltipTitle: '#182235',
+      tooltipText: '#516178',
+    };
+  }
 
   return {
-    surface: readCssVar('--globe-surface', fallback.surface),
-    specular: readCssVar('--globe-specular', fallback.specular),
-    emissive: readCssVar('--globe-emissive', fallback.emissive),
-    emissiveIntensity: readNumberCssVar('--globe-emissive-intensity', fallback.emissiveIntensity),
-    shininess: readNumberCssVar('--globe-shininess', fallback.shininess),
-    surfaceOpacity: readNumberCssVar('--globe-surface-opacity', fallback.surfaceOpacity),
-    roughness: readNumberCssVar('--globe-roughness', fallback.roughness),
-    metalness: readNumberCssVar('--globe-metalness', fallback.metalness),
-    atmosphere: readCssVar('--globe-atmosphere', fallback.atmosphere),
-    atmosphereAltitude: readNumberCssVar('--globe-atmosphere-altitude', fallback.atmosphereAltitude),
-    fog: readCssVar('--globe-fog', fallback.fog),
-    fogDensity: readNumberCssVar('--globe-fog-density', fallback.fogDensity),
-    ambient: readCssVar('--globe-ambient-light', fallback.ambient),
-    ambientIntensity: readNumberCssVar('--globe-ambient-light-intensity', fallback.ambientIntensity),
-    keyLight: readCssVar('--globe-key-light', fallback.keyLight),
-    keyLightIntensity: readNumberCssVar('--globe-key-light-intensity', fallback.keyLightIntensity),
-    fillLight: readCssVar('--globe-fill-light', fallback.fillLight),
-    fillLightIntensity: readNumberCssVar('--globe-fill-light-intensity', fallback.fillLightIntensity),
-    rimLight: readCssVar('--globe-rim-light', fallback.rimLight),
-    rimLightIntensity: readNumberCssVar('--globe-rim-light-intensity', fallback.rimLightIntensity),
-    onlinePoint: readCssVar('--globe-online-point', fallback.onlinePoint),
-    offlinePoint: readCssVar('--globe-offline-point', fallback.offlinePoint),
-    onlineRing: readCssVar('--globe-ring-rgb', fallback.onlineRing),
-    ringOpacity: readNumberCssVar('--globe-ring-opacity', fallback.ringOpacity),
-    ringSpeed: readNumberCssVar('--globe-ring-speed', fallback.ringSpeed),
-    haloOpacity: readNumberCssVar('--globe-halo-opacity', fallback.haloOpacity),
-    graticuleColor: readCssVar('--globe-graticule-color', fallback.graticuleColor),
-    boundaryColor: readCssVar('--globe-boundary-color', fallback.boundaryColor),
-    tooltipBg: readCssVar('--globe-tooltip-bg', fallback.tooltipBg),
-    tooltipBorder: readCssVar('--globe-tooltip-border', fallback.tooltipBorder),
-    tooltipTitle: readCssVar('--globe-tooltip-title', fallback.tooltipTitle),
-    tooltipText: readCssVar('--globe-tooltip-text', fallback.tooltipText),
+    surface: '#ffffff',
+    specular: '#000000',
+    emissive: '#000000',
+    atmosphere: '#2a5fd7',
+    fog: '#050a12',
+    ambient: '#ffffff',
+    keyLight: '#8ca6db',
+    fillLight: '#6f7b8d',
+    rimLight: '#3b6fd9',
+    onlinePoint: '#00ff7f',
+    offlinePoint: '#55606e',
+    onlineRing: '0, 255, 127',
+    tooltipBg: 'rgba(9, 14, 24, 0.96)',
+    tooltipBorder: 'rgba(91, 140, 255, 0.24)',
+    tooltipTitle: '#edf4ff',
+    tooltipText: '#9fb1cb',
   };
+}
+
+function getGlobeTexture(theme) {
+  return createGlobeTexture(theme, worldBoundaryData);
 }
 
 function escapeHtml(value) {
@@ -231,64 +118,51 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function buildMarkerEntry(loc, palette) {
-  const serverCount = loc.servers?.length || 0;
-  const hasOnline = Boolean(loc.hasOnline);
-  const size = hasOnline
-    ? Math.max(0.018, Math.min(0.04, 0.018 + serverCount * 0.0025))
-    : 0.012;
-  const altitude = hasOnline
-    ? Math.min(0.015, 0.004 + serverCount * 0.001)
-    : 0.001;
-  const pointColor = hasOnline ? palette.onlinePoint : palette.offlinePoint;
-
-  const core = {
-    layer: 'core',
-    lat: loc.lat,
-    lng: loc.lng,
-    size,
-    altitude,
-    color: pointColor,
-    label: loc.label,
-    code: loc.code,
-    servers: loc.servers || [],
-    serverCount,
-    hasOnline,
-  };
-
-  if (!hasOnline) {
-    return [core];
-  }
-
-  const halo = {
-    layer: 'halo',
-    lat: loc.lat,
-    lng: loc.lng,
-    size: size * 4.2,
-    altitude: altitude * 0.6,
-    color: toRgba(pointColor, palette.haloOpacity * 0.45),
-    label: '',
-    code: loc.code,
-    servers: loc.servers || [],
-    serverCount,
-    hasOnline,
-  };
-
-  return [halo, core];
-}
-
 const markerData = computed(() => {
   const palette = getThemePalette(props.theme);
-  return props.locations.flatMap((loc) => buildMarkerEntry(loc, palette));
+
+  return props.locations.map((loc) => {
+    const serverCount = loc.servers?.length || 0;
+    const hasOnline = Boolean(loc.hasOnline);
+    const size = hasOnline
+      ? Math.min(0.1, 0.05 + serverCount * 0.006)
+      : 0.024;
+    const altitude = hasOnline
+      ? Math.min(0.012, 0.003 + serverCount * 0.0006)
+      : 0.001;
+
+    return {
+      lat: loc.lat,
+      lng: loc.lng,
+      size,
+      altitude,
+      color: hasOnline ? palette.onlinePoint : palette.offlinePoint,
+      label: loc.label,
+      code: loc.code,
+      servers: loc.servers || [],
+      serverCount,
+      hasOnline,
+    };
+  });
 });
 
-const ringData = computed(() => []);
+const ringData = computed(() => {
+  const palette = getThemePalette(props.theme);
+
+  return markerData.value
+    .filter((marker) => marker.hasOnline)
+    .map((marker) => ({
+      lat: marker.lat,
+      lng: marker.lng,
+      maxR: Math.min(5.0, 2.2 + marker.serverCount * 0.5),
+      propagationSpeed: 0.45,
+      repeatPeriod: Math.max(1000, 1400 - marker.serverCount * 70),
+      colorRgb: palette.onlineRing,
+      opacity: props.theme === 'light' ? 0.35 : 0.95,
+    }));
+});
 
 function getPointLabel(point) {
-  if (point.layer === 'halo' || !point.label) {
-    return '';
-  }
-
   const palette = getThemePalette(props.theme);
   return `
     <div style="
@@ -323,39 +197,33 @@ function configureSceneAndLights() {
   const scene = globe.scene();
 
   if (scene) {
-    scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity);
+    scene.fog = new THREE.FogExp2(palette.fog, props.theme === 'light' ? 0.00105 : 0.0005);
   }
 
   const ambientLight = new THREE.AmbientLight(
     palette.ambient,
-    palette.ambientIntensity,
+    props.theme === 'light' ? 0.96 : 0.75,
   );
   const keyLight = new THREE.DirectionalLight(
     palette.keyLight,
-    palette.keyLightIntensity,
+    props.theme === 'light' ? 0.72 : 0.2,
   );
   keyLight.position.set(-210, 160, 210);
 
   const fillLight = new THREE.DirectionalLight(
     palette.fillLight,
-    palette.fillLightIntensity,
+    props.theme === 'light' ? 0.34 : 0.08,
   );
   fillLight.position.set(180, -28, 165);
 
   const rimLight = new THREE.DirectionalLight(
     palette.rimLight,
-    palette.rimLightIntensity,
+    props.theme === 'light' ? 0.3 : 0.5,
   );
   rimLight.position.set(28, 42, -220);
 
   globe.lights([ambientLight, keyLight, fillLight, rimLight]);
 }
-
-const surfacePaths = computed(() => (
-  props.theme === 'light'
-    ? GRATICULE_PATHS.map((path) => ({ ...path, type: 'graticule' }))
-    : []
-));
 
 function applyThemeToGlobe() {
   if (!globe) {
@@ -363,57 +231,33 @@ function applyThemeToGlobe() {
   }
 
   const palette = getThemePalette(props.theme);
+  const material = globe.globeMaterial() || new THREE.MeshPhongMaterial();
   const renderer = globe.renderer();
-  const texture = createGlobeTexture(props.theme, worldBoundaryData);
+  const texture = getGlobeTexture(props.theme);
 
   if (renderer?.capabilities?.getMaxAnisotropy) {
     texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
   }
 
-  const oldMaterial = currentMaterial || globe.globeMaterial();
-  const material = new THREE.MeshPhongMaterial({
-    map: texture,
-    color: new THREE.Color(0xffffff),
-    emissive: new THREE.Color(palette.emissive),
-    emissiveIntensity: palette.emissiveIntensity,
-    shininess: palette.shininess,
-    specular: new THREE.Color(palette.specular),
-    transparent: palette.surfaceOpacity < 1,
-    opacity: palette.surfaceOpacity,
-  });
-
-  currentMaterial = material;
-
-  if (oldMaterial && oldMaterial !== material) {
-    oldMaterial.dispose();
-  }
+  material.map = texture;
+  material.color = new THREE.Color(palette.surface);
+  material.emissive = new THREE.Color(palette.emissive);
+  material.emissiveIntensity = props.theme === 'light' ? 0.045 : 0;
+  material.shininess = props.theme === 'light' ? 2.4 : 0;
+  material.specular = new THREE.Color(palette.specular);
+  material.bumpMap = null;
+  material.normalMap = null;
+  material.displacementMap = null;
+  material.needsUpdate = true;
 
   globe
     .globeMaterial(material)
     .showAtmosphere(true)
     .atmosphereColor(palette.atmosphere)
-    .atmosphereAltitude(palette.atmosphereAltitude)
-    .pointLabel(getPointLabel)
-    .pathsData(surfacePaths.value)
-    .pathPoints('coords')
-    .pathPointLat('lat')
-    .pathPointLng('lng')
-    .pathColor(() => palette.graticuleColor)
-    .pathStroke(0.3);
+    .atmosphereAltitude(props.theme === 'light' ? 0.05 : 0.07)
+    .pointLabel(getPointLabel);
 
   configureSceneAndLights();
-}
-
-function updateSurfaceLines() {
-  if (!globe) {
-    return;
-  }
-
-  const palette = getThemePalette(props.theme);
-  globe
-    .pathsData(surfacePaths.value)
-    .pathColor(() => palette.graticuleColor)
-    .pathStroke(0.3);
 }
 
 function updateLayers() {
@@ -484,7 +328,7 @@ function initGlobe() {
       .backgroundColor('rgba(0,0,0,0)')
       .showAtmosphere(true)
       .pointOfView(INITIAL_POINT_OF_VIEW)
-      .pointResolution(24)
+      .pointResolution(32)
       .pointsTransitionDuration(560)
       .pointsData(markerData.value)
       .pointLat('lat')
@@ -494,9 +338,6 @@ function initGlobe() {
       .pointRadius('size')
       .pointLabel(getPointLabel)
       .onPointClick((point) => {
-        if (point.layer === 'halo') {
-          return;
-        }
         emit('marker-click', point);
       })
       .onGlobeClick(() => {
@@ -512,8 +353,8 @@ function initGlobe() {
 
     globe.globeMaterial(new THREE.MeshPhongMaterial());
     configureRenderer();
-    configureControls();
     applyThemeToGlobe();
+    configureControls();
 
     isReady.value = true;
   } catch (error) {
@@ -525,10 +366,6 @@ function initGlobe() {
 watch([markerData, ringData], () => {
   updateLayers();
 }, { deep: true });
-
-watch(surfacePaths, () => {
-  updateSurfaceLines();
-});
 
 watch(() => props.autoRotate, (value) => {
   if (!globe) {
@@ -563,10 +400,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
-  if (currentMaterial) {
-    currentMaterial.dispose();
-    currentMaterial = null;
-  }
   disposeGlobeTextures();
   globe = null;
 });
@@ -585,7 +418,8 @@ onUnmounted(() => {
   inset: 15% 17% auto;
   height: 30%;
   border-radius: 50%;
-  background: var(--globe-ambient-glow);
+  background:
+    radial-gradient(circle at center, rgba(69, 106, 204, 0.12), rgba(31, 48, 101, 0.05) 48%, transparent 74%);
   filter: blur(24px);
   opacity: 0.72;
   pointer-events: none;
@@ -615,7 +449,7 @@ onUnmounted(() => {
   gap: 12px;
   color: var(--text-secondary);
   font-size: 14px;
-  text-shadow: var(--globe-loading-glow);
+  text-shadow: 0 0 24px rgba(91, 140, 255, 0.12);
 
   i {
     font-size: 32px;
