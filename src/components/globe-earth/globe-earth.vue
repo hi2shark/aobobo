@@ -121,24 +121,24 @@ let interactionSettleTimer = null;
 function getThemePalette(theme) {
   if (theme === 'light') {
     return {
-      ocean: '#dbe7ed',
-      oceanEmissive: '#edf4f7',
-      oceanSpecular: '#adc0cc',
-      land: '#e8eef1',
-      landEmissive: '#f2f6f8',
-      coastline: 'rgba(120, 142, 160, 0.34)',
-      atmosphere: '#adc7d7',
-      fog: '#edf3f6',
+      ocean: '#9eb8e8',
+      oceanEmissive: '#9eb8e8',
+      oceanSpecular: '#9eb8e8',
+      land: '#e8e4dc',
+      landEmissive: '#e8e4dc',
+      coastline: 'rgba(160, 150, 135, 0.35)',
+      atmosphere: '#b8cdf0',
+      fog: '#f4f8fc',
       ambient: '#ffffff',
-      keyLight: '#d8e6ed',
-      fillLight: '#f4f8fb',
-      rimLight: '#c1d1da',
-      markerOnline: '#0d9f69',
-      markerOnlineSoft: 'rgba(13, 159, 105, 0.26)',
-      markerOffline: '#7d8b97',
-      markerOfflineSoft: 'rgba(125, 139, 151, 0.22)',
-      onlineRing: '13, 159, 105',
-      globeGlow: 'rgba(132, 162, 181, 0.08)',
+      keyLight: '#ffffff',
+      fillLight: '#ffffff',
+      rimLight: '#ffffff',
+      markerOnline: '#0e9b66',
+      markerOnlineSoft: 'rgba(14, 155, 102, 0.26)',
+      markerOffline: '#7d8793',
+      markerOfflineSoft: 'rgba(125, 135, 147, 0.22)',
+      onlineRing: '14, 155, 102',
+      globeGlow: 'rgba(150, 185, 220, 0.1)',
     };
   }
 
@@ -499,31 +499,40 @@ function applyThemeToGlobe() {
   }
 
   const palette = getThemePalette(props.theme);
-  const material = globe.globeMaterial() || new THREE.MeshPhongMaterial();
+  const isLight = props.theme === 'light';
+  const material = isLight
+    ? new THREE.MeshBasicMaterial({ color: palette.ocean })
+    : (globe.globeMaterial() || new THREE.MeshPhongMaterial());
 
-  material.map = null;
-  material.color = new THREE.Color(palette.ocean);
-  material.emissive = new THREE.Color(palette.oceanEmissive);
-  material.emissiveIntensity = props.theme === 'light' ? 0.03 : 0.08;
-  material.shininess = props.theme === 'light' ? 0.18 : 0.04;
-  material.specular = new THREE.Color(palette.oceanSpecular);
-  material.bumpMap = null;
-  material.normalMap = null;
-  material.displacementMap = null;
-  material.needsUpdate = true;
+  if (!isLight) {
+    material.map = null;
+    material.color = new THREE.Color(palette.ocean);
+    material.emissive = new THREE.Color(palette.oceanEmissive);
+    material.emissiveIntensity = 0.08;
+    material.shininess = 0.04;
+    material.specular = new THREE.Color(palette.oceanSpecular);
+    material.bumpMap = null;
+    material.normalMap = null;
+    material.displacementMap = null;
+    material.needsUpdate = true;
+  }
+
+  const landMaterial = isLight
+    ? new THREE.MeshBasicMaterial({ color: palette.land })
+    : new THREE.MeshLambertMaterial({
+      color: palette.land,
+      emissive: new THREE.Color(palette.landEmissive),
+      emissiveIntensity: 0.065,
+    });
 
   globe
     .globeMaterial(material)
     .showAtmosphere(true)
     .atmosphereColor(palette.atmosphere)
-    .atmosphereAltitude(props.theme === 'light' ? 0.016 : 0.02)
+    .atmosphereAltitude(isLight ? 0.016 : 0.02)
     .polygonsData(worldLandData.features)
     .polygonGeoJsonGeometry('geometry')
-    .polygonCapMaterial(new THREE.MeshLambertMaterial({
-      color: palette.land,
-      emissive: new THREE.Color(palette.landEmissive),
-      emissiveIntensity: props.theme === 'light' ? 0.018 : 0.065,
-    }))
+    .polygonCapMaterial(landMaterial)
     .polygonSideColor(() => 'rgba(0,0,0,0)')
     .polygonStrokeColor(() => palette.coastline)
     .polygonAltitude(props.theme === 'light' ? 0.0014 : 0.0018)

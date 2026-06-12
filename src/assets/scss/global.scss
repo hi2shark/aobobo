@@ -153,12 +153,12 @@ html[data-theme='light'] {
   --button-subtle-border: rgba(148, 163, 184, 0.24);
   --button-subtle-hover-border: rgba(63, 114, 255, 0.26);
   --globe-stage-bg:
-    radial-gradient(circle at 34% 18%, rgba(165, 194, 208, 0.18), transparent 28%),
-    radial-gradient(circle at 66% 56%, rgba(196, 214, 223, 0.2), transparent 34%),
-    linear-gradient(180deg, #eff5f7 0%, #e2eaee 56%, #d7e1e7 100%);
+    radial-gradient(circle at 34% 18%, rgba(170, 204, 245, 0.28), transparent 32%),
+    radial-gradient(circle at 66% 56%, rgba(240, 230, 214, 0.24), transparent 36%),
+    linear-gradient(180deg, #f5f9ff 0%, #eaf2fb 52%, #e0ecfa 100%);
   --globe-stage-vignette:
-    radial-gradient(circle at 38% 46%, transparent 44%, rgba(205, 217, 224, 0.52) 82%, rgba(188, 202, 210, 0.8) 100%);
-  --globe-orb-glow: rgba(136, 165, 184, 0.08);
+    radial-gradient(circle at 38% 46%, transparent 44%, rgba(200, 220, 240, 0.38) 82%, rgba(180, 204, 228, 0.62) 100%);
+  --globe-orb-glow: rgba(150, 190, 230, 0.12);
   --panel-floating-bg:
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 248, 249, 0.96)),
     rgba(248, 251, 255, 0.88);
