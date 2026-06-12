@@ -76,7 +76,13 @@ import {
 } from 'vue';
 import * as THREE from 'three';
 import Globe from 'globe.gl';
-import worldLandData from '@/assets/globe/world-land.json';
+import createGlobeMaps from '@/utils/globe-textures';
+import { getLandPolygonsData } from '@/utils/globe-land-polygons';
+import {
+  createRimAtmosphereGroup,
+  disposeRimAtmosphereGroup,
+  updateRimAtmosphereGroup,
+} from '@/utils/globe-atmosphere';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
@@ -152,6 +158,11 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
+const GLOBE_TEXTURE_VERSION = 12;
+const globeTextureCache = { light: null, dark: null };
+let rimAtmosphereGroup = null;
+let landCapMaterial = null;
+let landSideMaterial = null;
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -165,47 +176,96 @@ function readThemeToken(name, fallback) {
 function getThemePalette(theme) {
   if (theme === 'light') {
     return {
-      ocean: '#9eb8e8',
-      oceanEmissive: '#9eb8e8',
-      oceanSpecular: '#9eb8e8',
+      ocean: '#b0c8ee',
+      oceanEmissive: '#c8daf5',
+      oceanSpecular: '#d8e8fb',
       land: '#e8e4dc',
-      landEmissive: '#e8e4dc',
-      coastline: 'rgba(160, 150, 135, 0.35)',
-      atmosphere: '#b8cdf0',
-      fog: '#f4f8fc',
+      landEmissive: '#f0ece4',
+      coastline: 'rgba(160, 150, 135, 0.32)',
+      landSide: 'rgba(120, 130, 145, 0.2)',
+      atmosphere: '#f4f8ff',
+      atmosphereAltitude: 0.021,
+      polygonAltitude: 0.003,
+      polygonCurvature: 2,
+      fog: '#eef4fc',
+      fogDensity: 0.00068,
       ambient: '#ffffff',
+      ambientIntensity: 0.86,
       keyLight: '#ffffff',
-      fillLight: '#ffffff',
+      keyLightIntensity: 0.28,
+      fillLight: '#e8f0fa',
+      fillLightIntensity: 0.08,
       rimLight: '#ffffff',
+      rimLightIntensity: 0.12,
       markerOnline: readThemeToken('--globe-marker-active', '#3f72ff'),
       markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(63, 114, 255, 0.22)'),
       markerOffline: readThemeToken('--globe-marker-muted', '#7d8793'),
       markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(125, 135, 147, 0.22)'),
       onlineRing: readThemeToken('--globe-ring-rgb', '63, 114, 255'),
-      globeGlow: 'rgba(150, 185, 220, 0.1)',
     };
   }
 
   return {
-    ocean: '#0e1a28',
-    oceanEmissive: '#102031',
-    oceanSpecular: '#29405a',
-    land: '#1d2733',
-    landEmissive: '#293340',
-    coastline: 'rgba(117, 144, 170, 0.30)',
-    atmosphere: '#5b7e99',
-    fog: '#040a10',
-    ambient: '#e8f0f7',
-    keyLight: '#bfd1de',
-    fillLight: '#4f667d',
-    rimLight: '#6d87a0',
+    ocean: '#080c12',
+    oceanEmissive: '#000000',
+    oceanSpecular: '#1a2434',
+    land: '#5a6678',
+    landEmissive: '#000000',
+    landSpecular: '#2a3444',
+    coastline: null,
+    landSide: '#0a1018',
+    atmosphere: '#4a9ef0',
+    atmosphereAltitude: 0.018,
+    polygonAltitude: 0.0014,
+    polygonCurvature: 1.0,
+    fog: '#080a0f',
+    fogDensity: 0.00028,
+    ambient: '#b8cce0',
+    ambientIntensity: 0.2,
+    keyLight: '#eef6ff',
+    keyLightIntensity: 0.68,
+    fillLight: '#0c1218',
+    fillLightIntensity: 0.05,
+    rimLight: '#6eb4f8',
+    rimLightIntensity: 0.08,
     markerOnline: readThemeToken('--globe-marker-active', '#66a9e8'),
     markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(102, 169, 232, 0.24)'),
     markerOffline: readThemeToken('--globe-marker-muted', '#5f6b78'),
     markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(95, 107, 120, 0.22)'),
     onlineRing: readThemeToken('--globe-ring-rgb', '102, 169, 232'),
-    globeGlow: 'rgba(112, 138, 160, 0.1)',
   };
+}
+
+function getGlobeMaps(theme) {
+  const cacheKey = `${theme}-v${GLOBE_TEXTURE_VERSION}`;
+  if (!globeTextureCache[cacheKey]) {
+    globeTextureCache[cacheKey] = createGlobeMaps(theme);
+  }
+  return globeTextureCache[cacheKey];
+}
+
+function syncRimAtmosphere(palette) {
+  const scene = globe?.scene?.();
+  if (!scene) {
+    return;
+  }
+
+  if (props.theme !== 'dark') {
+    if (rimAtmosphereGroup) {
+      scene.remove(rimAtmosphereGroup);
+      disposeRimAtmosphereGroup(rimAtmosphereGroup);
+      rimAtmosphereGroup = null;
+    }
+    return;
+  }
+
+  if (!rimAtmosphereGroup) {
+    rimAtmosphereGroup = createRimAtmosphereGroup(palette.atmosphere);
+    scene.add(rimAtmosphereGroup);
+    return;
+  }
+
+  updateRimAtmosphereGroup(rimAtmosphereGroup, palette.atmosphere);
 }
 
 function getMarkerDimensions(count) {
@@ -254,6 +314,10 @@ const markerData = computed(() => {
 });
 
 const ringData = computed(() => {
+  if (props.theme === 'dark') {
+    return [];
+  }
+
   const palette = getThemePalette(props.theme);
 
   return markerData.value
@@ -316,34 +380,37 @@ function configureRenderer() {
 
   const { devicePixelRatio = 1 } = window;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.toneMapping = THREE.NoToneMapping;
 }
 
 function configureSceneAndLights() {
   const palette = getThemePalette(props.theme);
   const scene = globe?.scene?.();
   if (scene) {
-    scene.fog = new THREE.FogExp2(palette.fog, props.theme === 'light' ? 0.00076 : 0.00046);
+    scene.fog = props.theme === 'dark'
+      ? null
+      : new THREE.FogExp2(palette.fog, palette.fogDensity);
   }
 
   const ambientLight = new THREE.AmbientLight(
     palette.ambient,
-    props.theme === 'light' ? 0.72 : 0.4,
+    palette.ambientIntensity,
   );
   const keyLight = new THREE.DirectionalLight(
     palette.keyLight,
-    props.theme === 'light' ? 0.4 : 0.22,
+    palette.keyLightIntensity,
   );
-  keyLight.position.set(-210, 145, 220);
+  keyLight.position.set(-280, 240, 160);
 
   const fillLight = new THREE.DirectionalLight(
     palette.fillLight,
-    props.theme === 'light' ? 0.11 : 0.12,
+    palette.fillLightIntensity,
   );
-  fillLight.position.set(180, -18, 165);
+  fillLight.position.set(150, -55, 125);
 
   const rimLight = new THREE.DirectionalLight(
     palette.rimLight,
-    props.theme === 'light' ? 0.09 : 0.14,
+    palette.rimLightIntensity,
   );
   rimLight.position.set(36, 30, -220);
 
@@ -611,6 +678,43 @@ function handleMarkerPointerUp(event) {
   selectMarker(marker);
 }
 
+function disposeLandMaterials() {
+  landCapMaterial?.dispose?.();
+  landSideMaterial?.dispose?.();
+  landCapMaterial = null;
+  landSideMaterial = null;
+}
+
+function createLandMaterials(palette, isLight) {
+  disposeLandMaterials();
+
+  landCapMaterial = isLight
+    ? new THREE.MeshLambertMaterial({
+      color: palette.land,
+      emissive: palette.landEmissive,
+      emissiveIntensity: 0.04,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    })
+    : new THREE.MeshPhongMaterial({
+      color: palette.land,
+      emissive: palette.landEmissive,
+      emissiveIntensity: 0,
+      shininess: 6,
+      specular: palette.landSpecular || '#2a3444',
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+
+  landSideMaterial = new THREE.MeshLambertMaterial({
+    color: palette.landSide,
+  });
+
+  return landCapMaterial;
+}
+
 function applyThemeToGlobe() {
   if (!globe) {
     return;
@@ -618,42 +722,52 @@ function applyThemeToGlobe() {
 
   const palette = getThemePalette(props.theme);
   const isLight = props.theme === 'light';
-  const material = isLight
-    ? new THREE.MeshBasicMaterial({ color: palette.ocean })
-    : new THREE.MeshPhongMaterial({
-      color: palette.ocean,
+  const { colorMap } = getGlobeMaps(props.theme);
+  const renderer = globe?.renderer?.();
+  const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || 16;
+  colorMap.anisotropy = maxAnisotropy;
+
+  const oceanMaterial = isLight
+    ? new THREE.MeshPhongMaterial({
+      map: colorMap,
+      color: '#ffffff',
       emissive: palette.oceanEmissive,
-      emissiveIntensity: 0.08,
-      shininess: 0.04,
+      emissiveIntensity: 0.04,
+      shininess: 2,
+      specular: palette.oceanSpecular,
+    })
+    : new THREE.MeshPhongMaterial({
+      map: colorMap,
+      color: '#ffffff',
+      emissive: palette.oceanEmissive,
+      emissiveIntensity: 0,
+      shininess: 4,
       specular: palette.oceanSpecular,
     });
 
-  const landMaterial = isLight
-    ? new THREE.MeshBasicMaterial({ color: palette.land })
-    : new THREE.MeshLambertMaterial({
-      color: palette.land,
-      emissive: palette.landEmissive,
-      emissiveIntensity: 0.065,
-    });
+  const capMaterial = createLandMaterials(palette, isLight);
+  const landAltitude = palette.polygonAltitude ?? (isLight ? 0.003 : 0.0014);
+  const landCurvature = palette.polygonCurvature ?? (isLight ? 2 : 1.0);
 
   globe
-    .globeMaterial(material)
-    .showAtmosphere(true)
+    .globeMaterial(oceanMaterial)
+    .showAtmosphere(isLight)
+    .showGraticules(false)
+    .globeCurvatureResolution(4)
     .atmosphereColor(palette.atmosphere)
-    .atmosphereAltitude(isLight ? 0.016 : 0.02)
-    .polygonsData(worldLandData.features)
-    .polygonGeoJsonGeometry('geometry')
-    .polygonCapMaterial(landMaterial)
-    .polygonSideColor(() => 'rgba(0,0,0,0)')
-    .polygonStrokeColor(() => palette.coastline)
-    .polygonAltitude(props.theme === 'light' ? 0.0014 : 0.0018)
-    .polygonCapCurvatureResolution(2)
-    .polygonsTransitionDuration(0)
-    .polygonLabel('')
-    .onPolygonClick(() => {
-      clearSelection();
-    });
+    .atmosphereAltitude(isLight ? palette.atmosphereAltitude : 0)
+    .pathsData([])
+    .polygonsData(getLandPolygonsData())
+    .polygonGeoJsonGeometry((d) => d.geometry)
+    .polygonCapMaterial(() => capMaterial)
+    .polygonSideMaterial(() => landSideMaterial)
+    .polygonStrokeColor(null)
+    .polygonAltitude(landAltitude)
+    .polygonCapCurvatureResolution(landCurvature)
+    .polygonsTransitionDuration(0);
 
+  syncRimAtmosphere(palette);
+  configureRenderer();
   configureSceneAndLights();
 }
 
@@ -934,6 +1048,13 @@ onUnmounted(() => {
     globeContainer.value.removeEventListener('pointerup', markerPointerUpHandler, true);
   }
 
+  if (rimAtmosphereGroup) {
+    globe?.scene?.()?.remove(rimAtmosphereGroup);
+    disposeRimAtmosphereGroup(rimAtmosphereGroup);
+    rimAtmosphereGroup = null;
+  }
+
+  disposeLandMaterials();
   globe = null;
 });
 </script>
@@ -957,6 +1078,29 @@ onUnmounted(() => {
   opacity: 0.88;
   pointer-events: none;
   z-index: 0;
+}
+
+.globe-earth.theme-dark::before {
+  inset: -24%;
+  height: 148%;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(74, 158, 240, 0.07) 0%,
+      rgba(74, 158, 240, 0.04) 28%,
+      rgba(74, 158, 240, 0.015) 48%,
+      rgba(74, 158, 240, 0.006) 62%,
+      transparent 82%
+    );
+  filter: blur(110px);
+  opacity: 0.75;
+}
+
+.globe-earth.theme-light::before {
+  inset: 16% 18% auto;
+  height: 30%;
+  filter: blur(36px);
+  opacity: 0.72;
 }
 
 .globe-container {
