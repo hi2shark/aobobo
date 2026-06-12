@@ -12,6 +12,20 @@
   >
     <div ref="globeContainer" class="globe-container" />
 
+    <div
+      v-if="hoveredMarker && !isMobile"
+      ref="tooltipWrapper"
+      :class="[
+        'marker-tooltip',
+        tooltipState.placement,
+        { 'is-visible': tooltipState.visible },
+      ]"
+      :style="tooltipInlineStyle"
+    >
+      <div class="tooltip-title">{{ hoveredMarker.label }}</div>
+      <div class="tooltip-meta">{{ hoveredMarker.totalCount }} 台服务器</div>
+    </div>
+
     <transition name="globe-popup-fade">
       <div
         v-if="selectedMarker"
@@ -39,11 +53,11 @@
 
     <div v-if="!isReady" class="globe-loading">
       <template v-if="!initError">
-        <i class="ri-loader-4-line spin" />
+        <icon-loading class="spin empty-icon" />
         <span>加载地球中...</span>
       </template>
       <template v-else>
-        <i class="ri-earth-line" />
+        <icon-earth class="empty-icon" />
         <span>地球初始化失败，请刷新重试</span>
       </template>
     </div>
@@ -64,6 +78,8 @@ import * as THREE from 'three';
 import Globe from 'globe.gl';
 import worldLandData from '@/assets/globe/world-land.json';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
+import IconLoading from '@/components/icons/icon-loading.vue';
+import IconEarth from '@/components/icons/icon-earth.vue';
 
 const INITIAL_POINT_OF_VIEW = {
   lat: 24.5,
@@ -74,7 +90,6 @@ const INITIAL_POINT_OF_VIEW = {
 const MOBILE_BREAKPOINT = 768;
 const POPUP_PADDING = 16;
 const POPUP_OFFSET = 20;
-const POPUP_ALTITUDE = 0.034;
 const MARKER_HTML_TRANSITION_DURATION = 320;
 const INTERACTION_SETTLE_DELAY = 120;
 
@@ -102,6 +117,7 @@ const emit = defineEmits(['marker-click']);
 const rootRef = ref(null);
 const globeContainer = ref(null);
 const popupWrapper = ref(null);
+const tooltipWrapper = ref(null);
 const isReady = ref(false);
 const initError = ref(false);
 const isMobile = ref(false);
@@ -118,11 +134,23 @@ const popupState = reactive({
   placement: 'top',
 });
 
+const tooltipState = reactive({
+  left: 0,
+  top: 0,
+  visible: false,
+  placement: 'top',
+});
+
 let globe = null;
-let markerElementCache = new Map();
 let controlsStartHandler = null;
 let controlsEndHandler = null;
 let zoomHandler = null;
+let markerClickHandler = null;
+let markerPointerDownHandler = null;
+let markerPointerUpHandler = null;
+let ignoreNextGlobeClick = false;
+let tapHandled = false;
+let pendingTap = null;
 let interactionSettleTimer = null;
 
 function getThemePalette(theme) {
@@ -182,16 +210,6 @@ function getMarkerDimensions(count) {
     return { visualSize: 20, hitSize: 40, ringMaxR: 1.55 };
   }
   return { visualSize: 16, hitSize: 36, ringMaxR: 1.2 };
-}
-
-function getMarkerVector(lat, lng) {
-  const latitude = THREE.MathUtils.degToRad(lat);
-  const longitude = THREE.MathUtils.degToRad(lng);
-  const x = Math.cos(latitude) * Math.sin(longitude);
-  const y = Math.sin(latitude);
-  const z = Math.cos(latitude) * Math.cos(longitude);
-
-  return new THREE.Vector3(x, y, z).normalize();
 }
 
 const markerData = computed(() => {
@@ -269,6 +287,18 @@ const popupInlineStyle = computed(() => {
   };
 });
 
+const hoveredMarker = computed(() => {
+  if (!hoveredMarkerKey.value) {
+    return null;
+  }
+  return markerData.value.find((marker) => marker.key === hoveredMarkerKey.value) || null;
+});
+
+const tooltipInlineStyle = computed(() => ({
+  left: `${tooltipState.left}px`,
+  top: `${tooltipState.top}px`,
+}));
+
 function configureRenderer() {
   const renderer = globe?.renderer?.();
   if (!renderer) {
@@ -322,7 +352,16 @@ function clearHoveredMarker(key) {
 }
 
 function syncMarkerElementState() {
-  markerElementCache.forEach((element, key) => {
+  if (!globeContainer.value) {
+    return;
+  }
+
+  globeContainer.value.querySelectorAll('.globe-marker').forEach((element) => {
+    const marker = element.__data__;
+    const key = marker?.key || element.dataset.key;
+    if (marker?.key && element.dataset.key !== marker.key) {
+      element.dataset.key = marker.key;
+    }
     element.classList.toggle('is-hovered', hoveredMarkerKey.value === key);
     element.classList.toggle('is-selected', selectedMarker.value?.key === key);
     element.setAttribute('aria-pressed', selectedMarker.value?.key === key ? 'true' : 'false');
@@ -393,25 +432,6 @@ function clearSelection(shouldEmit = true) {
   }
 }
 
-function isMarkerFacingCamera(marker) {
-  if (!globe || !marker) {
-    return false;
-  }
-
-  const camera = globe.camera?.();
-  if (!camera?.position) {
-    return true;
-  }
-
-  const cameraVector = camera.position.clone().normalize();
-  const coords = globe.getCoords?.(marker.lat, marker.lng, marker.altitude);
-  const markerVector = coords
-    ? new THREE.Vector3(coords.x, coords.y, coords.z).normalize()
-    : getMarkerVector(marker.lat, marker.lng);
-
-  return markerVector.dot(cameraVector) > 0.08;
-}
-
 function updatePopupPosition() {
   if (!selectedMarker.value) {
     popupState.visible = false;
@@ -424,32 +444,43 @@ function updatePopupPosition() {
     return;
   }
 
-  if (!globe || !popupWrapper.value || !rootRef.value) {
-    return;
-  }
-
-  if (!isMarkerFacingCamera(selectedMarker.value)) {
-    popupState.visible = false;
-    return;
-  }
-
-  const coords = globe.getScreenCoords?.(
-    selectedMarker.value.lat,
-    selectedMarker.value.lng,
-    selectedMarker.value.altitude + POPUP_ALTITUDE,
-  );
-  if (!coords) {
-    popupState.visible = false;
+  if (!popupWrapper.value || !rootRef.value) {
     return;
   }
 
   const rootRect = rootRef.value.getBoundingClientRect();
   const popupRect = popupWrapper.value.getBoundingClientRect();
-  const markerX = coords.x - rootRect.left;
-  const markerY = coords.y - rootRect.top;
 
-  let left = markerX - (popupRect.width / 2);
-  let top = markerY - popupRect.height - POPUP_OFFSET;
+  const left = (rootRect.width - popupRect.width) / 2;
+  const top = (rootRect.height - popupRect.height) / 2;
+
+  const maxLeft = rootRect.width - popupRect.width - POPUP_PADDING;
+  const maxTop = rootRect.height - popupRect.height - POPUP_PADDING;
+  popupState.left = Math.max(POPUP_PADDING, Math.min(left, maxLeft));
+  popupState.top = Math.max(POPUP_PADDING, Math.min(top, maxTop));
+  popupState.placement = 'top';
+  popupState.visible = true;
+}
+
+function updateTooltipPosition() {
+  if (!hoveredMarker.value || isMobile.value) {
+    tooltipState.visible = false;
+    return;
+  }
+
+  const element = globeContainer.value?.querySelector(`.globe-marker[data-key="${hoveredMarker.value.key}"]`);
+  if (!element || !tooltipWrapper.value || !rootRef.value) {
+    return;
+  }
+
+  const rootRect = rootRef.value.getBoundingClientRect();
+  const tooltipRect = tooltipWrapper.value.getBoundingClientRect();
+  const markerRect = element.getBoundingClientRect();
+  const markerX = markerRect.left + (markerRect.width / 2) - rootRect.left;
+  const markerY = markerRect.top + (markerRect.height / 2) - rootRect.top;
+
+  let left = markerX - (tooltipRect.width / 2);
+  let top = markerY - tooltipRect.height - POPUP_OFFSET;
   let placement = 'top';
 
   if (top < POPUP_PADDING) {
@@ -457,13 +488,15 @@ function updatePopupPosition() {
     top = markerY + POPUP_OFFSET;
   }
 
-  left = Math.max(POPUP_PADDING, Math.min(left, rootRect.width - popupRect.width - POPUP_PADDING));
-  top = Math.max(POPUP_PADDING, Math.min(top, rootRect.height - popupRect.height - POPUP_PADDING));
+  const maxLeft = rootRect.width - tooltipRect.width - POPUP_PADDING;
+  const maxTop = rootRect.height - tooltipRect.height - POPUP_PADDING;
+  left = Math.max(POPUP_PADDING, Math.min(left, maxLeft));
+  top = Math.max(POPUP_PADDING, Math.min(top, maxTop));
 
-  popupState.left = left;
-  popupState.top = top;
-  popupState.placement = placement;
-  popupState.visible = true;
+  tooltipState.left = left;
+  tooltipState.top = top;
+  tooltipState.placement = placement;
+  tooltipState.visible = true;
 }
 
 function suspendMarkerAnimations() {
@@ -488,6 +521,7 @@ function scheduleMarkerAnimationResume() {
 }
 
 function selectMarker(marker) {
+  ignoreNextGlobeClick = true;
   selectedMarker.value = marker;
   isPopupHovered.value = false;
   emit('marker-click', marker);
@@ -495,9 +529,77 @@ function selectMarker(marker) {
   syncMarkerElementState();
   applyAutoRotateState();
 
+  window.setTimeout(() => {
+    ignoreNextGlobeClick = false;
+  }, 80);
+
   nextTick(() => {
     updatePopupPosition();
+    window.requestAnimationFrame(() => {
+      if (selectedMarker.value && !popupState.visible) {
+        updatePopupPosition();
+      }
+    });
   });
+}
+
+function resolveMarkerFromElement(element) {
+  return element?.__data__
+    || markerData.value.find((m) => m.key === element?.dataset?.key);
+}
+
+function handleMarkerClick(event) {
+  if (tapHandled) {
+    return;
+  }
+
+  const markerElement = event.target.closest('.globe-marker');
+  const currentMarker = resolveMarkerFromElement(markerElement);
+  if (!currentMarker) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  selectMarker(currentMarker);
+}
+
+function handleMarkerPointerDown(event) {
+  const markerElement = event.target.closest('.globe-marker');
+  if (!markerElement) {
+    pendingTap = null;
+    return;
+  }
+
+  pendingTap = {
+    x: event.clientX,
+    y: event.clientY,
+    marker: resolveMarkerFromElement(markerElement),
+  };
+}
+
+function handleMarkerPointerUp(event) {
+  if (!pendingTap?.marker) {
+    return;
+  }
+
+  const dx = event.clientX - pendingTap.x;
+  const dy = event.clientY - pendingTap.y;
+  const { marker } = pendingTap;
+  pendingTap = null;
+
+  if (Math.sqrt(dx * dx + dy * dy) > 8) {
+    return;
+  }
+
+  tapHandled = true;
+  window.setTimeout(() => {
+    tapHandled = false;
+  }, 50);
+
+  event.preventDefault();
+  event.stopPropagation();
+  selectMarker(marker);
 }
 
 function applyThemeToGlobe() {
@@ -573,24 +675,14 @@ function createMarkerElement(marker) {
   element.addEventListener('pointerleave', () => clearHoveredMarker(marker.key));
   element.addEventListener('focus', () => setHoveredMarker(marker.key));
   element.addEventListener('blur', () => clearHoveredMarker(marker.key));
-  element.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    selectMarker(marker);
-  });
 
-  markerElementCache.set(marker.key, element);
   syncMarkerElementState();
   return element;
 }
 
-function updateLayers(resetMarkerCache = false) {
+function updateLayers() {
   if (!globe) {
     return;
-  }
-
-  if (resetMarkerCache) {
-    markerElementCache = new Map();
   }
 
   globe
@@ -659,6 +751,7 @@ function handleResize() {
 
   nextTick(() => {
     updatePopupPosition();
+    updateTooltipPosition();
   });
 }
 
@@ -677,6 +770,7 @@ function initGlobe() {
         scheduleMarkerAnimationResume();
       }
       updatePopupPosition();
+      updateTooltipPosition();
     };
 
     globe
@@ -694,6 +788,10 @@ function initGlobe() {
         element.classList.toggle('is-hidden', !visible);
       })
       .onGlobeClick(() => {
+        if (ignoreNextGlobeClick) {
+          ignoreNextGlobeClick = false;
+          return;
+        }
         clearSelection();
       })
       .onZoom(zoomHandler)
@@ -705,10 +803,17 @@ function initGlobe() {
       .ringPropagationSpeed('propagationSpeed')
       .ringRepeatPeriod('repeatPeriod');
 
+    markerClickHandler = (event) => handleMarkerClick(event);
+    markerPointerDownHandler = (event) => handleMarkerPointerDown(event);
+    markerPointerUpHandler = (event) => handleMarkerPointerUp(event);
+    globeContainer.value.addEventListener('click', markerClickHandler, true);
+    globeContainer.value.addEventListener('pointerdown', markerPointerDownHandler, true);
+    globeContainer.value.addEventListener('pointerup', markerPointerUpHandler, true);
+
     globe.globeMaterial(new THREE.MeshPhongMaterial());
     configureRenderer();
     applyThemeToGlobe();
-    updateLayers(true);
+    updateLayers();
     configureControls();
 
     isReady.value = true;
@@ -732,7 +837,7 @@ watch(markerData, (nextMarkers) => {
     }
   }
 
-  updateLayers(true);
+  updateLayers();
   nextTick(() => {
     updatePopupPosition();
   });
@@ -752,7 +857,7 @@ watch(() => props.rotateSpeed, (value) => {
 
 watch(() => props.theme, () => {
   applyThemeToGlobe();
-  updateLayers(true);
+  updateLayers();
   nextTick(() => {
     updatePopupPosition();
   });
@@ -772,9 +877,17 @@ watch(
     applyAutoRotateState();
     nextTick(() => {
       updatePopupPosition();
+      updateTooltipPosition();
     });
   },
 );
+
+watch(hoveredMarker, () => {
+  tooltipState.visible = false;
+  nextTick(() => {
+    updateTooltipPosition();
+  });
+});
 
 defineExpose({
   focusLocation,
@@ -802,8 +915,16 @@ onUnmounted(() => {
   if (zoomHandler) {
     globe?.onZoom?.(() => {});
   }
+  if (markerClickHandler && globeContainer.value) {
+    globeContainer.value.removeEventListener('click', markerClickHandler, true);
+  }
+  if (markerPointerDownHandler && globeContainer.value) {
+    globeContainer.value.removeEventListener('pointerdown', markerPointerDownHandler, true);
+  }
+  if (markerPointerUpHandler && globeContainer.value) {
+    globeContainer.value.removeEventListener('pointerup', markerPointerUpHandler, true);
+  }
 
-  markerElementCache.clear();
   globe = null;
 });
 </script>
@@ -872,8 +993,9 @@ onUnmounted(() => {
   font-size: 14px;
   text-shadow: 0 0 24px rgba(15, 23, 42, 0.08);
 
-  i {
-    font-size: 32px;
+  .empty-icon {
+    width: 32px;
+    height: 32px;
     color: var(--empty-icon-color-soft);
   }
 
@@ -895,6 +1017,42 @@ onUnmounted(() => {
   transform: translateY(6px);
 }
 
+.marker-tooltip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--globe-popup-bg);
+  border: 1px solid var(--globe-popup-border);
+  box-shadow: var(--globe-popup-shadow);
+  backdrop-filter: blur(12px) saturate(140%);
+  color: var(--text-primary);
+  max-width: 240px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+
+  &.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .tooltip-title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 2px;
+  }
+
+  .tooltip-meta {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
 :deep(.globe-marker) {
   width: var(--marker-hit-size);
   height: var(--marker-hit-size);
@@ -907,6 +1065,8 @@ onUnmounted(() => {
   background: transparent;
   cursor: pointer;
   outline: none;
+  pointer-events: auto;
+  touch-action: none;
   transition:
     transform 0.18s ease,
     opacity 0.18s ease;

@@ -49,7 +49,12 @@
           v-for="server in servers"
           :key="server.ID"
           :class="{ offline: server.online !== 1 }"
+          tabindex="0"
           @click="goDetail(server)"
+          @mouseenter="onRowEnter(server)"
+          @mouseleave="onRowLeave"
+          @focus="onRowEnter(server)"
+          @blur="onRowLeave"
         >
           <td class="col-status">
             <span :class="['status-badge', server.online === 1 ? 'online' : 'offline']">
@@ -137,10 +142,20 @@ defineProps({
   },
 });
 
+const emit = defineEmits(['hover-server']);
+
 const router = useRouter();
 
 function goDetail(server) {
   router.push(`/server/${server.ID}`);
+}
+
+function onRowEnter(server) {
+  emit('hover-server', server);
+}
+
+function onRowLeave() {
+  emit('hover-server', null);
 }
 
 function getRegion(server) {
@@ -263,6 +278,7 @@ function getLoadColor(val) {
     background: var(--section-header-bg);
     position: sticky;
     top: 0;
+    z-index: 2;
     font-size: 12px;
     text-transform: uppercase;
     box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);

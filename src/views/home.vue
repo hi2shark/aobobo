@@ -23,15 +23,16 @@
     <div class="main-content">
       <div class="globe-section">
         <div v-if="!store.state.init" class="empty-state">
-          <i class="ri-loader-4-line spin" />
+          <icon-loading class="spin empty-icon" />
           <span>正在连接哪吒探针...</span>
         </div>
         <div v-else-if="serverList.length === 0" class="empty-state">
-          <i class="ri-earth-line" />
+          <icon-earth class="empty-icon" />
           <span>暂无服务器数据</span>
         </div>
         <globe-earth
           v-else
+          ref="globeRef"
           :locations="serverLocations"
           :theme="resolvedTheme"
         />
@@ -64,9 +65,9 @@
             </button>
           </div>
         </div>
-        <server-table :servers="filteredServers" />
+        <server-table :servers="filteredServers" @hover-server="handleServerHover" />
         <div v-if="filteredServers.length === 0" class="empty-list">
-          <i class="ri-inbox-line" />
+          <icon-inbox class="empty-icon" />
           <span>没有符合条件的服务器</span>
         </div>
       </div>
@@ -79,15 +80,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import {
+  ref,
+  computed,
+  onUnmounted,
+} from 'vue';
 import { useStore } from 'vuex';
 import { alias2code, locationCode2Info, clusterLocations } from '@/utils/world-map';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
+import IconLoading from '@/components/icons/icon-loading.vue';
+import IconInbox from '@/components/icons/icon-inbox.vue';
+import IconEarth from '@/components/icons/icon-earth.vue';
+
+const SERVER_HOVER_FOCUS_DELAY = 3000;
 
 const store = useStore();
 const filterOnline = ref('');
+const globeRef = ref(null);
+let serverHoverTimer = null;
 
 const serverList = computed(() => store.state.serverList);
 const serverCount = computed(() => store.state.serverCount);
@@ -137,6 +149,41 @@ const serverLocations = computed(() => {
     }
   });
   return clusterLocations(locations);
+});
+
+function clearServerHoverTimer() {
+  if (serverHoverTimer) {
+    window.clearTimeout(serverHoverTimer);
+    serverHoverTimer = null;
+  }
+}
+
+function handleServerHover(server) {
+  clearServerHoverTimer();
+
+  if (!server || !globeRef.value) {
+    return;
+  }
+
+  serverHoverTimer = window.setTimeout(() => {
+    serverHoverTimer = null;
+
+    const aliasCode = server?.PublicNote?.customData?.location
+      || server?.Host?.CountryCode?.toUpperCase();
+    const code = alias2code(aliasCode) || aliasCode;
+    if (!code) {
+      return;
+    }
+
+    const location = serverLocations.value.find((loc) => loc.codes?.includes(code));
+    if (location) {
+      globeRef.value.focusLocation(location);
+    }
+  }, SERVER_HOVER_FOCUS_DELAY);
+}
+
+onUnmounted(() => {
+  clearServerHoverTimer();
 });
 </script>
 
@@ -339,8 +386,9 @@ const serverLocations = computed(() => {
   font-size: 14px;
   text-shadow: 0 0 24px rgba(91, 140, 255, 0.1);
 
-  i {
-    font-size: 40px;
+  .empty-icon {
+    width: 40px;
+    height: 40px;
     color: var(--empty-icon-color);
   }
 
@@ -359,8 +407,9 @@ const serverLocations = computed(() => {
   color: var(--text-muted);
   font-size: 13px;
 
-  i {
-    font-size: 32px;
+  .empty-icon {
+    width: 32px;
+    height: 32px;
     color: var(--empty-icon-color-soft);
   }
 }

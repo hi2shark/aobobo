@@ -1,5 +1,5 @@
 <template>
-  <div :class="['location-popup', { mobile, below: placement === 'bottom' }]" @click.stop>
+  <div :class="['location-popup', { mobile }]" @click.stop>
     <div class="popup-header">
       <div class="title-group">
         <h3>{{ location.label }}</h3>
@@ -122,36 +122,11 @@ function formatSummary(server) {
   backdrop-filter: blur(18px) saturate(145%);
   color: var(--text-primary);
 
-  &::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    width: 14px;
-    height: 14px;
-    background: var(--globe-popup-bg);
-    border-right: 1px solid var(--globe-popup-border);
-    border-bottom: 1px solid var(--globe-popup-border);
-    transform: translateX(-50%) rotate(45deg);
-  }
-
-  &:not(.below)::after {
-    bottom: -8px;
-  }
-
-  &.below::after {
-    top: -8px;
-    transform: translateX(-50%) rotate(225deg);
-  }
-
   &.mobile {
     width: 100%;
     max-height: min(56vh, 480px);
     border-radius: 20px 20px 0 0;
     padding: 18px 16px 16px;
-
-    &::after {
-      display: none;
-    }
   }
 }
 
