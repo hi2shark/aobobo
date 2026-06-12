@@ -153,6 +153,15 @@ let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
 
+function readThemeToken(name, fallback) {
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
 function getThemePalette(theme) {
   if (theme === 'light') {
     return {
@@ -168,33 +177,33 @@ function getThemePalette(theme) {
       keyLight: '#ffffff',
       fillLight: '#ffffff',
       rimLight: '#ffffff',
-      markerOnline: '#18CC59',
-      markerOnlineSoft: 'rgba(22, 163, 74, 0.32)',
-      markerOffline: '#7d8793',
-      markerOfflineSoft: 'rgba(125, 135, 147, 0.26)',
-      onlineRing: '22, 163, 74',
+      markerOnline: readThemeToken('--globe-marker-active', '#3f72ff'),
+      markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(63, 114, 255, 0.22)'),
+      markerOffline: readThemeToken('--globe-marker-muted', '#7d8793'),
+      markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(125, 135, 147, 0.22)'),
+      onlineRing: readThemeToken('--globe-ring-rgb', '63, 114, 255'),
       globeGlow: 'rgba(150, 185, 220, 0.1)',
     };
   }
 
   return {
-    ocean: '#131922',
-    oceanEmissive: '#0d1724',
-    oceanSpecular: '#1c2d3d',
-    land: '#2f2f33',
-    landEmissive: '#3a3a40',
-    coastline: 'rgba(106, 131, 152, 0.34)',
-    atmosphere: '#607d97',
-    fog: '#01050a',
-    ambient: '#edf5fb',
+    ocean: '#0e1a28',
+    oceanEmissive: '#102031',
+    oceanSpecular: '#29405a',
+    land: '#1d2733',
+    landEmissive: '#293340',
+    coastline: 'rgba(117, 144, 170, 0.30)',
+    atmosphere: '#5b7e99',
+    fog: '#040a10',
+    ambient: '#e8f0f7',
     keyLight: '#bfd1de',
-    fillLight: '#52697a',
-    rimLight: '#708697',
-    markerOnline: '#facc15',
-    markerOnlineSoft: 'rgba(250, 204, 21, 0.22)',
-    markerOffline: '#666d73',
-    markerOfflineSoft: 'rgba(102, 109, 115, 0.2)',
-    onlineRing: '250, 204, 21',
+    fillLight: '#4f667d',
+    rimLight: '#6d87a0',
+    markerOnline: readThemeToken('--globe-marker-active', '#66a9e8'),
+    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(102, 169, 232, 0.24)'),
+    markerOffline: readThemeToken('--globe-marker-muted', '#5f6b78'),
+    markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(95, 107, 120, 0.22)'),
+    onlineRing: readThemeToken('--globe-ring-rgb', '102, 169, 232'),
     globeGlow: 'rgba(112, 138, 160, 0.1)',
   };
 }

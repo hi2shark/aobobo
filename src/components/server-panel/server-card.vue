@@ -187,10 +187,10 @@ function formatFloat(val) {
 }
 
 function getLoadColor(val) {
-  if (val === undefined || val === null) return '#64748b';
-  if (val < 50) return '#22c55e';
-  if (val < 80) return '#f59e0b';
-  return '#ef4444';
+  if (val === undefined || val === null) return 'var(--text-muted)';
+  if (val < 50) return 'var(--metric-good)';
+  if (val < 80) return 'var(--metric-warn)';
+  return 'var(--metric-danger)';
 }
 </script>
 
@@ -246,11 +246,11 @@ function getLoadColor(val) {
 
       &.online {
         background: var(--accent-success);
-        box-shadow: 0 0 10px rgba(33, 208, 122, 0.65);
+        box-shadow: var(--status-online-glow);
       }
       &.offline {
         background: var(--accent-danger);
-        box-shadow: 0 0 8px rgba(255, 107, 122, 0.3);
+        box-shadow: var(--status-offline-glow);
       }
     }
   }

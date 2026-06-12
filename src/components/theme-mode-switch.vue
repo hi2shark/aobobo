@@ -92,10 +92,10 @@ function setMode(mode) {
   }
 
   &.active {
-    color: #f8fbff;
-    background: linear-gradient(180deg, rgba(91, 140, 255, 0.98), rgba(63, 114, 255, 0.92));
-    border-color: rgba(255, 255, 255, 0.18);
-    box-shadow: 0 10px 24px rgba(63, 114, 255, 0.24);
+    color: var(--text-on-accent);
+    background: var(--button-active-bg);
+    border-color: var(--button-active-border);
+    box-shadow: var(--button-active-shadow);
   }
 }
 

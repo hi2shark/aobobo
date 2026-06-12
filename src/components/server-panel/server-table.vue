@@ -245,10 +245,10 @@ function formatFloat(val) {
 }
 
 function getLoadColor(val) {
-  if (val === undefined || val === null) return '#64748b';
-  if (val < 50) return '#22c55e';
-  if (val < 80) return '#f59e0b';
-  return '#ef4444';
+  if (val === undefined || val === null) return 'var(--text-muted)';
+  if (val < 50) return 'var(--metric-good)';
+  if (val < 80) return 'var(--metric-warn)';
+  return 'var(--metric-danger)';
 }
 </script>
 
@@ -286,16 +286,20 @@ function getLoadColor(val) {
 
   tbody tr {
     cursor: pointer;
-    transition: background var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      box-shadow var(--transition-fast);
     background: var(--table-row-bg);
 
     &:nth-child(even) {
       background: var(--table-row-alt-bg);
     }
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       background: var(--table-row-hover-bg);
       box-shadow: inset 3px 0 0 var(--accent-primary);
+      outline: none;
     }
 
     &.offline {

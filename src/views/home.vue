@@ -260,11 +260,11 @@ onUnmounted(() => {
 
     &.online {
       background: var(--accent-success);
-      box-shadow: 0 0 10px rgba(33, 208, 122, 0.7);
+      box-shadow: var(--status-online-glow);
     }
     &.offline {
       background: var(--accent-danger);
-      box-shadow: 0 0 8px rgba(255, 107, 122, 0.45);
+      box-shadow: var(--status-offline-glow);
     }
   }
 
@@ -349,10 +349,10 @@ onUnmounted(() => {
       transition: all var(--transition-fast);
 
       &:hover, &.active {
-        background: linear-gradient(180deg, rgba(91, 140, 255, 0.96), rgba(63, 114, 255, 0.9));
-        border-color: rgba(255, 255, 255, 0.12);
-        box-shadow: 0 10px 22px rgba(63, 114, 255, 0.2);
-        color: #fff;
+        background: var(--button-active-bg);
+        border-color: var(--button-active-border);
+        box-shadow: var(--button-active-shadow);
+        color: var(--text-on-accent);
       }
     }
   }
@@ -384,7 +384,7 @@ onUnmounted(() => {
   gap: 12px;
   color: var(--text-secondary);
   font-size: 14px;
-  text-shadow: 0 0 24px rgba(91, 140, 255, 0.1);
+  text-shadow: 0 0 24px rgba(var(--accent-primary-rgb), 0.12);
 
   .empty-icon {
     width: 40px;
