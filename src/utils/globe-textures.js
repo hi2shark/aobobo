@@ -20,7 +20,7 @@ const THEME_COLORS = {
     oceanMid: '#071a2c',
     oceanEdge: '#0b2438',
     oceanLimb: '#0d2c40',
-    land: '#626d7c',
+    land: '#98a4b4',
   },
 };
 

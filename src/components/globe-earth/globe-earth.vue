@@ -159,7 +159,7 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
-const GLOBE_TEXTURE_VERSION = 18;
+const GLOBE_TEXTURE_VERSION = 20;
 const BLOOM_CONFIG = {
   strength: 0.28,
   radius: 0.42,
@@ -168,6 +168,7 @@ const BLOOM_CONFIG = {
 const globeTextureCache = { light: null, dark: null };
 let rimAtmosphereGroup = null;
 let bloomPass = null;
+let cameraKeyLight = null;
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -218,7 +219,7 @@ function getThemePalette(theme) {
     landEmissive: '#2a3038',
     landEmissiveIntensity: 0,
     landSpecular: '#707a88',
-    coastline: 'rgba(130, 150, 172, 0.20)',
+    coastline: 'rgba(130, 150, 172, 0.28)',
     landSide: '#2f3a46',
     atmosphere: '#4d9be8',
     atmosphereAltitude: 0.018,
@@ -227,9 +228,9 @@ function getThemePalette(theme) {
     fog: '#080a0f',
     fogDensity: 0.00028,
     ambient: '#d8e4f0',
-    ambientIntensity: 0.45,
+    ambientIntensity: 0.60,
     keyLight: '#f0f6ff',
-    keyLightIntensity: 1.0,
+    keyLightIntensity: 0.80,
     fillLight: '#1e2834',
     fillLightIntensity: 0.25,
     rimLight: '#7ec0f8',
@@ -459,11 +460,6 @@ function configureSceneAndLights() {
     palette.ambient,
     palette.ambientIntensity,
   );
-  const keyLight = new THREE.DirectionalLight(
-    palette.keyLight,
-    palette.keyLightIntensity,
-  );
-  keyLight.position.set(220, 180, 160);
 
   const fillLight = new THREE.DirectionalLight(
     palette.fillLight,
@@ -477,7 +473,21 @@ function configureSceneAndLights() {
   );
   rimLight.position.set(36, 30, -220);
 
-  globe.lights([ambientLight, keyLight, fillLight, rimLight]);
+  globe.lights([ambientLight, fillLight, rimLight]);
+
+  const camera = globe?.camera?.();
+  if (camera) {
+    if (cameraKeyLight) {
+      camera.remove(cameraKeyLight);
+      cameraKeyLight.dispose?.();
+    }
+    cameraKeyLight = new THREE.DirectionalLight(
+      palette.keyLight,
+      palette.keyLightIntensity,
+    );
+    cameraKeyLight.position.set(80, 120, 180);
+    camera.add(cameraKeyLight);
+  }
 }
 
 function setHoveredMarker(key) {
@@ -768,7 +778,7 @@ function applyThemeToGlobe() {
     : new THREE.MeshPhongMaterial({
       map: colorMap,
       bumpMap,
-      bumpScale: 0.022,
+      bumpScale: 0.008,
 
       color: '#ffffff',
       emissive: palette.oceanEmissive,
@@ -1099,6 +1109,12 @@ onUnmounted(() => {
     globe?.scene?.()?.remove(rimAtmosphereGroup);
     disposeRimAtmosphereGroup(rimAtmosphereGroup);
     rimAtmosphereGroup = null;
+  }
+
+  if (cameraKeyLight) {
+    globe?.camera?.()?.remove(cameraKeyLight);
+    cameraKeyLight.dispose?.();
+    cameraKeyLight = null;
   }
 
   disposeBloomPass();
