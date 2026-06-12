@@ -1,7 +1,10 @@
 import * as THREE from 'three';
+import { getLandPolygonsData } from './globe-land-polygons.js';
 
 const TEXTURE_WIDTH = 4096;
 const TEXTURE_HEIGHT = 2048;
+const BUMP_TEXTURE_WIDTH = 2048;
+const BUMP_TEXTURE_HEIGHT = 1024;
 
 const THEME_COLORS = {
   light: {
@@ -9,13 +12,15 @@ const THEME_COLORS = {
     oceanCenter: '#d4e6fb',
     oceanMid: '#b8d0f5',
     oceanEdge: '#8aa8d8',
+    land: '#e8e4dc',
   },
   dark: {
-    oceanBase: '#05070a',
-    oceanCenter: '#080b10',
-    oceanMid: '#0c1018',
-    oceanEdge: '#161e2a',
-    oceanLimb: '#1c2838',
+    oceanBase: '#020408',
+    oceanCenter: '#040a12',
+    oceanMid: '#060e18',
+    oceanEdge: '#091420',
+    oceanLimb: '#0c1a2a',
+    land: '#626d7c',
   },
 };
 
@@ -28,6 +33,65 @@ function createColorTexture(canvas) {
   texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
+}
+
+function createBumpTexture(canvas) {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function projectGeoToCanvas(lng, lat, width, height) {
+  const x = ((lng + 180) / 360) * width;
+  const y = ((90 - lat) / 180) * height;
+  return { x, y };
+}
+
+function drawLandForBump(ctx, width, height) {
+  const polygons = getLandPolygonsData();
+  ctx.fillStyle = '#ffffff';
+  ctx.filter = 'blur(3px)';
+
+  polygons.forEach((polygon) => {
+    const rings = polygon.geometry.coordinates;
+    if (!rings || rings.length === 0) {
+      return;
+    }
+
+    ctx.beginPath();
+    rings.forEach((ring) => {
+      ring.forEach(([lng, lat], index) => {
+        const { x, y } = projectGeoToCanvas(lng, lat, width, height);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+    });
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  ctx.filter = 'none';
+}
+
+export function createGlobeBumpMap() {
+  const canvas = document.createElement('canvas');
+  canvas.width = BUMP_TEXTURE_WIDTH;
+  canvas.height = BUMP_TEXTURE_HEIGHT;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawLandForBump(ctx, canvas.width, canvas.height);
+
+  return createBumpTexture(canvas);
 }
 
 function drawLightOcean(ctx) {
@@ -68,30 +132,30 @@ function drawDarkOcean(ctx) {
   );
   bodyGradient.addColorStop(0, colors.oceanCenter);
   bodyGradient.addColorStop(0.38, colors.oceanMid);
-  bodyGradient.addColorStop(0.72, '#121820');
+  bodyGradient.addColorStop(0.72, '#0e1620');
   bodyGradient.addColorStop(0.9, colors.oceanEdge);
   bodyGradient.addColorStop(1, colors.oceanLimb);
   ctx.fillStyle = bodyGradient;
   ctx.fillRect(0, 0, width, height);
 
   const keyLight = ctx.createRadialGradient(
-    width * 0.32,
-    height * 0.28,
+    width * 0.62,
+    height * 0.32,
     0,
-    width * 0.32,
-    height * 0.28,
+    width * 0.62,
+    height * 0.32,
     height * 0.72,
   );
-  keyLight.addColorStop(0, 'rgba(180, 200, 220, 0.09)');
-  keyLight.addColorStop(0.45, 'rgba(100, 130, 160, 0.03)');
+  keyLight.addColorStop(0, 'rgba(200, 220, 240, 0.08)');
+  keyLight.addColorStop(0.45, 'rgba(90, 120, 160, 0.03)');
   keyLight.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = keyLight;
   ctx.fillRect(0, 0, width, height);
 
   const shadow = ctx.createLinearGradient(0, 0, width, height);
-  shadow.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
-  shadow.addColorStop(0.42, 'rgba(0, 0, 0, 0)');
-  shadow.addColorStop(1, 'rgba(0, 0, 0, 0.14)');
+  shadow.addColorStop(0, 'rgba(255, 255, 255, 0.03)');
+  shadow.addColorStop(0.45, 'rgba(0, 0, 0, 0)');
+  shadow.addColorStop(1, 'rgba(0, 0, 0, 0.10)');
   ctx.fillStyle = shadow;
   ctx.fillRect(0, 0, width, height);
 }
@@ -110,7 +174,29 @@ function addLightNoise(ctx) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-/** 仅生成海洋渐变纹理；陆地由 GeoJSON 矢量层单独渲染 */
+function drawLandColor(ctx, width, height, color) {
+  const polygons = getLandPolygonsData();
+
+  ctx.fillStyle = color;
+  polygons.forEach((polygon) => {
+    const rings = polygon.geometry.coordinates;
+    ctx.beginPath();
+    rings.forEach((ring) => {
+      ring.forEach(([lng, lat], index) => {
+        const { x, y } = projectGeoToCanvas(lng, lat, width, height);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.closePath();
+    });
+    ctx.fill('evenodd');
+  });
+}
+
+/** 生成海洋 + 陆地的球面纹理；陆地直接绘制在纹理上以获得平滑光照 */
 export function createGlobeOceanMap(theme = 'dark') {
   const canvas = document.createElement('canvas');
   canvas.width = TEXTURE_WIDTH;
@@ -124,13 +210,15 @@ export function createGlobeOceanMap(theme = 'dark') {
     drawDarkOcean(ctx);
   }
 
+  drawLandColor(ctx, canvas.width, canvas.height, THEME_COLORS[theme].land);
+
   return createColorTexture(canvas);
 }
 
 export function createGlobeMaps(theme = 'dark') {
   return {
     colorMap: createGlobeOceanMap(theme),
-    bumpMap: null,
+    bumpMap: createGlobeBumpMap(),
   };
 }
 

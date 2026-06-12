@@ -23,3 +23,15 @@ demo
 *.njsproj
 *.sln
 *.sw?
+
+.cursor/
+.claude/
+.gemini/
+.grok/
+.deepseek/
+.openai/
+.anthropic/
+.google/
+.microsoft/
+.amazon/
+.oracle/

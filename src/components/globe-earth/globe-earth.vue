@@ -75,6 +75,7 @@ import {
   watch,
 } from 'vue';
 import * as THREE from 'three';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import Globe from 'globe.gl';
 import createGlobeMaps from '@/utils/globe-textures';
 import { getLandPolygonsData } from '@/utils/globe-land-polygons';
@@ -158,11 +159,15 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
-const GLOBE_TEXTURE_VERSION = 12;
+const GLOBE_TEXTURE_VERSION = 14;
+const BLOOM_CONFIG = {
+  strength: 0.38,
+  radius: 0.42,
+  threshold: 0.24,
+};
 const globeTextureCache = { light: null, dark: null };
 let rimAtmosphereGroup = null;
-let landCapMaterial = null;
-let landSideMaterial = null;
+let bloomPass = null;
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -206,28 +211,29 @@ function getThemePalette(theme) {
   }
 
   return {
-    ocean: '#080c12',
+    ocean: '#060a12',
     oceanEmissive: '#000000',
-    oceanSpecular: '#1a2434',
-    land: '#5a6678',
-    landEmissive: '#000000',
-    landSpecular: '#2a3444',
-    coastline: null,
-    landSide: '#0a1018',
-    atmosphere: '#4a9ef0',
+    oceanSpecular: '#1f2a38',
+    land: '#626d7c',
+    landEmissive: '#2a3038',
+    landEmissiveIntensity: 0,
+    landSpecular: '#707a88',
+    coastline: 'rgba(130, 150, 172, 0.10)',
+    landSide: '#2f3a46',
+    atmosphere: '#4d9be8',
     atmosphereAltitude: 0.018,
-    polygonAltitude: 0.0014,
-    polygonCurvature: 1.0,
+    polygonAltitude: 0.0008,
+    polygonCurvature: 8,
     fog: '#080a0f',
     fogDensity: 0.00028,
-    ambient: '#b8cce0',
-    ambientIntensity: 0.2,
-    keyLight: '#eef6ff',
-    keyLightIntensity: 0.68,
-    fillLight: '#0c1218',
-    fillLightIntensity: 0.05,
-    rimLight: '#6eb4f8',
-    rimLightIntensity: 0.08,
+    ambient: '#d8e4f0',
+    ambientIntensity: 0.45,
+    keyLight: '#f0f6ff',
+    keyLightIntensity: 1.0,
+    fillLight: '#1e2834',
+    fillLightIntensity: 0.25,
+    rimLight: '#7ec0f8',
+    rimLightIntensity: 0.18,
     markerOnline: readThemeToken('--globe-marker-active', '#66a9e8'),
     markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(102, 169, 232, 0.24)'),
     markerOffline: readThemeToken('--globe-marker-muted', '#5f6b78'),
@@ -314,11 +320,8 @@ const markerData = computed(() => {
 });
 
 const ringData = computed(() => {
-  if (props.theme === 'dark') {
-    return [];
-  }
-
   const palette = getThemePalette(props.theme);
+  const isDark = props.theme === 'dark';
 
   return markerData.value
     .filter((marker) => marker.hasOnline)
@@ -327,21 +330,21 @@ const ringData = computed(() => {
         lat: marker.lat,
         lng: marker.lng,
         maxR: marker.ringMaxR,
-        propagationSpeed: 0.22,
-        repeatPeriod: 2700,
+        propagationSpeed: isDark ? 0.16 : 0.22,
+        repeatPeriod: isDark ? 3600 : 2700,
         colorRgb: palette.onlineRing,
-        opacity: props.theme === 'light' ? 0.26 : 0.34,
+        opacity: isDark ? 0.18 : 0.26,
       }];
 
       if (marker.totalCount >= 6) {
         rings.push({
           lat: marker.lat,
           lng: marker.lng,
-          maxR: marker.ringMaxR + 0.65,
-          propagationSpeed: 0.18,
-          repeatPeriod: 3400,
+          maxR: marker.ringMaxR + (isDark ? 0.5 : 0.65),
+          propagationSpeed: isDark ? 0.13 : 0.18,
+          repeatPeriod: isDark ? 4200 : 3400,
           colorRgb: palette.onlineRing,
-          opacity: props.theme === 'light' ? 0.18 : 0.24,
+          opacity: isDark ? 0.12 : 0.18,
         });
       }
 
@@ -380,7 +383,67 @@ function configureRenderer() {
 
   const { devicePixelRatio = 1 } = window;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.toneMapping = THREE.NoToneMapping;
+
+  if (props.theme === 'dark') {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+  } else {
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.toneMappingExposure = 1.0;
+  }
+}
+
+function getGlobeDimensions() {
+  if (!globeContainer.value) {
+    return { width: 1, height: 1 };
+  }
+
+  const { clientWidth: width, clientHeight: height } = globeContainer.value;
+  return { width, height };
+}
+
+function disposeBloomPass() {
+  if (!bloomPass) {
+    return;
+  }
+
+  const composer = globe?.postProcessingComposer?.();
+  if (composer) {
+    composer.removePass(bloomPass);
+  }
+
+  bloomPass.dispose();
+  bloomPass = null;
+}
+
+function configureBloom() {
+  const composer = globe?.postProcessingComposer?.();
+  if (!composer) {
+    return;
+  }
+
+  if (props.theme !== 'dark') {
+    disposeBloomPass();
+    return;
+  }
+
+  const { width, height } = getGlobeDimensions();
+
+  if (!bloomPass) {
+    bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      BLOOM_CONFIG.strength,
+      BLOOM_CONFIG.radius,
+      BLOOM_CONFIG.threshold,
+    );
+    composer.addPass(bloomPass);
+    return;
+  }
+
+  bloomPass.setSize(width, height);
+  bloomPass.strength = BLOOM_CONFIG.strength;
+  bloomPass.radius = BLOOM_CONFIG.radius;
+  bloomPass.threshold = BLOOM_CONFIG.threshold;
 }
 
 function configureSceneAndLights() {
@@ -400,7 +463,7 @@ function configureSceneAndLights() {
     palette.keyLight,
     palette.keyLightIntensity,
   );
-  keyLight.position.set(-280, 240, 160);
+  keyLight.position.set(220, 180, 160);
 
   const fillLight = new THREE.DirectionalLight(
     palette.fillLight,
@@ -678,43 +741,6 @@ function handleMarkerPointerUp(event) {
   selectMarker(marker);
 }
 
-function disposeLandMaterials() {
-  landCapMaterial?.dispose?.();
-  landSideMaterial?.dispose?.();
-  landCapMaterial = null;
-  landSideMaterial = null;
-}
-
-function createLandMaterials(palette, isLight) {
-  disposeLandMaterials();
-
-  landCapMaterial = isLight
-    ? new THREE.MeshLambertMaterial({
-      color: palette.land,
-      emissive: palette.landEmissive,
-      emissiveIntensity: 0.04,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    })
-    : new THREE.MeshPhongMaterial({
-      color: palette.land,
-      emissive: palette.landEmissive,
-      emissiveIntensity: 0,
-      shininess: 6,
-      specular: palette.landSpecular || '#2a3444',
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
-
-  landSideMaterial = new THREE.MeshLambertMaterial({
-    color: palette.landSide,
-  });
-
-  return landCapMaterial;
-}
-
 function applyThemeToGlobe() {
   if (!globe) {
     return;
@@ -722,10 +748,13 @@ function applyThemeToGlobe() {
 
   const palette = getThemePalette(props.theme);
   const isLight = props.theme === 'light';
-  const { colorMap } = getGlobeMaps(props.theme);
+  const { colorMap, bumpMap } = getGlobeMaps(props.theme);
   const renderer = globe?.renderer?.();
   const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || 16;
   colorMap.anisotropy = maxAnisotropy;
+  if (bumpMap) {
+    bumpMap.anisotropy = maxAnisotropy;
+  }
 
   const oceanMaterial = isLight
     ? new THREE.MeshPhongMaterial({
@@ -738,16 +767,15 @@ function applyThemeToGlobe() {
     })
     : new THREE.MeshPhongMaterial({
       map: colorMap,
+      bumpMap,
+      bumpScale: 0.02,
+
       color: '#ffffff',
       emissive: palette.oceanEmissive,
       emissiveIntensity: 0,
-      shininess: 4,
+      shininess: 8,
       specular: palette.oceanSpecular,
     });
-
-  const capMaterial = createLandMaterials(palette, isLight);
-  const landAltitude = palette.polygonAltitude ?? (isLight ? 0.003 : 0.0014);
-  const landCurvature = palette.polygonCurvature ?? (isLight ? 2 : 1.0);
 
   globe
     .globeMaterial(oceanMaterial)
@@ -759,19 +787,33 @@ function applyThemeToGlobe() {
     .pathsData([])
     .polygonsData(getLandPolygonsData())
     .polygonGeoJsonGeometry((d) => d.geometry)
-    .polygonCapMaterial(() => capMaterial)
-    .polygonSideMaterial(() => landSideMaterial)
-    .polygonStrokeColor(null)
-    .polygonAltitude(landAltitude)
-    .polygonCapCurvatureResolution(landCurvature)
+    .polygonCapMaterial(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }))
+    .polygonSideMaterial(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }))
+    .polygonStrokeColor(() => palette.coastline)
+    .polygonAltitude(0)
+    .polygonCapCurvatureResolution(5)
     .polygonsTransitionDuration(0);
 
   syncRimAtmosphere(palette);
   configureRenderer();
+  configureBloom();
   configureSceneAndLights();
 }
 
+function getMarkerRingStyle(totalCount) {
+  if (totalCount >= 6) {
+    return { ringWidth: 3, showDot: false };
+  }
+  if (totalCount >= 3) {
+    return { ringWidth: 2, showDot: false };
+  }
+  return { ringWidth: 1.5, showDot: true };
+}
+
 function createMarkerElement(marker) {
+  const ringStyle = props.theme === 'dark'
+    ? getMarkerRingStyle(marker.totalCount)
+    : { ringWidth: 2, showDot: true };
   const element = document.createElement('button');
   element.type = 'button';
   element.className = `globe-marker ${marker.hasOnline ? 'is-online' : 'is-offline'}`;
@@ -782,13 +824,14 @@ function createMarkerElement(marker) {
       ${marker.hasOnline ? '<span class="marker-pulse"></span>' : ''}
       <span class="marker-badge" aria-hidden="true">
         <span class="marker-flat-ring"></span>
-        <span class="marker-flat-dot"></span>
+        ${ringStyle.showDot ? '<span class="marker-flat-dot"></span>' : ''}
       </span>
     </span>
   `;
 
   element.style.setProperty('--marker-visual-size', `${marker.visualSize}px`);
   element.style.setProperty('--marker-hit-size', `${marker.hitSize}px`);
+  element.style.setProperty('--marker-ring-width', `${ringStyle.ringWidth}px`);
   element.style.setProperty('--marker-core-color', marker.markerColor);
   element.style.setProperty('--marker-shell-color', marker.markerColorSoft);
   element.style.setProperty('--marker-shadow-color', marker.markerColorSoft);
@@ -871,6 +914,10 @@ function handleResize() {
 
   const { clientWidth: width, clientHeight: height } = globeContainer.value;
   globe.width(width).height(height);
+
+  if (bloomPass) {
+    bloomPass.setSize(width, height);
+  }
 
   nextTick(() => {
     updatePopupPosition();
@@ -1054,7 +1101,7 @@ onUnmounted(() => {
     rimAtmosphereGroup = null;
   }
 
-  disposeLandMaterials();
+  disposeBloomPass();
   globe = null;
 });
 </script>
@@ -1081,19 +1128,19 @@ onUnmounted(() => {
 }
 
 .globe-earth.theme-dark::before {
-  inset: -24%;
-  height: 148%;
+  inset: -20%;
+  height: 140%;
   background:
     radial-gradient(
       circle at 50% 50%,
-      rgba(74, 158, 240, 0.07) 0%,
-      rgba(74, 158, 240, 0.04) 28%,
-      rgba(74, 158, 240, 0.015) 48%,
-      rgba(74, 158, 240, 0.006) 62%,
-      transparent 82%
+      rgba(77, 155, 232, 0.07) 0%,
+      rgba(77, 155, 232, 0.04) 30%,
+      rgba(77, 155, 232, 0.015) 50%,
+      rgba(77, 155, 232, 0.006) 64%,
+      transparent 84%
     );
-  filter: blur(110px);
-  opacity: 0.75;
+  filter: blur(96px);
+  opacity: 0.72;
 }
 
 .globe-earth.theme-light::before {
@@ -1271,7 +1318,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  border: 2px solid var(--marker-core-color);
+  border: var(--marker-ring-width, 2px) solid var(--marker-core-color);
   background: transparent;
   opacity: 0.92;
   transition: border-width 0.18s ease;
@@ -1301,6 +1348,40 @@ onUnmounted(() => {
   border: 2px solid var(--marker-core-color);
   opacity: 0.45;
   animation: marker-pulse 2.4s ease-out infinite;
+}
+
+.globe-earth.theme-dark {
+  :deep(.marker-badge) {
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--marker-core-color) 65%, transparent));
+  }
+
+  :deep(.marker-flat-dot) {
+    box-shadow:
+      0 0 3px 1px var(--marker-core-color),
+      0 0 8px 2px color-mix(in srgb, var(--marker-core-color) 40%, transparent);
+  }
+
+  :deep(.marker-flat-ring) {
+    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--marker-core-color) 50%, transparent);
+  }
+
+  :deep(.marker-pulse) {
+    border-width: 1.5px;
+    opacity: 0.38;
+    box-shadow: none;
+  }
+
+  :deep(.globe-marker.is-offline .marker-badge) {
+    filter: none;
+  }
+
+  :deep(.globe-marker.is-offline .marker-flat-dot) {
+    box-shadow: none;
+  }
+
+  :deep(.globe-marker.is-offline .marker-flat-ring) {
+    box-shadow: none;
+  }
 }
 
 .globe-earth.is-interacting {
@@ -1347,13 +1428,13 @@ onUnmounted(() => {
 @keyframes marker-pulse {
   0% {
     transform: scale(0.86);
-    opacity: 0.32;
+    opacity: 0.42;
   }
   55% {
-    opacity: 0.08;
+    opacity: 0.12;
   }
   100% {
-    transform: scale(1.58);
+    transform: scale(1.68);
     opacity: 0;
   }
 }

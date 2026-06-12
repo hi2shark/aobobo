@@ -63,11 +63,11 @@ html[data-theme='dark'] {
   --status-online-glow: 0 0 10px rgba(var(--accent-success-rgb), 0.45);
   --status-offline-glow: 0 0 8px rgba(var(--accent-danger-rgb), 0.3);
   --globe-stage-bg:
-    radial-gradient(circle at 50% 48%, rgba(74, 158, 240, 0.06), transparent 46%),
+    radial-gradient(circle at 50% 48%, rgba(77, 155, 232, 0.045), transparent 48%),
     radial-gradient(circle at 50% 50%, #07090d 0%, #040608 55%, #000000 100%);
   --globe-stage-vignette:
     radial-gradient(circle at 50% 50%, transparent 54%, rgba(0, 0, 0, 0.18) 86%, rgba(0, 0, 0, 0.65) 100%);
-  --globe-orb-glow: rgba(74, 158, 240, 0.1);
+  --globe-orb-glow: rgba(77, 155, 232, 0.07);
   --panel-floating-bg:
     linear-gradient(180deg, rgba(19, 29, 42, 0.95), rgba(10, 16, 24, 0.94)),
     rgba(7, 17, 27, 0.8);
