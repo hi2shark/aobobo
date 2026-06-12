@@ -53,26 +53,26 @@ html[data-theme='dark'] {
   --button-subtle-border: rgba(159, 177, 203, 0.14);
   --button-subtle-hover-border: rgba(91, 140, 255, 0.28);
   --globe-stage-bg:
-    radial-gradient(circle at 34% 18%, rgba(97, 113, 122, 0.16), transparent 28%),
-    radial-gradient(circle at 66% 54%, rgba(53, 62, 68, 0.14), transparent 34%),
-    linear-gradient(180deg, #0a0c0e 0%, #050607 54%, #030405 100%);
+    radial-gradient(circle at 34% 18%, rgba(84, 111, 134, 0.14), transparent 28%),
+    radial-gradient(circle at 66% 54%, rgba(40, 62, 82, 0.12), transparent 34%),
+    linear-gradient(180deg, #050a11 0%, #03070d 54%, #02050a 100%);
   --globe-stage-vignette:
-    radial-gradient(circle at 38% 46%, transparent 46%, rgba(4, 5, 6, 0.38) 82%, rgba(2, 3, 4, 0.74) 100%);
-  --globe-orb-glow: rgba(110, 124, 132, 0.12);
+    radial-gradient(circle at 38% 46%, transparent 45%, rgba(3, 5, 8, 0.32) 80%, rgba(2, 4, 7, 0.72) 100%);
+  --globe-orb-glow: rgba(108, 135, 157, 0.1);
   --panel-floating-bg:
     linear-gradient(180deg, rgba(25, 29, 34, 0.94), rgba(10, 12, 14, 0.94)),
     rgba(8, 13, 24, 0.78);
   --globe-popup-bg:
-    linear-gradient(180deg, rgba(26, 30, 35, 0.96), rgba(10, 12, 14, 0.95)),
-    rgba(10, 12, 14, 0.94);
-  --globe-popup-border: rgba(126, 136, 144, 0.2);
+    linear-gradient(180deg, rgba(19, 28, 38, 0.96), rgba(8, 13, 19, 0.95)),
+    rgba(8, 13, 19, 0.94);
+  --globe-popup-border: rgba(119, 142, 162, 0.18);
   --globe-popup-shadow:
     0 28px 56px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  --globe-popup-chip-bg: rgba(255, 255, 255, 0.03);
-  --globe-popup-chip-border: rgba(159, 177, 203, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  --globe-popup-chip-bg: rgba(255, 255, 255, 0.025);
+  --globe-popup-chip-border: rgba(144, 168, 188, 0.11);
   --globe-popup-list-bg: rgba(255, 255, 255, 0.02);
-  --globe-popup-muted: #a4afb8;
+  --globe-popup-muted: #9aaebd;
   --section-bg:
     linear-gradient(180deg, rgba(16, 23, 40, 0.9), rgba(9, 14, 24, 0.94)),
     rgba(12, 18, 32, 0.84);
@@ -153,26 +153,26 @@ html[data-theme='light'] {
   --button-subtle-border: rgba(148, 163, 184, 0.24);
   --button-subtle-hover-border: rgba(63, 114, 255, 0.26);
   --globe-stage-bg:
-    radial-gradient(circle at 34% 18%, rgba(143, 190, 199, 0.16), transparent 28%),
-    radial-gradient(circle at 66% 56%, rgba(181, 205, 211, 0.18), transparent 34%),
-    linear-gradient(180deg, #f2f7f8 0%, #e4edef 56%, #d7e3e6 100%);
+    radial-gradient(circle at 34% 18%, rgba(165, 194, 208, 0.18), transparent 28%),
+    radial-gradient(circle at 66% 56%, rgba(196, 214, 223, 0.2), transparent 34%),
+    linear-gradient(180deg, #eff5f7 0%, #e2eaee 56%, #d7e1e7 100%);
   --globe-stage-vignette:
-    radial-gradient(circle at 38% 46%, transparent 44%, rgba(206, 219, 223, 0.56) 82%, rgba(189, 203, 208, 0.84) 100%);
-  --globe-orb-glow: rgba(138, 177, 184, 0.08);
+    radial-gradient(circle at 38% 46%, transparent 44%, rgba(205, 217, 224, 0.52) 82%, rgba(188, 202, 210, 0.8) 100%);
+  --globe-orb-glow: rgba(136, 165, 184, 0.08);
   --panel-floating-bg:
     linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 248, 249, 0.96)),
     rgba(248, 251, 255, 0.88);
   --globe-popup-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 248, 249, 0.98)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 247, 250, 0.98)),
     rgba(255, 255, 255, 0.94);
-  --globe-popup-border: rgba(148, 163, 184, 0.2);
+  --globe-popup-border: rgba(135, 153, 171, 0.18);
   --globe-popup-shadow:
-    0 22px 46px rgba(148, 163, 184, 0.18),
+    0 22px 46px rgba(148, 163, 184, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  --globe-popup-chip-bg: rgba(148, 163, 184, 0.08);
-  --globe-popup-chip-border: rgba(148, 163, 184, 0.16);
+  --globe-popup-chip-bg: rgba(138, 157, 175, 0.08);
+  --globe-popup-chip-border: rgba(138, 157, 175, 0.15);
   --globe-popup-list-bg: rgba(255, 255, 255, 0.82);
-  --globe-popup-muted: #647286;
+  --globe-popup-muted: #617386;
   --section-bg:
     linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 255, 0.94)),
     rgba(255, 255, 255, 0.82);

@@ -1,5 +1,8 @@
 <template>
-  <div ref="rootRef" class="globe-earth">
+  <div
+    ref="rootRef"
+    :class="['globe-earth', { 'is-interacting': isMarkerAnimationSuspended }]"
+  >
     <div ref="globeContainer" class="globe-container" />
 
     <transition name="globe-popup-fade">
@@ -52,7 +55,7 @@ import {
 } from 'vue';
 import * as THREE from 'three';
 import Globe from 'globe.gl';
-import worldBoundaryData from '@/assets/globe/world-boundaries.json';
+import worldLandData from '@/assets/globe/world-land.json';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 
 const INITIAL_POINT_OF_VIEW = {
@@ -65,6 +68,8 @@ const MOBILE_BREAKPOINT = 768;
 const POPUP_PADDING = 16;
 const POPUP_OFFSET = 20;
 const POPUP_ALTITUDE = 0.034;
+const MARKER_HTML_TRANSITION_DURATION = 320;
+const INTERACTION_SETTLE_DELAY = 120;
 
 const props = defineProps({
   locations: {
@@ -97,6 +102,7 @@ const selectedMarker = ref(null);
 const hoveredMarkerKey = ref(null);
 const isPopupHovered = ref(false);
 const isUserInteracting = ref(false);
+const isMarkerAnimationSuspended = ref(false);
 
 const popupState = reactive({
   left: 0,
@@ -110,58 +116,65 @@ let markerElementCache = new Map();
 let controlsStartHandler = null;
 let controlsEndHandler = null;
 let zoomHandler = null;
+let interactionSettleTimer = null;
 
 function getThemePalette(theme) {
   if (theme === 'light') {
     return {
-      ocean: '#c7dce2',
-      land: '#ecefe8',
-      boundary: 'rgba(104, 119, 135, 0.42)',
-      atmosphere: '#c9dde2',
-      fog: '#e7f0f2',
+      ocean: '#dbe7ed',
+      oceanEmissive: '#edf4f7',
+      oceanSpecular: '#adc0cc',
+      land: '#e8eef1',
+      landEmissive: '#f2f6f8',
+      coastline: 'rgba(120, 142, 160, 0.34)',
+      atmosphere: '#adc7d7',
+      fog: '#edf3f6',
       ambient: '#ffffff',
-      keyLight: '#d8e6ea',
-      fillLight: '#f8fbfc',
-      rimLight: '#c5d8de',
+      keyLight: '#d8e6ed',
+      fillLight: '#f4f8fb',
+      rimLight: '#c1d1da',
       markerOnline: '#0d9f69',
       markerOnlineSoft: 'rgba(13, 159, 105, 0.26)',
       markerOffline: '#7d8b97',
       markerOfflineSoft: 'rgba(125, 139, 151, 0.22)',
       onlineRing: '13, 159, 105',
-      globeGlow: 'rgba(136, 178, 186, 0.1)',
+      globeGlow: 'rgba(132, 162, 181, 0.08)',
     };
   }
 
   return {
-    ocean: '#050607',
-    land: '#2b2f34',
-    boundary: 'rgba(102, 108, 114, 0.28)',
-    atmosphere: '#2f3438',
-    fog: '#020303',
-    ambient: '#f0f3f5',
-    keyLight: '#d8dde1',
-    fillLight: '#7c838a',
-    rimLight: '#4f565c',
+    ocean: '#050b13',
+    oceanEmissive: '#09131e',
+    oceanSpecular: '#10202d',
+    land: '#1c2733',
+    landEmissive: '#253341',
+    coastline: 'rgba(106, 131, 152, 0.34)',
+    atmosphere: '#607d97',
+    fog: '#01050a',
+    ambient: '#edf5fb',
+    keyLight: '#bfd1de',
+    fillLight: '#52697a',
+    rimLight: '#708697',
     markerOnline: '#58df9f',
     markerOnlineSoft: 'rgba(88, 223, 159, 0.2)',
     markerOffline: '#666d73',
     markerOfflineSoft: 'rgba(102, 109, 115, 0.2)',
     onlineRing: '88, 223, 159',
-    globeGlow: 'rgba(132, 144, 154, 0.12)',
+    globeGlow: 'rgba(112, 138, 160, 0.1)',
   };
 }
 
 function getMarkerDimensions(count) {
   if (count >= 10) {
-    return { visualSize: 24, hitSize: 40, ringMaxR: 2.3 };
+    return { visualSize: 34, hitSize: 52, ringMaxR: 2.3 };
   }
   if (count >= 6) {
-    return { visualSize: 20, hitSize: 38, ringMaxR: 1.9 };
+    return { visualSize: 30, hitSize: 48, ringMaxR: 1.9 };
   }
   if (count >= 3) {
-    return { visualSize: 16, hitSize: 36, ringMaxR: 1.55 };
+    return { visualSize: 26, hitSize: 44, ringMaxR: 1.55 };
   }
-  return { visualSize: 12, hitSize: 32, ringMaxR: 1.2 };
+  return { visualSize: 22, hitSize: 40, ringMaxR: 1.2 };
 }
 
 function getMarkerVector(lat, lng) {
@@ -263,28 +276,28 @@ function configureSceneAndLights() {
   const palette = getThemePalette(props.theme);
   const scene = globe?.scene?.();
   if (scene) {
-    scene.fog = new THREE.FogExp2(palette.fog, props.theme === 'light' ? 0.00088 : 0.00064);
+    scene.fog = new THREE.FogExp2(palette.fog, props.theme === 'light' ? 0.00076 : 0.00046);
   }
 
   const ambientLight = new THREE.AmbientLight(
     palette.ambient,
-    props.theme === 'light' ? 0.78 : 0.46,
+    props.theme === 'light' ? 0.72 : 0.4,
   );
   const keyLight = new THREE.DirectionalLight(
     palette.keyLight,
-    props.theme === 'light' ? 0.48 : 0.26,
+    props.theme === 'light' ? 0.4 : 0.22,
   );
   keyLight.position.set(-210, 145, 220);
 
   const fillLight = new THREE.DirectionalLight(
     palette.fillLight,
-    props.theme === 'light' ? 0.14 : 0.14,
+    props.theme === 'light' ? 0.11 : 0.12,
   );
   fillLight.position.set(180, -18, 165);
 
   const rimLight = new THREE.DirectionalLight(
     palette.rimLight,
-    props.theme === 'light' ? 0.08 : 0.16,
+    props.theme === 'light' ? 0.09 : 0.14,
   );
   rimLight.position.set(36, 30, -220);
 
@@ -309,6 +322,29 @@ function syncMarkerElementState() {
   });
 }
 
+function getActiveRingData() {
+  return isMarkerAnimationSuspended.value ? [] : ringData.value;
+}
+
+function clearInteractionSettleTimer() {
+  if (interactionSettleTimer) {
+    window.clearTimeout(interactionSettleTimer);
+    interactionSettleTimer = null;
+  }
+}
+
+function setMarkerAnimationSuspended(suspended) {
+  isMarkerAnimationSuspended.value = suspended;
+
+  if (!globe) {
+    return;
+  }
+
+  globe
+    .htmlTransitionDuration(suspended ? 0 : MARKER_HTML_TRANSITION_DURATION)
+    .ringsData(getActiveRingData());
+}
+
 function applyAutoRotateState() {
   if (!globe) {
     return;
@@ -317,6 +353,7 @@ function applyAutoRotateState() {
   const shouldPause = Boolean(
     hoveredMarkerKey.value
       || isPopupHovered.value
+      || isMarkerAnimationSuspended.value
       || isUserInteracting.value
       || selectedMarker.value,
   );
@@ -422,6 +459,27 @@ function updatePopupPosition() {
   popupState.visible = true;
 }
 
+function suspendMarkerAnimations() {
+  clearInteractionSettleTimer();
+  setMarkerAnimationSuspended(true);
+}
+
+function scheduleMarkerAnimationResume() {
+  clearInteractionSettleTimer();
+  interactionSettleTimer = window.setTimeout(() => {
+    interactionSettleTimer = null;
+
+    if (isUserInteracting.value) {
+      return;
+    }
+
+    setMarkerAnimationSuspended(false);
+    nextTick(() => {
+      updatePopupPosition();
+    });
+  }, INTERACTION_SETTLE_DELAY);
+}
+
 function selectMarker(marker) {
   selectedMarker.value = marker;
   isPopupHovered.value = false;
@@ -445,10 +503,10 @@ function applyThemeToGlobe() {
 
   material.map = null;
   material.color = new THREE.Color(palette.ocean);
-  material.emissive = new THREE.Color(palette.ocean);
-  material.emissiveIntensity = props.theme === 'light' ? 0.008 : 0.015;
-  material.shininess = props.theme === 'light' ? 0.45 : 0.08;
-  material.specular = new THREE.Color(props.theme === 'light' ? '#b9ced4' : '#0b0d0f');
+  material.emissive = new THREE.Color(palette.oceanEmissive);
+  material.emissiveIntensity = props.theme === 'light' ? 0.03 : 0.08;
+  material.shininess = props.theme === 'light' ? 0.18 : 0.04;
+  material.specular = new THREE.Color(palette.oceanSpecular);
   material.bumpMap = null;
   material.normalMap = null;
   material.displacementMap = null;
@@ -458,19 +516,19 @@ function applyThemeToGlobe() {
     .globeMaterial(material)
     .showAtmosphere(true)
     .atmosphereColor(palette.atmosphere)
-    .atmosphereAltitude(props.theme === 'light' ? 0.022 : 0.026)
-    .polygonsData(worldBoundaryData.features)
+    .atmosphereAltitude(props.theme === 'light' ? 0.016 : 0.02)
+    .polygonsData(worldLandData.features)
     .polygonGeoJsonGeometry('geometry')
-    .polygonCapMaterial(new THREE.MeshPhongMaterial({
+    .polygonCapMaterial(new THREE.MeshLambertMaterial({
       color: palette.land,
-      emissive: new THREE.Color(palette.land),
-      emissiveIntensity: props.theme === 'light' ? 0.004 : 0.015,
-      shininess: props.theme === 'light' ? 0.35 : 0.06,
-      specular: new THREE.Color(props.theme === 'light' ? '#c7d5d9' : '#0d0f12'),
+      emissive: new THREE.Color(palette.landEmissive),
+      emissiveIntensity: props.theme === 'light' ? 0.018 : 0.065,
     }))
     .polygonSideColor(() => 'rgba(0,0,0,0)')
-    .polygonStrokeColor(() => palette.boundary)
-    .polygonAltitude(props.theme === 'light' ? 0.0055 : 0.006)
+    .polygonStrokeColor(() => palette.coastline)
+    .polygonAltitude(props.theme === 'light' ? 0.0014 : 0.0018)
+    .polygonCapCurvatureResolution(2)
+    .polygonsTransitionDuration(0)
     .polygonLabel('')
     .onPolygonClick(() => {
       clearSelection();
@@ -488,11 +546,12 @@ function createMarkerElement(marker) {
   element.innerHTML = `
     <span class="marker-hit">
       ${marker.hasOnline ? '<span class="marker-pulse"></span>' : ''}
-      <svg class="marker-svg" viewBox="0 0 100 100" aria-hidden="true">
-        <circle class="marker-shell" cx="50" cy="50" r="30" />
-        <circle class="marker-core" cx="50" cy="50" r="18" />
-        <circle class="marker-center" cx="50" cy="50" r="6" />
-      </svg>
+      <span class="marker-badge" aria-hidden="true">
+        <span class="marker-aura"></span>
+        <span class="marker-shell"></span>
+        <span class="marker-core"></span>
+        <span class="marker-center"></span>
+      </span>
     </span>
   `;
 
@@ -500,9 +559,11 @@ function createMarkerElement(marker) {
   element.style.setProperty('--marker-hit-size', `${marker.hitSize}px`);
   element.style.setProperty('--marker-core-color', marker.markerColor);
   element.style.setProperty('--marker-shell-color', marker.markerColorSoft);
+  element.style.setProperty('--marker-shadow-color', marker.markerColorSoft);
+  element.style.setProperty('--marker-highlight-color', marker.hasOnline ? 'rgba(255, 255, 255, 0.94)' : 'rgba(255, 255, 255, 0.82)');
 
-  element.addEventListener('mouseenter', () => setHoveredMarker(marker.key));
-  element.addEventListener('mouseleave', () => clearHoveredMarker(marker.key));
+  element.addEventListener('pointerenter', () => setHoveredMarker(marker.key));
+  element.addEventListener('pointerleave', () => clearHoveredMarker(marker.key));
   element.addEventListener('focus', () => setHoveredMarker(marker.key));
   element.addEventListener('blur', () => clearHoveredMarker(marker.key));
   element.addEventListener('click', (event) => {
@@ -527,7 +588,7 @@ function updateLayers(resetMarkerCache = false) {
 
   globe
     .htmlElementsData(markerData.value)
-    .ringsData(ringData.value);
+    .ringsData(getActiveRingData());
 
   syncMarkerElementState();
 }
@@ -544,9 +605,11 @@ function configureControls() {
 
   controlsStartHandler = () => {
     isUserInteracting.value = true;
+    suspendMarkerAnimations();
   };
   controlsEndHandler = () => {
     isUserInteracting.value = false;
+    scheduleMarkerAnimationResume();
     nextTick(() => {
       updatePopupPosition();
     });
@@ -602,6 +665,10 @@ function initGlobe() {
     globe = Globe()(globeContainer.value);
 
     zoomHandler = () => {
+      if (isUserInteracting.value || interactionSettleTimer) {
+        suspendMarkerAnimations();
+        scheduleMarkerAnimationResume();
+      }
       updatePopupPosition();
     };
 
@@ -615,7 +682,7 @@ function initGlobe() {
       .htmlLng('lng')
       .htmlAltitude('altitude')
       .htmlElement((marker) => createMarkerElement(marker))
-      .htmlTransitionDuration(320)
+      .htmlTransitionDuration(MARKER_HTML_TRANSITION_DURATION)
       .htmlElementVisibilityModifier((element, visible) => {
         element.classList.toggle('is-hidden', !visible);
       })
@@ -685,7 +752,14 @@ watch(() => props.theme, () => {
 });
 
 watch(
-  [hoveredMarkerKey, isPopupHovered, isUserInteracting, selectedMarker, isMobile],
+  [
+    hoveredMarkerKey,
+    isPopupHovered,
+    isMarkerAnimationSuspended,
+    isUserInteracting,
+    selectedMarker,
+    isMobile,
+  ],
   () => {
     syncMarkerElementState();
     applyAutoRotateState();
@@ -709,6 +783,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  clearInteractionSettleTimer();
 
   const controls = globe?.controls?.();
   if (controls && controlsStartHandler) {
@@ -821,8 +896,10 @@ onUnmounted(() => {
   justify-content: center;
   padding: 0;
   border: none;
+  border-radius: 999px;
   background: transparent;
   cursor: pointer;
+  outline: none;
   transition:
     transform 0.18s ease,
     opacity 0.18s ease,
@@ -833,10 +910,28 @@ onUnmounted(() => {
     pointer-events: none;
   }
 
-  &.is-hovered,
-  &.is-selected {
-    transform: scale(1.08);
+  &.is-hovered {
+    transform: scale(1.04);
     filter: drop-shadow(0 10px 22px rgba(15, 23, 42, 0.16));
+  }
+
+  &.is-selected {
+    filter: drop-shadow(0 12px 26px rgba(15, 23, 42, 0.2));
+  }
+
+  &.is-selected .marker-badge {
+    border-color: color-mix(in srgb, var(--marker-core-color) 52%, rgba(255, 255, 255, 0.42));
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--marker-core-color) 20%, transparent),
+      0 14px 28px color-mix(in srgb, var(--marker-shadow-color) 90%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  }
+
+  &:focus-visible .marker-badge {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--marker-core-color) 26%, transparent),
+      0 14px 28px color-mix(in srgb, var(--marker-shadow-color) 88%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
   }
 }
 
@@ -849,36 +944,102 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-:deep(.marker-svg) {
+:deep(.marker-badge) {
   width: var(--marker-visual-size);
   height: var(--marker-visual-size);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.24), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
+    rgba(8, 12, 15, 0.86);
+  border: 1px solid color-mix(in srgb, var(--marker-shell-color) 74%, rgba(255, 255, 255, 0.12));
+  box-shadow:
+    0 12px 24px color-mix(in srgb, var(--marker-shadow-color) 82%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   overflow: visible;
 }
 
+:deep(.marker-aura) {
+  position: absolute;
+  inset: -18%;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--marker-core-color) 22%, transparent) 0%, transparent 72%);
+  opacity: 0.95;
+}
+
+:deep(.marker-shell),
+:deep(.marker-core) {
+  position: absolute;
+  border-radius: 999px;
+}
+
 :deep(.marker-shell) {
-  fill: var(--marker-shell-color);
+  inset: 16%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0)),
+    color-mix(in srgb, var(--marker-shell-color) 92%, rgba(255, 255, 255, 0.04));
 }
 
 :deep(.marker-core) {
-  fill: var(--marker-core-color);
+  inset: 28%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.32), transparent 42%),
+    var(--marker-core-color);
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--marker-core-color) 42%, transparent),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14);
 }
 
 :deep(.marker-center) {
-  fill: rgba(255, 255, 255, 0.92);
+  width: 18%;
+  height: 18%;
+  position: absolute;
+  border-radius: 999px;
+  background: var(--marker-highlight-color);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.24);
 }
 
-:deep(.globe-marker.is-offline .marker-center) {
-  fill: rgba(255, 255, 255, 0.7);
+:deep(.globe-marker.is-offline .marker-badge) {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+    rgba(12, 15, 19, 0.8);
 }
 
 :deep(.marker-pulse) {
   position: absolute;
-  width: calc(var(--marker-visual-size) + 6px);
-  height: calc(var(--marker-visual-size) + 6px);
+  width: calc(var(--marker-visual-size) + 10px);
+  height: calc(var(--marker-visual-size) + 10px);
   border-radius: 999px;
-  border: 1px solid var(--marker-core-color);
-  opacity: 0.42;
-  animation: marker-pulse 2.8s ease-out infinite;
+  border: 1px solid color-mix(in srgb, var(--marker-core-color) 68%, rgba(255, 255, 255, 0.12));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--marker-core-color) 18%, transparent);
+  opacity: 0.32;
+  animation: marker-pulse 3.2s ease-out infinite;
+}
+
+.globe-earth.is-interacting {
+  :deep(.globe-marker) {
+    transition: none;
+    transform: none;
+    filter: none;
+  }
+
+  :deep(.marker-badge),
+  :deep(.marker-aura),
+  :deep(.marker-shell),
+  :deep(.marker-core),
+  :deep(.marker-center) {
+    transition: none;
+  }
+
+  :deep(.marker-pulse) {
+    animation-play-state: paused;
+    opacity: 0;
+  }
 }
 
 @keyframes spin {
@@ -888,14 +1049,14 @@ onUnmounted(() => {
 
 @keyframes marker-pulse {
   0% {
-    transform: scale(0.78);
-    opacity: 0.42;
+    transform: scale(0.86);
+    opacity: 0.32;
   }
-  70% {
-    opacity: 0;
+  55% {
+    opacity: 0.08;
   }
   100% {
-    transform: scale(2);
+    transform: scale(1.58);
     opacity: 0;
   }
 }
