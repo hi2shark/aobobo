@@ -32,30 +32,9 @@
         </div>
         <globe-earth
           v-else
-          ref="globeRef"
           :locations="serverLocations"
           :theme="resolvedTheme"
-          :auto-rotate="!selectedLocation"
-          @marker-click="handleMarkerClick"
         />
-
-        <transition name="slide-up">
-          <div v-if="selectedLocation" class="location-panel">
-            <div class="panel-header">
-              <h3>{{ selectedLocation.label }}</h3>
-              <button type="button" class="close-btn" @click="clearSelectedLocation">
-                <i class="ri-close-line" />
-              </button>
-            </div>
-            <div class="panel-body">
-              <server-card
-                v-for="server in selectedLocation.servers"
-                :key="server.ID"
-                :info="server"
-              />
-            </div>
-          </div>
-        </transition>
       </div>
 
       <div class="server-list-section">
@@ -105,12 +84,9 @@ import { useStore } from 'vuex';
 import { alias2code, locationCode2Info } from '@/utils/world-map';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
-import ServerCard from '@/components/server-panel/server-card.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
 
 const store = useStore();
-const globeRef = ref(null);
-const selectedLocation = ref(null);
 const filterOnline = ref('');
 
 const serverList = computed(() => store.state.serverList);
@@ -162,26 +138,6 @@ const serverLocations = computed(() => {
   });
   return locations;
 });
-
-function handleMarkerClick(location) {
-  selectedLocation.value = location;
-  if (location) {
-    if (globeRef.value?.focusLocation) {
-      globeRef.value.focusLocation(location);
-    }
-    return;
-  }
-  if (globeRef.value?.resetView) {
-    globeRef.value.resetView();
-  }
-}
-
-function clearSelectedLocation() {
-  selectedLocation.value = null;
-  if (globeRef.value?.resetView) {
-    globeRef.value.resetView();
-  }
-}
 </script>
 
 <style lang="scss" scoped>
@@ -296,61 +252,6 @@ function clearSelectedLocation() {
   pointer-events: none;
 }
 
-.location-panel {
-  position: absolute;
-  inset: auto 16px 16px 16px;
-  max-height: calc(100% - 32px);
-  background: var(--panel-floating-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 16px 20px;
-  overflow-y: auto;
-  backdrop-filter: blur(20px) saturate(145%);
-  z-index: 20;
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-
-    h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .close-btn {
-      width: 30px;
-      height: 30px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--button-subtle-bg);
-      border: 1px solid var(--button-subtle-border);
-      color: var(--text-secondary);
-      font-size: 18px;
-      cursor: pointer;
-      border-radius: var(--radius-sm);
-      transition: all var(--transition-fast);
-
-      &:hover {
-        background: var(--bg-hover);
-        border-color: var(--button-subtle-hover-border);
-        color: var(--text-primary);
-      }
-    }
-  }
-
-  .panel-body {
-    display: grid;
-    gap: 10px;
-  }
-}
-
 .server-list-section {
   min-height: 0;
   background: var(--section-bg);
@@ -426,16 +327,6 @@ function clearSelectedLocation() {
   border-top: 1px solid var(--border-color);
 }
 
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-.slide-up-enter-from,
-.slide-up-leave-to {
-  transform: translateY(100%);
-  opacity: 0;
-}
-
 .empty-state {
   position: absolute;
   inset: 0;
@@ -494,12 +385,6 @@ function clearSelectedLocation() {
     border-left: 1px solid var(--border-color);
     border-top: none;
   }
-
-  .location-panel {
-    left: auto;
-    width: min(460px, calc(100% - 32px));
-    max-height: calc(100% - 32px);
-  }
 }
 
 @media screen and (max-width: 1279px) and (min-width: 769px) {
@@ -537,12 +422,6 @@ function clearSelectedLocation() {
     .section-header {
       padding: 10px 12px;
     }
-  }
-
-  .location-panel {
-    inset: auto 12px 12px 12px;
-    max-height: calc(100% - 24px);
-    padding: 14px 16px;
   }
 }
 </style>

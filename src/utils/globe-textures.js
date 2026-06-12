@@ -1,14 +1,7 @@
 import * as THREE from 'three';
 
-const TEXTURE_WIDTH = 2048;
-const TEXTURE_HEIGHT = 1024;
-
-function projectLngLat(lng, lat) {
-  return {
-    x: ((lng + 180) / 360) * TEXTURE_WIDTH,
-    y: ((90 - lat) / 180) * TEXTURE_HEIGHT,
-  };
-}
+const TEXTURE_WIDTH = 4096;
+const TEXTURE_HEIGHT = 2048;
 
 function drawBase(ctx, theme) {
   const isLight = theme === 'light';
@@ -29,53 +22,6 @@ function drawBase(ctx, theme) {
   ctx.fillRect(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 }
 
-function drawLandmass(ctx, geojson, theme) {
-  const isLight = theme === 'light';
-  ctx.fillStyle = isLight ? '#c8d0db' : '#2a303a';
-  ctx.strokeStyle = isLight ? 'rgba(140,155,175,0.22)' : 'rgba(60,70,85,0.35)';
-  ctx.lineWidth = isLight ? 1 : 0.8;
-  ctx.lineJoin = 'round';
-
-  ctx.beginPath();
-  geojson.features.forEach(({ geometry }) => {
-    if (!geometry) return;
-
-    const polygons = [];
-    if (geometry.type === 'Polygon') {
-      polygons.push(geometry.coordinates);
-    } else if (geometry.type === 'MultiPolygon') {
-      polygons.push(...geometry.coordinates);
-    }
-
-    polygons.forEach((polygon) => {
-      polygon.forEach((ring) => {
-        if (ring.length < 3) return;
-        let first = true;
-        let prevLng = null;
-        ring.forEach((point) => {
-          const [lng, lat] = point;
-          if (prevLng !== null && Math.abs(lng - prevLng) > 180) {
-            ctx.closePath();
-            first = true;
-          }
-          const { x, y } = projectLngLat(lng, lat);
-          if (first) {
-            ctx.moveTo(x, y);
-            first = false;
-          } else {
-            ctx.lineTo(x, y);
-          }
-          prevLng = lng;
-        });
-        ctx.closePath();
-      });
-    });
-  });
-
-  ctx.fill('evenodd');
-  ctx.stroke();
-}
-
 function addNoise(ctx, theme) {
   const isLight = theme === 'light';
   const imageData = ctx.getImageData(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
@@ -90,18 +36,13 @@ function addNoise(ctx, theme) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-export function createGlobeTexture(theme = 'dark', boundaryGeojson = null) {
+export default function createGlobeTexture(theme = 'dark') {
   const canvas = document.createElement('canvas');
   canvas.width = TEXTURE_WIDTH;
   canvas.height = TEXTURE_HEIGHT;
   const ctx = canvas.getContext('2d');
 
   drawBase(ctx, theme);
-
-  if (boundaryGeojson) {
-    drawLandmass(ctx, boundaryGeojson, theme);
-  }
-
   addNoise(ctx, theme);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -109,8 +50,4 @@ export function createGlobeTexture(theme = 'dark', boundaryGeojson = null) {
   texture.anisotropy = 8;
   texture.needsUpdate = true;
   return texture;
-}
-
-export function disposeGlobeTextures() {
-  // Textures are created on demand and disposed with materials
 }

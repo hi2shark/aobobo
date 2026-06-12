@@ -93,12 +93,36 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: (() => {
-      const maps = {
-        '@': path.resolve(__dirname, './src/'),
-        '~@': path.resolve(__dirname, './src/'),
-      };
-      return maps;
-    })(),
+    dedupe: ['three'],
+    alias: [
+      {
+        find: 'three/examples/jsm',
+        replacement: path.resolve(__dirname, './node_modules/three/examples/jsm'),
+      },
+      {
+        find: 'three/addons',
+        replacement: path.resolve(__dirname, './node_modules/three/examples/jsm'),
+      },
+      {
+        find: 'three/webgpu',
+        replacement: path.resolve(__dirname, './node_modules/three/build/three.webgpu.js'),
+      },
+      {
+        find: 'three/tsl',
+        replacement: path.resolve(__dirname, './node_modules/three/build/three.tsl.js'),
+      },
+      {
+        find: 'three',
+        replacement: path.resolve(__dirname, './node_modules/three/build/three.module.js'),
+      },
+      {
+        find: '@',
+        replacement: path.resolve(__dirname, './src/'),
+      },
+      {
+        find: '~@',
+        replacement: path.resolve(__dirname, './src/'),
+      },
+    ],
   },
 });
