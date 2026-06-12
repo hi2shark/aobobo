@@ -235,11 +235,11 @@ function buildMarkerEntry(loc, palette) {
   const serverCount = loc.servers?.length || 0;
   const hasOnline = Boolean(loc.hasOnline);
   const size = hasOnline
-    ? Math.max(0.022, Math.min(0.055, 0.025 + serverCount * 0.003))
-    : 0.016;
+    ? Math.max(0.018, Math.min(0.04, 0.018 + serverCount * 0.0025))
+    : 0.012;
   const altitude = hasOnline
-    ? Math.min(0.04, 0.008 + serverCount * 0.002)
-    : 0.004;
+    ? Math.min(0.015, 0.004 + serverCount * 0.001)
+    : 0.001;
   const pointColor = hasOnline ? palette.onlinePoint : palette.offlinePoint;
 
   const core = {
@@ -264,9 +264,9 @@ function buildMarkerEntry(loc, palette) {
     layer: 'halo',
     lat: loc.lat,
     lng: loc.lng,
-    size: size * 3.5,
-    altitude: altitude * 0.85,
-    color: toRgba(pointColor, palette.haloOpacity * 0.6),
+    size: size * 4.2,
+    altitude: altitude * 0.6,
+    color: toRgba(pointColor, palette.haloOpacity * 0.45),
     label: '',
     code: loc.code,
     servers: loc.servers || [],
@@ -484,7 +484,7 @@ function initGlobe() {
       .backgroundColor('rgba(0,0,0,0)')
       .showAtmosphere(true)
       .pointOfView(INITIAL_POINT_OF_VIEW)
-      .pointResolution(20)
+      .pointResolution(24)
       .pointsTransitionDuration(560)
       .pointsData(markerData.value)
       .pointLat('lat')
