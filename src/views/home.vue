@@ -81,7 +81,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useStore } from 'vuex';
-import { alias2code, locationCode2Info } from '@/utils/world-map';
+import { alias2code, locationCode2Info, clusterLocations } from '@/utils/world-map';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
@@ -136,7 +136,7 @@ const serverLocations = computed(() => {
       });
     }
   });
-  return locations;
+  return clusterLocations(locations);
 });
 </script>
 
