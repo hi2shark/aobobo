@@ -15,11 +15,11 @@ const THEME_COLORS = {
     land: '#e8e4dc',
   },
   dark: {
-    oceanBase: '#020408',
-    oceanCenter: '#040a12',
-    oceanMid: '#060e18',
-    oceanEdge: '#091420',
-    oceanLimb: '#0c1a2a',
+    oceanBase: '#020a14',
+    oceanCenter: '#051220',
+    oceanMid: '#071a2c',
+    oceanEdge: '#0b2438',
+    oceanLimb: '#0d2c40',
     land: '#626d7c',
   },
 };
@@ -146,8 +146,8 @@ function drawDarkOcean(ctx) {
     height * 0.32,
     height * 0.72,
   );
-  keyLight.addColorStop(0, 'rgba(200, 220, 240, 0.08)');
-  keyLight.addColorStop(0.45, 'rgba(90, 120, 160, 0.03)');
+  keyLight.addColorStop(0, 'rgba(200, 220, 240, 0.025)');
+  keyLight.addColorStop(0.45, 'rgba(90, 120, 160, 0.008)');
   keyLight.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = keyLight;
   ctx.fillRect(0, 0, width, height);
@@ -172,6 +172,42 @@ function addLightNoise(ctx) {
   }
 
   ctx.putImageData(imageData, 0, 0);
+}
+
+function addDarkNoise(ctx) {
+  const { width, height } = ctx.canvas;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const { data } = imageData;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 1.2;
+    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function drawDarkGraticules(ctx, width, height) {
+  ctx.strokeStyle = 'rgba(140, 190, 255, 0.018)';
+  ctx.lineWidth = 1;
+
+  for (let lng = -150; lng <= 150; lng += 30) {
+    const { x } = projectGeoToCanvas(lng, 0, width, height);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const { y } = projectGeoToCanvas(0, lat, width, height);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
 }
 
 function drawLandColor(ctx, width, height, color) {
@@ -208,6 +244,8 @@ export function createGlobeOceanMap(theme = 'dark') {
     addLightNoise(ctx);
   } else {
     drawDarkOcean(ctx);
+    addDarkNoise(ctx);
+    drawDarkGraticules(ctx, canvas.width, canvas.height);
   }
 
   drawLandColor(ctx, canvas.width, canvas.height, THEME_COLORS[theme].land);

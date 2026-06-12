@@ -159,11 +159,11 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
-const GLOBE_TEXTURE_VERSION = 14;
+const GLOBE_TEXTURE_VERSION = 18;
 const BLOOM_CONFIG = {
-  strength: 0.38,
+  strength: 0.28,
   radius: 0.42,
-  threshold: 0.24,
+  threshold: 0.30,
 };
 const globeTextureCache = { light: null, dark: null };
 let rimAtmosphereGroup = null;
@@ -213,12 +213,12 @@ function getThemePalette(theme) {
   return {
     ocean: '#060a12',
     oceanEmissive: '#000000',
-    oceanSpecular: '#1f2a38',
+    oceanSpecular: '#203448',
     land: '#626d7c',
     landEmissive: '#2a3038',
     landEmissiveIntensity: 0,
     landSpecular: '#707a88',
-    coastline: 'rgba(130, 150, 172, 0.10)',
+    coastline: 'rgba(130, 150, 172, 0.20)',
     landSide: '#2f3a46',
     atmosphere: '#4d9be8',
     atmosphereAltitude: 0.018,
@@ -233,7 +233,7 @@ function getThemePalette(theme) {
     fillLight: '#1e2834',
     fillLightIntensity: 0.25,
     rimLight: '#7ec0f8',
-    rimLightIntensity: 0.18,
+    rimLightIntensity: 0.14,
     markerOnline: readThemeToken('--globe-marker-active', '#66a9e8'),
     markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(102, 169, 232, 0.24)'),
     markerOffline: readThemeToken('--globe-marker-muted', '#5f6b78'),
@@ -768,12 +768,12 @@ function applyThemeToGlobe() {
     : new THREE.MeshPhongMaterial({
       map: colorMap,
       bumpMap,
-      bumpScale: 0.02,
+      bumpScale: 0.022,
 
       color: '#ffffff',
       emissive: palette.oceanEmissive,
       emissiveIntensity: 0,
-      shininess: 8,
+      shininess: 10,
       specular: palette.oceanSpecular,
     });
 

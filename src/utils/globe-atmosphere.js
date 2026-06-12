@@ -2,18 +2,17 @@ import * as THREE from 'three';
 
 const GLOBE_RADIUS = 100;
 
-/** 内侧菲涅尔：细窄柔边，避免 Bloom 后出现硬光圈 */
+/** 内侧菲涅尔：更贴近球面，并拉长过渡 */
 const INNER_FRESNEL = {
-  scale: 1.002,
-  strength: 0.30,
+  scale: 1.0008,
+  strength: 0.55,
 };
 
-/** 外侧辉光：宽域柔光为主，边缘提亮极弱 */
+/** 外侧辉光：内移并拉长，形成沿球面延伸的轮廓光 */
 const GLOW_LAYERS = [
-  { scale: 1.015, wide: 0.024, edge: 0.005 },
-  { scale: 1.04, wide: 0.015, edge: 0.0025 },
-  { scale: 1.08, wide: 0.008, edge: 0.001 },
-  { scale: 1.14, wide: 0.004, edge: 0.0003 },
+  { scale: 1.003, wide: 0.035, edge: 0.007 },
+  { scale: 1.012, wide: 0.022, edge: 0.004 },
+  { scale: 1.028, wide: 0.009, edge: 0.0015 },
 ];
 
 const ATMOSPHERE_VERTEX = `
@@ -46,7 +45,7 @@ varying vec3 vNormal;
 void main() {
   float viewDot = clamp(dot(vNormal, vec3(0.0, 0.0, 1.0)), 0.0, 1.0);
   float rim = 1.0 - viewDot;
-  float alpha = pow(smoothstep(0.2, 0.92, rim), 3.0) * fresnelStrength;
+  float alpha = pow(smoothstep(0.05, 0.92, rim), 3.0) * fresnelStrength;
   gl_FragColor = vec4(glowColor, alpha);
 }
 `;
