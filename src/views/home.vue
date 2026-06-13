@@ -60,15 +60,11 @@
       <div class="server-list-section" :class="{ collapsed: !sidebarOpen }">
         <div class="tech-frame" aria-hidden="true" />
         <div class="section-header">
-          <div class="section-title-row">
-            <div class="title-block">
-              <h2><i class="ri-server-line" /> 服务器列表</h2>
-              <span v-if="listResultHint" class="section-summary">
-                {{ listResultHint }}
-              </span>
-            </div>
+          <div
+            v-if="!isWideScreen"
+            class="section-title-row"
+          >
             <button
-              v-if="!isWideScreen"
               type="button"
               class="close-sidebar"
               title="收起"
@@ -96,7 +92,12 @@
                   <i class="ri-close-line" />
                 </button>
               </label>
-              <div class="filter-group" role="group" aria-label="筛选状态">
+              <div
+                v-if="hasOfflineServer"
+                class="filter-group"
+                role="group"
+                aria-label="筛选状态"
+              >
                 <button
                   v-for="option in FILTER_OPTIONS"
                   :key="option.value || 'all'"
@@ -104,10 +105,6 @@
                   :class="['filter-btn', { active: filterOnline === option.value }]"
                   @click="filterOnline = option.value"
                 >
-                  <span
-                    v-if="option.dot"
-                    :class="['status-dot', option.dot]"
-                  />
                   <span class="filter-label">{{ option.label }}</span>
                 </button>
               </div>
@@ -117,11 +114,18 @@
         <server-table
           v-if="filteredServers.length > 0"
           :servers="filteredServers"
+          :cycle-transfer-map="cycleTransferMap"
           @hover-server="handleServerHover"
         />
         <div v-else class="empty-list">
           <icon-inbox class="empty-icon" />
           <span>没有符合条件的服务器</span>
+        </div>
+        <div
+          v-if="listResultHint"
+          class="result-hint-floating"
+        >
+          <span class="section-summary">{{ listResultHint }}</span>
         </div>
       </div>
     </div>
@@ -145,6 +149,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { alias2code, locationCode2Info, clusterLocations } from '@/utils/world-map';
 import { getSystemOSLabel } from '@/utils/host';
+import { loadCycleTransferMap } from '@/utils/cycle-transfer';
+import config from '@/config';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
@@ -169,7 +175,10 @@ const searchKeyword = ref('');
 const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth > 768);
 const isWideScreen = ref(false);
 const globeRef = ref(null);
+const cycleTransferMap = ref({});
+const cycleTransferLoading = ref(false);
 let serverHoverTimer = null;
+let cycleTransferTimer = null;
 
 function updateWideScreen() {
   isWideScreen.value = window.innerWidth >= WIDE_BREAKPOINT;
@@ -191,6 +200,7 @@ function clearSearchKeyword() {
 
 const serverList = computed(() => store.state.serverList);
 const serverCount = computed(() => store.state.serverCount);
+const hasOfflineServer = computed(() => serverList.value.some((s) => s.online !== 1));
 const resolvedTheme = computed(() => store.state.resolvedTheme);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim().toLowerCase());
 
@@ -281,8 +291,36 @@ function clearServerHoverTimer() {
   }
 }
 
+async function refreshCycleTransfer() {
+  if (cycleTransferLoading.value) {
+    return;
+  }
+  cycleTransferLoading.value = true;
+  try {
+    cycleTransferMap.value = await loadCycleTransferMap(serverList.value) || {};
+  } catch (error) {
+    console.error('加载周期流量失败:', error);
+  } finally {
+    cycleTransferLoading.value = false;
+  }
+}
+
+function stopCycleTransferTimer() {
+  if (cycleTransferTimer) {
+    window.clearInterval(cycleTransferTimer);
+    cycleTransferTimer = null;
+  }
+}
+
+function startCycleTransferTimer() {
+  stopCycleTransferTimer();
+  const seconds = Number(config.nazhua.detailCycleTransferRefreshTime) || 60;
+  cycleTransferTimer = window.setInterval(refreshCycleTransfer, seconds * 1000);
+}
+
 function handleServerHover(server) {
   clearServerHoverTimer();
+  globeRef.value?.clearFocusBubble?.();
 
   if (!server || !globeRef.value) {
     return;
@@ -300,7 +338,7 @@ function handleServerHover(server) {
 
     const location = serverLocations.value.find((loc) => loc.codes?.includes(code));
     if (location) {
-      globeRef.value.focusLocation(location);
+      globeRef.value.focusLocationWithHighlight(location, server.Name);
     }
   }, SERVER_HOVER_FOCUS_DELAY);
 }
@@ -349,15 +387,40 @@ watch(
   },
 );
 
+watch(
+  () => store.state.init,
+  (init) => {
+    if (init && serverList.value.length > 0) {
+      refreshCycleTransfer();
+      startCycleTransferTimer();
+    }
+  },
+);
+
+watch(
+  () => serverList.value.length,
+  (length, prevLength) => {
+    if (length > 0 && prevLength === 0 && store.state.init) {
+      refreshCycleTransfer();
+      startCycleTransferTimer();
+    }
+  },
+);
+
 onMounted(() => {
   updateWideScreen();
   window.addEventListener('resize', updateWideScreen);
   tryFocusFromQuery();
+  if (store.state.init && serverList.value.length > 0) {
+    refreshCycleTransfer();
+    startCycleTransferTimer();
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateWideScreen);
   clearServerHoverTimer();
+  stopCycleTransferTimer();
 });
 </script>
 
@@ -601,36 +664,8 @@ onUnmounted(() => {
   .section-title-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 10px;
-  }
-
-  .title-block {
-    min-width: 0;
-    flex: 1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
-
-    h2 {
-      font-family: var(--font-sans);
-      font-size: 17px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      min-width: 0;
-      margin-right: 0;
-      color: var(--text-primary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-
-      i {
-        color: var(--accent-primary);
-      }
-    }
   }
 
   .section-summary {
@@ -650,6 +685,16 @@ onUnmounted(() => {
 
   .section-toolbar {
     min-width: 0;
+  }
+
+  .result-hint-floating {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px 12px;
+    background: linear-gradient(180deg, transparent, var(--section-bg) 40%);
+    z-index: 5;
   }
 
   .search-filter-bar {
@@ -714,9 +759,9 @@ onUnmounted(() => {
   .filter-group {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
     margin: 4px 4px 4px 0;
-    padding: 3px;
+    padding: 2px;
     border: 1px solid var(--button-subtle-border);
     border-radius: 999px;
     background: var(--button-subtle-bg);
@@ -781,7 +826,7 @@ onUnmounted(() => {
   .filter-btn {
     min-width: 0;
     min-height: 28px;
-    padding: 0 10px;
+    padding: 0 8px;
     border-radius: 999px;
     border: 1px solid transparent;
     background: transparent;
@@ -1091,12 +1136,6 @@ onUnmounted(() => {
       padding: 14px;
     }
 
-    .title-block {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
     .section-summary {
       min-height: 30px;
       padding: 0 10px;
@@ -1113,7 +1152,7 @@ onUnmounted(() => {
     }
 
     .filter-btn {
-      padding: 0 8px;
+      padding: 0 6px;
       min-height: 26px;
     }
   }

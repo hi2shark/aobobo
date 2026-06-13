@@ -31,6 +31,25 @@
         </div>
       </div>
 
+      <div class="tags-row">
+        <span
+          v-if="specNazhua && specNazhua !== '-'"
+          class="meta-tag meta-tag--spec-with-logo"
+        >
+          <i :class="platformLogoClass" />
+          <span>{{ specNazhua }}</span>
+        </span>
+        <span v-if="cpuCompany" class="meta-tag meta-tag--cpu">{{ cpuCompany }}</span>
+        <span
+          v-if="trafficLabel && trafficLabel !== '-'"
+          :class="['meta-tag', trafficWarningClass]"
+        >{{ trafficLabel }}</span>
+      </div>
+      <div class="tags-row">
+        <span v-if="connCount && connCount !== '0|0'" class="meta-tag">连接 {{ connCount }}</span>
+        <span v-if="speedLabel && speedLabel !== '-'" class="meta-tag">{{ speedLabel }}</span>
+      </div>
+
       <div class="metrics-row">
         <div class="metric">
           <span class="metric-label">CPU</span>
@@ -91,8 +110,16 @@
 <script setup>
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { calcTransfer, getSystemOSLabel } from '@/utils/host';
+import {
+  calcTransfer,
+  getCPUInfo,
+  getPlatformLogoIconClassName,
+  getSystemOSLabel,
+} from '@/utils/host';
 import { duration } from '@/utils/date';
+import {
+  getCycleTransferSummaryByServer,
+} from '@/utils/cycle-transfer';
 
 const props = defineProps({
   info: {
@@ -102,6 +129,10 @@ const props = defineProps({
   expanded: {
     type: Boolean,
     default: false,
+  },
+  cycleTransferMap: {
+    type: Object,
+    default: () => ({}),
   },
 });
 
@@ -123,7 +154,85 @@ const spec = computed(() => {
   const parts = [];
   if (coreStr) parts.push(coreStr);
   if (memGB) parts.push(`${memGB}G内存`);
-  return parts.join(' / ') || '-';
+  return parts.join('') || '-';
+});
+
+const specNazhua = computed(() => {
+  const cpu = props.info.Host?.CPU?.[0] || '';
+  const cores = cpu.match(/(\d+)\s*(Virtual|Physical|Physics)\s*Core/i);
+  const coreStr = cores ? `${cores[1]}C` : '';
+  const memGB = props.info.Host?.MemTotal ? (props.info.Host.MemTotal / 1024 / 1024 / 1024).toFixed(0) : '';
+  const diskGB = props.info.Host?.DiskTotal ? (props.info.Host.DiskTotal / 1024 / 1024 / 1024).toFixed(0) : '';
+  const parts = [];
+  if (coreStr) parts.push(coreStr);
+  if (memGB) parts.push(`${memGB}G`);
+  if (diskGB) parts.push(`${diskGB}G`);
+  return parts.join('') || '-';
+});
+
+const platformLogoClass = computed(() => getPlatformLogoIconClassName(props.info.Host?.Platform));
+
+const cpuCompany = computed(() => {
+  const cpu = props.info.Host?.CPU?.[0];
+  if (!cpu) return '';
+  const info = getCPUInfo(cpu);
+  return info.company || '';
+});
+
+const cycleTransferSummary = computed(() => getCycleTransferSummaryByServer(
+  props.cycleTransferMap,
+  props.info,
+));
+
+const hasTrafficWarning = computed(() => {
+  if (!cycleTransferSummary.value) return false;
+  return ['warning', 'alert', 'over'].includes(cycleTransferSummary.value.statusLevel);
+});
+
+const trafficWarningClass = computed(() => {
+  if (!cycleTransferSummary.value) return '';
+  return `traffic-status--${cycleTransferSummary.value.statusLevel}`;
+});
+
+function formatTransferValue(value) {
+  if (!value) return '0';
+  const t = calcTransfer(value);
+  return `${t.value}${t.unit}`;
+}
+
+const trafficLabel = computed(() => {
+  if (cycleTransferSummary.value && hasTrafficWarning.value) {
+    return `剩余 ${cycleTransferSummary.value.remainingDisplay}`;
+  }
+
+  const trafficType = props.info.PublicNote?.planDataMod?.trafficType;
+  const netIn = props.info.State?.NetInTransfer || 0;
+  const netOut = props.info.State?.NetOutTransfer || 0;
+
+  switch (+trafficType) {
+    case 1:
+      return `单向出 ${formatTransferValue(netOut)}`;
+    case 3: {
+      const isOut = netOut >= netIn;
+      return `${isOut ? '最大出' : '最大入'} ${formatTransferValue(isOut ? netOut : netIn)}`;
+    }
+    case 2:
+      return `双向 ${formatTransferValue(netIn + netOut)}`;
+    default:
+      if (cycleTransferSummary.value && cycleTransferSummary.value.maxDisplay !== '-') {
+        return `双向 ${formatTransferValue(netIn + netOut)}`;
+      }
+      return '不限制';
+  }
+});
+
+const speedLabel = computed(() => {
+  const netIn = props.info.State?.NetInSpeed || 0;
+  const netOut = props.info.State?.NetOutSpeed || 0;
+  if (!netIn && !netOut) return '-';
+  const sIn = calcTransfer(netIn);
+  const sOut = calcTransfer(netOut);
+  return `↑${sOut.value}${sOut.unit}/s ↓${sIn.value}${sIn.unit}/s`;
 });
 
 const memPercent = computed(() => {
@@ -312,7 +421,7 @@ function getLoadColor(val) {
   .info-row {
     display: flex;
     gap: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
 
     .info-item {
@@ -340,6 +449,13 @@ function getLoadColor(val) {
       font-family: var(--font-mono);
       font-variant-numeric: tabular-nums;
     }
+  }
+
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
   }
 
   .metrics-row {

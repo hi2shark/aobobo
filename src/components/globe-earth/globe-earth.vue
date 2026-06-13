@@ -26,6 +26,20 @@
       <div class="tooltip-meta">{{ hoveredMarker.totalCount }} 台服务器</div>
     </div>
 
+    <div
+      v-if="focusBubbleMarker && !isMobile"
+      ref="focusBubbleWrapper"
+      :class="[
+        'marker-tooltip',
+        'marker-focus-bubble',
+        focusBubbleState.placement,
+        { 'is-visible': focusBubbleState.visible },
+      ]"
+      :style="focusBubbleInlineStyle"
+    >
+      <div class="tooltip-title">{{ focusBubbleServerName }}</div>
+    </div>
+
     <transition name="globe-popup-fade">
       <div
         v-if="selectedMarker"
@@ -113,6 +127,7 @@ const POPUP_PADDING = 16;
 const POPUP_OFFSET = 20;
 const MARKER_HTML_TRANSITION_DURATION = 320;
 const INTERACTION_SETTLE_DELAY = 120;
+const FOCUS_ANIMATION_DURATION = 920;
 
 const props = defineProps({
   locations: {
@@ -139,11 +154,14 @@ const rootRef = ref(null);
 const globeContainer = ref(null);
 const popupWrapper = ref(null);
 const tooltipWrapper = ref(null);
+const focusBubbleWrapper = ref(null);
 const isReady = ref(false);
 const initError = ref(false);
 const isMobile = ref(false);
 const selectedMarker = ref(null);
 const hoveredMarkerKey = ref(null);
+const focusBubbleMarker = ref(null);
+const focusBubbleServerName = ref('');
 const isPopupHovered = ref(false);
 const isUserInteracting = ref(false);
 const isMarkerAnimationSuspended = ref(false);
@@ -162,6 +180,13 @@ const tooltipState = reactive({
   placement: 'top',
 });
 
+const focusBubbleState = reactive({
+  left: 0,
+  top: 0,
+  visible: false,
+  placement: 'top',
+});
+
 let globe = null;
 let controlsStartHandler = null;
 let controlsEndHandler = null;
@@ -173,6 +198,7 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
+let focusBubbleTimer = null;
 const GLOBE_TEXTURE_VERSION = 24;
 const BLOOM_CONFIG = {
   strength: 0.28,
@@ -418,6 +444,11 @@ const tooltipInlineStyle = computed(() => ({
   top: `${tooltipState.top}px`,
 }));
 
+const focusBubbleInlineStyle = computed(() => ({
+  left: `${focusBubbleState.left}px`,
+  top: `${focusBubbleState.top}px`,
+}));
+
 function configureRenderer() {
   const renderer = globe?.renderer?.();
   if (!renderer) {
@@ -555,6 +586,10 @@ function syncMarkerElementState() {
     }
     element.classList.toggle('is-hovered', hoveredMarkerKey.value === key);
     element.classList.toggle('is-selected', selectedMarker.value?.key === key);
+    element.classList.toggle(
+      'is-focus-highlighted',
+      focusBubbleMarker.value?.key === key && !marker?.isLarge,
+    );
     element.setAttribute('aria-pressed', selectedMarker.value?.key === key ? 'true' : 'false');
   });
 }
@@ -592,7 +627,8 @@ function applyAutoRotateState() {
       || isPopupHovered.value
       || isMarkerAnimationSuspended.value
       || isUserInteracting.value
-      || selectedMarker.value,
+      || selectedMarker.value
+      || focusBubbleMarker.value,
   );
 
   globe.controls().autoRotate = props.autoRotate && !shouldPause;
@@ -607,10 +643,96 @@ function focusLocation(location) {
     lat: location.lat,
     lng: location.lng,
     altitude: isMobile.value ? 1.72 : 1.58,
-  }, 920);
+  }, FOCUS_ANIMATION_DURATION);
+}
+
+function clearFocusBubble() {
+  if (focusBubbleTimer) {
+    window.clearTimeout(focusBubbleTimer);
+    focusBubbleTimer = null;
+  }
+
+  focusBubbleMarker.value = null;
+  focusBubbleServerName.value = '';
+  focusBubbleState.visible = false;
+  syncMarkerElementState();
+  applyAutoRotateState();
+}
+
+function updateFocusBubblePosition() {
+  if (!focusBubbleMarker.value || isMobile.value) {
+    focusBubbleState.visible = false;
+    return;
+  }
+
+  const element = globeContainer.value?.querySelector(`.globe-marker[data-key="${focusBubbleMarker.value.key}"]`);
+  if (!element || !focusBubbleWrapper.value || !rootRef.value) {
+    return;
+  }
+
+  const rootRect = rootRef.value.getBoundingClientRect();
+  const bubbleRect = focusBubbleWrapper.value.getBoundingClientRect();
+  const markerRect = element.getBoundingClientRect();
+  const markerX = markerRect.left + (markerRect.width / 2) - rootRect.left;
+  const markerY = markerRect.top + (markerRect.height / 2) - rootRect.top;
+
+  let left = markerX - (bubbleRect.width / 2);
+  let top = markerY - bubbleRect.height - POPUP_OFFSET;
+  let placement = 'top';
+
+  if (top < POPUP_PADDING) {
+    placement = 'bottom';
+    top = markerY + POPUP_OFFSET;
+  }
+
+  const maxLeft = rootRect.width - bubbleRect.width - POPUP_PADDING;
+  const maxTop = rootRect.height - bubbleRect.height - POPUP_PADDING;
+  left = Math.max(POPUP_PADDING, Math.min(left, maxLeft));
+  top = Math.max(POPUP_PADDING, Math.min(top, maxTop));
+  focusBubbleState.left = left;
+  focusBubbleState.top = top;
+  focusBubbleState.placement = placement;
+  focusBubbleState.visible = true;
+}
+
+function focusLocationWithHighlight(location, serverName) {
+  if (!globe || !location) {
+    return;
+  }
+
+  clearFocusBubble();
+
+  globe.pointOfView({
+    lat: location.lat,
+    lng: location.lng,
+    altitude: isMobile.value ? 1.72 : 1.58,
+  }, FOCUS_ANIMATION_DURATION);
+
+  if (isMobile.value) {
+    return;
+  }
+
+  const marker = markerData.value.find((m) => m.key === location.key);
+  if (!marker) {
+    return;
+  }
+
+  focusBubbleTimer = window.setTimeout(() => {
+    focusBubbleTimer = null;
+    focusBubbleMarker.value = marker;
+    focusBubbleServerName.value = serverName || marker.label;
+
+    syncMarkerElementState();
+    applyAutoRotateState();
+
+    nextTick(() => {
+      updateFocusBubblePosition();
+    });
+  }, FOCUS_ANIMATION_DURATION);
 }
 
 function clearSelection(shouldEmit = true) {
+  clearFocusBubble();
   selectedMarker.value = null;
   isPopupHovered.value = false;
   popupState.visible = false;
@@ -985,6 +1107,7 @@ function handleResize() {
   nextTick(() => {
     updatePopupPosition();
     updateTooltipPosition();
+    updateFocusBubblePosition();
   });
 }
 
@@ -1015,6 +1138,7 @@ function initGlobe() {
       }
       updatePopupPosition();
       updateTooltipPosition();
+      updateFocusBubblePosition();
     };
 
     globe
@@ -1081,9 +1205,19 @@ watch(markerData, (nextMarkers) => {
     }
   }
 
+  if (focusBubbleMarker.value) {
+    const nextFocused = nextMarkers.find((marker) => marker.key === focusBubbleMarker.value.key);
+    if (nextFocused) {
+      focusBubbleMarker.value = nextFocused;
+    } else {
+      clearFocusBubble();
+    }
+  }
+
   updateLayers();
   nextTick(() => {
     updatePopupPosition();
+    updateFocusBubblePosition();
   });
 });
 
@@ -1114,6 +1248,7 @@ watch(
     isMarkerAnimationSuspended,
     isUserInteracting,
     selectedMarker,
+    focusBubbleMarker,
     isMobile,
   ],
   () => {
@@ -1122,6 +1257,7 @@ watch(
     nextTick(() => {
       updatePopupPosition();
       updateTooltipPosition();
+      updateFocusBubblePosition();
     });
   },
 );
@@ -1135,6 +1271,8 @@ watch(hoveredMarker, () => {
 
 defineExpose({
   focusLocation,
+  focusLocationWithHighlight,
+  clearFocusBubble,
   resetView,
   clearSelection,
 });
@@ -1164,6 +1302,7 @@ onUnmounted(() => {
   }
 
   clearInteractionSettleTimer();
+  clearFocusBubble();
 
   const controls = globe?.controls?.();
   if (controls && controlsStartHandler) {
@@ -1363,6 +1502,12 @@ onUnmounted(() => {
   }
 }
 
+.marker-focus-bubble {
+  .tooltip-title {
+    margin-bottom: 0;
+  }
+}
+
 :deep(.globe-marker) {
   width: var(--marker-hit-size);
   height: var(--marker-hit-size);
@@ -1449,6 +1594,14 @@ onUnmounted(() => {
 :deep(.globe-marker.is-offline .marker-dot),
 :deep(.globe-marker.is-offline .marker-cluster--large) {
   opacity: 0.58;
+}
+
+:deep(.globe-marker.is-focus-highlighted .marker-dot) {
+  background: #ffffff;
+  opacity: 1;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--marker-core-color) 30%, transparent),
+    0 0 8px 3px color-mix(in srgb, var(--marker-core-color) 70%, transparent);
 }
 
 .globe-earth.theme-dark {

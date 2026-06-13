@@ -25,25 +25,35 @@
               {{ server.Name || '-' }}
             </span>
           </div>
-          <span class="server-list-item__status">
-            <span
-              :class="['status-dot', server.online === 1 ? 'online' : 'offline']"
-            />
-            <span>{{ server.online === 1 ? '在线' : '离线' }}</span>
+          <span
+            v-if="getPlatformLogoClass(server) || getSpec(server)"
+            class="server-list-item__head-spec"
+          >
+            <i v-if="getPlatformLogoClass(server)" :class="getPlatformLogoClass(server)" />
+            <span v-if="getSpec(server)">{{ getSpec(server) }}</span>
           </span>
         </div>
         <div
-          v-if="getRegion(server) || getOS(server) || getSpec(server)"
+          v-if="getCPUCompany(server)
+            || getTraffic(server)
+            || getConnCount(server)
+            || getSpeed(server)"
           class="server-list-item__tags"
         >
-          <span v-if="getRegion(server)" class="meta-tag meta-tag--region">
-            {{ getRegion(server) }}
+          <span v-if="getCPUCompany(server)" class="meta-tag meta-tag--cpu">
+            {{ getCPUCompany(server) }}
           </span>
-          <span v-if="getOS(server)" class="meta-tag meta-tag--os">
-            {{ getOS(server) }}
+          <span
+            v-if="getTraffic(server)"
+            :class="['meta-tag', 'meta-tag--traffic', getTrafficWarningClass(server)]"
+          >
+            {{ getTraffic(server) }}
           </span>
-          <span v-if="getSpec(server)" class="meta-tag meta-tag--spec">
-            {{ getSpec(server) }}
+          <span v-if="getConnCount(server)" class="meta-tag meta-tag--conn">
+            连接 {{ getConnCount(server) }}
+          </span>
+          <span v-if="getSpeed(server)" class="meta-tag meta-tag--speed">
+            {{ getSpeed(server) }}
           </span>
         </div>
       </div>
@@ -53,13 +63,23 @@
 
 <script setup>
 import { useRouter } from 'vue-router';
-import { alias2code, locationCode2Info } from '@/utils/world-map';
-import { getSystemOSLabel } from '@/utils/host';
+import {
+  calcTransfer,
+  getCPUInfo,
+  getPlatformLogoIconClassName,
+} from '@/utils/host';
+import {
+  getCycleTransferSummaryByServer,
+} from '@/utils/cycle-transfer';
 
-defineProps({
+const props = defineProps({
   servers: {
     type: Array,
     default: () => [],
+  },
+  cycleTransferMap: {
+    type: Object,
+    default: () => ({}),
   },
 });
 
@@ -79,24 +99,15 @@ function onRowLeave() {
   emit('hover-server', null);
 }
 
-function getRegion(server) {
-  const raw = server?.PublicNote?.customData?.location
-    || server?.Host?.CountryCode?.toUpperCase();
-  if (!raw) {
-    return '';
-  }
-  const code = alias2code(raw) || raw;
-  const info = locationCode2Info(code);
-  if (info?.name) {
-    return info.country && info.name !== info.country
-      ? `${info.name}`
-      : info.name;
-  }
-  return raw;
+function getPlatformLogoClass(server) {
+  return getPlatformLogoIconClassName(server?.Host?.Platform);
 }
 
-function getOS(server) {
-  return getSystemOSLabel(server?.Host?.Platform) || '';
+function getCPUCompany(server) {
+  const cpu = server?.Host?.CPU?.[0];
+  if (!cpu) return '';
+  const info = getCPUInfo(cpu);
+  return info.company || '';
 }
 
 function getSpec(server) {
@@ -111,7 +122,72 @@ function getSpec(server) {
   if (memGB) parts.push(`${memGB}G`);
   if (diskGB) parts.push(`${diskGB}G`);
 
-  return parts.join(' / ') || '';
+  return parts.join('') || '';
+}
+
+function getCycleTransferSummary(server) {
+  return getCycleTransferSummaryByServer(props.cycleTransferMap, server);
+}
+
+function hasTrafficWarning(server) {
+  const summary = getCycleTransferSummary(server);
+  if (!summary) return false;
+  return ['warning', 'alert', 'over'].includes(summary.statusLevel);
+}
+
+function getTrafficWarningClass(server) {
+  const summary = getCycleTransferSummary(server);
+  if (!summary) return '';
+  return `traffic-status--${summary.statusLevel}`;
+}
+
+function formatTransferValue(value) {
+  if (!value) return '0';
+  const t = calcTransfer(value);
+  return `${t.value}${t.unit}`;
+}
+
+function getTraffic(server) {
+  const summary = getCycleTransferSummary(server);
+  if (summary && hasTrafficWarning(server)) {
+    return `剩余 ${summary.remainingDisplay}`;
+  }
+
+  const trafficType = server?.PublicNote?.planDataMod?.trafficType;
+  const netIn = server.State?.NetInTransfer || 0;
+  const netOut = server.State?.NetOutTransfer || 0;
+
+  switch (+trafficType) {
+    case 1:
+      return `单向出 ${formatTransferValue(netOut)}`;
+    case 3: {
+      const isOut = netOut >= netIn;
+      return `${isOut ? '最大出' : '最大入'} ${formatTransferValue(isOut ? netOut : netIn)}`;
+    }
+    case 2:
+      return `双向 ${formatTransferValue(netIn + netOut)}`;
+    default:
+      if (summary && summary.maxDisplay && summary.maxDisplay !== '-') {
+        return `双向 ${formatTransferValue(netIn + netOut)}`;
+      }
+      return '不限制';
+  }
+}
+
+function getConnCount(server) {
+  const tcp = server.State?.TcpConnCount || 0;
+  const udp = server.State?.UdpConnCount || 0;
+  if (!tcp && !udp) return '';
+  return `${tcp}/${udp}`;
+}
+
+function getSpeed(server) {
+  const netIn = server.State?.NetInSpeed || 0;
+  const netOut = server.State?.NetOutSpeed || 0;
+  if (!netIn && !netOut) return '';
+  const sIn = calcTransfer(netIn);
+  const sOut = calcTransfer(netOut);
+  return `↑${sOut.value}${sOut.unit}/s ↓${sIn.value}${sIn.unit}/s`;
 }
 </script>
 
