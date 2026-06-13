@@ -24,6 +24,24 @@ export const duration = (startDate, endDate, noSub = false) => {
   return `${Math.floor(diff / day)}天`;
 };
 
+export function getNextCycleTime(startDate, months, specifiedDate) {
+  const start = dayjs(startDate);
+  const checkDate = dayjs(specifiedDate);
+
+  if (!start.isValid() || months <= 0) {
+    throw new Error('参数无效：请检查起始日期、周期月份数和指定日期。');
+  }
+
+  let nextDate = start;
+  let whileStatus = true;
+  while (whileStatus) {
+    nextDate = nextDate.add(months, 'month');
+    whileStatus = nextDate.valueOf() <= checkDate.valueOf();
+  }
+
+  return nextDate.valueOf();
+}
+
 export const duration2 = (startDate, endDate) => {
   const startTime = dayjs(startDate).valueOf();
   const endTime = dayjs(endDate).valueOf();

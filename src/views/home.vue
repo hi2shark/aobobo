@@ -138,8 +138,12 @@
 import {
   ref,
   computed,
+  onMounted,
   onUnmounted,
+  watch,
+  nextTick,
 } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { alias2code, locationCode2Info, clusterLocations } from '@/utils/world-map';
 import { getSystemOSLabel } from '@/utils/host';
@@ -157,6 +161,8 @@ const FILTER_OPTIONS = [
   { label: '离线', value: '-1', dot: 'offline' },
 ];
 
+const route = useRoute();
+const router = useRouter();
 const store = useStore();
 const filterOnline = ref('');
 const searchKeyword = ref('');
@@ -287,6 +293,54 @@ function handleServerHover(server) {
     }
   }, SERVER_HOVER_FOCUS_DELAY);
 }
+
+function focusLocationFromQuery(focusCode) {
+  if (!focusCode || !globeRef.value || serverLocations.value.length === 0) {
+    return false;
+  }
+
+  const location = serverLocations.value.find(
+    (loc) => loc.codes?.includes(focusCode) || loc.code === focusCode,
+  );
+  if (!location) {
+    return false;
+  }
+
+  globeRef.value.focusLocation(location);
+
+  if (route.query.focus) {
+    const { focus, ...rest } = route.query;
+    router.replace({ query: rest });
+  }
+
+  return true;
+}
+
+function tryFocusFromQuery() {
+  const focusCode = route.query.focus;
+  if (!focusCode || !store.state.init || serverList.value.length === 0) {
+    return;
+  }
+
+  nextTick(() => {
+    if (!focusLocationFromQuery(String(focusCode))) {
+      window.setTimeout(() => {
+        focusLocationFromQuery(String(focusCode));
+      }, 500);
+    }
+  });
+}
+
+watch(
+  () => [route.query.focus, store.state.init, serverLocations.value.length],
+  () => {
+    tryFocusFromQuery();
+  },
+);
+
+onMounted(() => {
+  tryFocusFromQuery();
+});
 
 onUnmounted(() => {
   clearServerHoverTimer();

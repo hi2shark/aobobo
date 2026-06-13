@@ -20,6 +20,13 @@ const config = reactive({
     v1GroupPath: '/api/v1/server-group',
     v1ApiSettingPath: '/api/v1/setting',
     v1ApiProfilePath: '/api/v1/profile',
+    detailServerStatusType: 'progress',
+    detailCycleTransferRefreshTime: 60,
+    hideDetailCycleTransfer: false,
+    monitorRefreshTime: 30,
+    monitorChartType: 'multi',
+    monitorChartTypeToggle: true,
+    filterGPUKeywords: ['Virtual Display'],
     ...(window.$$nazhuaConfig || {}),
   },
 });

@@ -1,96 +1,156 @@
 <template>
   <div class="detail-view">
-    <div class="detail-header">
-      <div class="header-main">
-        <button type="button" class="back-btn" @click="$router.back()">
+    <div class="status-bar">
+      <div class="status-group">
+        <button type="button" class="back-btn" @click="router.back()">
           <i class="ri-arrow-left-line" />
           返回
         </button>
-        <h2>{{ serverInfo?.Name || '服务器详情' }}</h2>
+        <h1 class="detail-title">
+          {{ info?.Name || '服务器详情' }}
+        </h1>
       </div>
-      <theme-mode-switch />
-    </div>
-    <div class="detail-content">
-      <server-card v-if="serverInfo" :info="serverInfo" :expanded="true" />
-      <div v-else class="not-found">
-        <i class="ri-error-warning-line" />
-        <p>服务器不存在</p>
+      <div class="status-actions">
+        <theme-mode-switch />
       </div>
     </div>
+
+    <div
+      v-if="info"
+      class="detail-main"
+      :class="{
+        'server--offline': info.online !== 1,
+      }"
+    >
+      <div class="detail-section">
+        <div class="section-header">
+          <server-detail-header :info="info" />
+        </div>
+        <div class="detail-body">
+          <div class="detail-body-col detail-body-col--primary">
+            <server-detail-status :info="info" />
+            <server-detail-cycle-transfer :info="info" />
+          </div>
+          <div class="detail-body-col detail-body-col--secondary">
+            <server-detail-info :info="info" />
+            <server-detail-monitor :info="info" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="home-footer">
+      <p>Powered by 哪吒监控 · Theme By AoBoBo 3D Globe</p>
+    </footer>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import {
+  computed,
+  watch,
+  provide,
+} from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import ServerCard from '@/components/server-panel/server-card.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
+import ServerDetailHeader from '@/components/server-detail/server-detail-header.vue';
+import ServerDetailStatus from '@/components/server-detail/server-detail-status.vue';
+import ServerDetailCycleTransfer from '@/components/server-detail/server-detail-cycle-transfer.vue';
+import ServerDetailInfo from '@/components/server-detail/server-detail-info.vue';
+import ServerDetailMonitor from '@/components/server-detail/server-detail-monitor.vue';
 
 const route = useRoute();
+const router = useRouter();
 const store = useStore();
 
-const serverInfo = computed(() => store.state.serverList
-  .find((s) => String(s.ID) === route.params.id));
+const serverId = computed(() => route.params.id);
+const info = computed(() => store.state.serverList
+  .find((s) => String(s.ID) === String(serverId.value)));
+const dataInit = computed(() => store.state.init);
+
+const currentTime = computed(() => store.state.serverTime || Date.now());
+provide('currentTime', currentTime);
+
+watch(info, (val) => {
+  if (val?.Name) {
+    document.title = `${val.Name} · 哪吒监控`;
+  }
+}, { immediate: true });
+
+watch([dataInit, info], () => {
+  if (dataInit.value && !info.value) {
+    router.replace('/');
+  }
+}, { immediate: true });
 </script>
 
 <style lang="scss" scoped>
 .detail-view {
+  position: relative;
   width: 100%;
   height: 100vh;
-  overflow-y: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  overflow: hidden;
   background: var(--page-bg);
-  position: relative;
-  padding: 14px 16px 16px;
 }
 
 .detail-view::before {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: var(--page-overlay);
   pointer-events: none;
 }
 
-.detail-view::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(var(--accent-cyan-rgb), 0.08), transparent 34%),
-    radial-gradient(circle at 50% 100%, rgba(var(--accent-cyan-rgb), 0.05), transparent 38%);
-  opacity: 0.9;
-  z-index: 0;
-}
-
-.detail-header {
+.status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
-  padding: 14px 18px;
+  gap: 14px 18px;
+  padding: 12px 18px;
+  position: relative;
+  overflow: hidden;
   background: var(--status-bar-bg);
-  backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--border-color);
   border-radius: calc(var(--radius-lg) + 2px);
   box-shadow:
     var(--shadow-sm),
     inset 0 1px 0 var(--surface-highlight);
-  position: sticky;
-  top: 14px;
   z-index: 10;
 
-  .header-main {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 40%),
+      radial-gradient(circle at 15% 0%, rgba(var(--accent-cyan-rgb), 0.08), transparent 30%);
+    pointer-events: none;
+  }
+
+  .status-group,
+  .status-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 10px;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+  }
+
+  .status-actions {
+    margin-left: auto;
+    justify-content: flex-end;
   }
 
   .back-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     min-height: 40px;
@@ -118,57 +178,131 @@ const serverInfo = computed(() => store.state.serverList
     }
   }
 
-  h2 {
-    font-size: 22px;
+  .detail-title {
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.02em;
+    color: var(--text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
-.detail-content {
-  padding: 18px 0 0;
-  max-width: 980px;
-  margin: 0 auto;
+.detail-main {
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+
+  &.server--offline {
+    filter: grayscale(1);
+  }
+}
+
+.detail-section {
+  min-height: 100%;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  background: var(--section-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 var(--surface-highlight);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--section-header-bg);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 16px 16px;
+}
+
+.detail-body-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  :deep(.detail-panel--flat + .detail-panel--flat) {
+    border-top: 1px solid var(--border-color);
+  }
+}
+
+.home-footer {
+  min-height: 50px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: var(--footer-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  backdrop-filter: blur(18px) saturate(145%);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 1px 0 var(--surface-highlight);
   position: relative;
   z-index: 1;
 }
 
-.not-found {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 320px;
-  padding: 80px 24px;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  background: var(--card-bg);
-  box-shadow: var(--card-shadow);
-  color: var(--text-secondary);
-  gap: 12px;
+@media screen and (min-width: 1280px) {
+  .detail-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 0 20px;
+    padding: 0 16px 16px;
+  }
 
-  i {
-    font-size: 48px;
-    color: var(--empty-icon-color);
+  .detail-body-col--secondary {
+    border-left: 1px solid var(--border-color);
+    padding-left: 20px;
+  }
+}
+
+@media screen and (max-width: 1279px) {
+  .detail-body-col--secondary {
+    border-top: 1px solid var(--border-color);
+    margin-top: 0;
+    padding-top: 0;
   }
 }
 
 @media screen and (max-width: 768px) {
   .detail-view {
+    gap: 10px;
     padding: 10px;
   }
 
-  .detail-header {
-    top: 10px;
-    padding: 12px;
+  .status-bar {
+    padding: 10px 12px;
+
+    .detail-title {
+      font-size: 17px;
+    }
   }
 
-  .detail-content {
-    padding: 12px 0 0;
+  .section-header {
+    padding: 12px 12px 10px;
   }
 
-  .detail-header h2 {
-    font-size: 18px;
+  .detail-body {
+    padding: 0 12px 12px;
   }
 }
 </style>

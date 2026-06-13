@@ -177,6 +177,20 @@ html[data-theme='dark'] {
   --list-status-bar-online: var(--accent-success);
   --list-status-bar-offline: var(--accent-danger);
   --list-status-bar-offline-muted: #8a96a8;
+  --detail-container-width: 920px;
+  --duration-color: #89c3eb;
+  --transfer-color: #f9ed69;
+  --transfer-in-color: var(--transfer-color);
+  --transfer-out-color: #90f2ff;
+  --net-speed-in-color: #f5b199;
+  --net-speed-out-color: #89c3eb;
+  --conn-tcp-color: #89c3eb;
+  --conn-udp-color: var(--accent-primary);
+  --load-color: #90f2ff;
+  --process-color: #f5b199;
+  --server-status-value-color: #a1eafb;
+  --server-status-label-color: var(--text-secondary);
+  --server-status-content-color: var(--text-secondary);
 }
 
 html[data-theme='light'] {
@@ -344,6 +358,20 @@ html[data-theme='light'] {
   --list-status-bar-online: var(--accent-success);
   --list-status-bar-offline: var(--accent-danger);
   --list-status-bar-offline-muted: #a8b4c4;
+  --detail-container-width: 920px;
+  --duration-color: #4383ff;
+  --transfer-color: #e5a026;
+  --transfer-in-color: var(--transfer-color);
+  --transfer-out-color: #2a9fd6;
+  --net-speed-in-color: #d97757;
+  --net-speed-out-color: #4383ff;
+  --conn-tcp-color: #4383ff;
+  --conn-udp-color: var(--accent-primary);
+  --load-color: #2a9fd6;
+  --process-color: #d97757;
+  --server-status-value-color: var(--accent-primary);
+  --server-status-label-color: var(--text-secondary);
+  --server-status-content-color: var(--text-secondary);
 }
 
 /* ===== Reset & Base ===== */
@@ -545,6 +573,18 @@ html, body {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-weight: 500;
+  }
+}
+
+/* ===== Detail Page ===== */
+.server-detail-info,
+.server-detail-monitor,
+.server-detail-cycle-transfer {
+  .module-head-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
 }
 

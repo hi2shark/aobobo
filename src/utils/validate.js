@@ -17,6 +17,9 @@ const validate = {
   isString(val) {
     return typeof val === 'string';
   },
+  hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  },
 };
 
 export default validate;
