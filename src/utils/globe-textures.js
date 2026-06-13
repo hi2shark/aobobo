@@ -8,10 +8,7 @@ const BUMP_TEXTURE_HEIGHT = 1024;
 
 const THEME_COLORS = {
   light: {
-    oceanBase: '#e8f4ff',
-    oceanCenter: '#ffffff',
-    oceanMid: '#f0f8ff',
-    oceanEdge: '#cae4f7',
+    oceanBase: '#d9edff',
     land: '#f3f6fa',
   },
   dark: {
@@ -99,36 +96,6 @@ function drawLightOcean(ctx) {
   const { width, height } = ctx.canvas;
 
   ctx.fillStyle = colors.oceanBase;
-  ctx.fillRect(0, 0, width, height);
-
-  const centerGradient = ctx.createRadialGradient(
-    width * 0.46,
-    height * 0.44,
-    height * 0.06,
-    width * 0.5,
-    height * 0.5,
-    height * 0.58,
-  );
-  centerGradient.addColorStop(0, colors.oceanCenter);
-  centerGradient.addColorStop(0.28, colors.oceanMid);
-  centerGradient.addColorStop(0.58, '#d6ecfb');
-  centerGradient.addColorStop(1, colors.oceanEdge);
-  ctx.fillStyle = centerGradient;
-  ctx.fillRect(0, 0, width, height);
-
-  const shading = ctx.createRadialGradient(
-    width * 0.42,
-    height * 0.38,
-    0,
-    width * 0.5,
-    height * 0.5,
-    height * 0.72,
-  );
-  shading.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
-  shading.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
-  shading.addColorStop(0.8, 'rgba(120, 160, 200, 0.04)');
-  shading.addColorStop(1, 'rgba(80, 120, 160, 0.08)');
-  ctx.fillStyle = shading;
   ctx.fillRect(0, 0, width, height);
 }
 

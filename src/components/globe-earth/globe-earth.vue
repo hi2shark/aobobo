@@ -159,7 +159,7 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
-const GLOBE_TEXTURE_VERSION = 22;
+const GLOBE_TEXTURE_VERSION = 23;
 const BLOOM_CONFIG = {
   strength: 0.28,
   radius: 0.42,
