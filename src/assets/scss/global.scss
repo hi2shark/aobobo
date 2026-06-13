@@ -171,6 +171,12 @@ html[data-theme='dark'] {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --empty-icon-color: rgba(173, 187, 208, 0.8);
   --empty-icon-color-soft: rgba(173, 187, 208, 0.72);
+  --list-tag-bg: rgba(255, 255, 255, 0.055);
+  --list-tag-border: rgba(146, 166, 186, 0.15);
+  --list-tag-text: #d1dded;
+  --list-status-bar-online: var(--accent-success);
+  --list-status-bar-offline: var(--accent-danger);
+  --list-status-bar-offline-muted: #8a96a8;
 }
 
 html[data-theme='light'] {
@@ -332,6 +338,12 @@ html[data-theme='light'] {
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
   --empty-icon-color: rgba(122, 135, 155, 0.88);
   --empty-icon-color-soft: rgba(122, 135, 155, 0.76);
+  --list-tag-bg: rgba(67, 131, 255, 0.08);
+  --list-tag-border: rgba(67, 131, 255, 0.18);
+  --list-tag-text: #3d4f68;
+  --list-status-bar-online: var(--accent-success);
+  --list-status-bar-offline: var(--accent-danger);
+  --list-status-bar-offline-muted: #a8b4c4;
 }
 
 /* ===== Reset & Base ===== */
@@ -381,6 +393,159 @@ html, body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
   background-clip: padding-box;
+}
+
+/* ===== Server List Item (shared) ===== */
+.server-list-item {
+  position: relative;
+  width: 100%;
+  display: block;
+  padding: 11px 14px;
+  appearance: none;
+  border: 1px solid var(--panel-row-border);
+  border-radius: 14px;
+  background: var(--panel-row-bg);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: visible;
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    border-color: var(--panel-row-hover-border);
+    background: var(--panel-row-hover-bg);
+    box-shadow: var(--panel-row-hover-shadow);
+  }
+
+  &.offline {
+    opacity: 0.88;
+
+    .server-list-item__name {
+      color: var(--text-secondary);
+    }
+
+    .meta-tag {
+      color: var(--text-muted);
+      background: var(--surface-subtle);
+      border-color: var(--list-tag-border);
+    }
+  }
+}
+
+.server-list-item__content {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.server-list-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.server-list-item__name-group {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+
+  .fi,
+  .flag-placeholder {
+    flex: 0 0 auto;
+    width: 16px;
+    font-size: 16px;
+    border-radius: 3px;
+  }
+
+  .flag-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--panel-chip-icon);
+    background: var(--panel-chip-bg);
+    border: 1px solid var(--panel-chip-border);
+  }
+}
+
+.server-list-item__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.server-list-item__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+
+    &.online {
+      background: var(--accent-success);
+      box-shadow: var(--status-online-glow);
+    }
+
+    &.offline {
+      background: var(--accent-danger);
+      box-shadow: var(--status-offline-glow);
+    }
+  }
+}
+
+.server-list-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+  min-height: 22px;
+}
+
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--list-tag-border);
+  background: var(--list-tag-bg);
+  color: var(--list-tag-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &--spec {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
 }
 
 /* ===== Utility Classes ===== */

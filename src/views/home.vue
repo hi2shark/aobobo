@@ -2,32 +2,25 @@
   <div class="home-view">
     <div class="status-bar">
       <div class="status-group">
-        <div class="status-item">
-          <span class="status-dot online" />
-          <span>在线: {{ serverCount.online }}</span>
-        </div>
-        <div class="status-item">
-          <span class="status-dot offline" />
-          <span>离线: {{ serverCount.offline }}</span>
+        <div class="status-summary" aria-label="服务器统计">
+          <span class="status-summary__total">
+            <strong>{{ serverCount.total }}</strong> 台
+          </span>
+          <span class="status-summary__sep" aria-hidden="true">·</span>
+          <span class="status-summary__item">
+            <span class="status-dot online" />
+            {{ serverCount.online }} 在线
+          </span>
+          <span class="status-summary__sep" aria-hidden="true">·</span>
+          <span class="status-summary__item">
+            <span class="status-dot offline" />
+            {{ serverCount.offline }} 离线
+          </span>
         </div>
       </div>
 
       <div class="status-actions">
-        <div class="action-cluster">
-          <button
-            type="button"
-            class="sidebar-toggle"
-            :class="{ active: sidebarOpen }"
-            @click="toggleSidebar"
-          >
-            <i :class="sidebarOpen ? 'ri-layout-right-line' : 'ri-server-line'" />
-            <span>{{ sidebarOpen ? '隐藏列表' : '服务器列表' }}</span>
-          </button>
-          <theme-mode-switch />
-        </div>
-        <div class="status-item total">
-          <span>总计: {{ serverCount.total }}台</span>
-        </div>
+        <theme-mode-switch />
       </div>
     </div>
 
@@ -56,14 +49,25 @@
         @click="toggleSidebar"
       />
 
+      <button
+        v-if="!sidebarOpen"
+        type="button"
+        class="sidebar-expand-handle"
+        aria-label="展开服务器列表"
+        title="展开服务器列表"
+        @click="toggleSidebar"
+      >
+        <i class="ri-server-line" />
+      </button>
+
       <div class="server-list-section" :class="{ collapsed: !sidebarOpen }">
         <div class="tech-frame" aria-hidden="true" />
         <div class="section-header">
           <div class="section-title-row">
             <div class="title-block">
               <h2><i class="ri-server-line" /> 服务器列表</h2>
-              <span class="section-summary">
-                显示 {{ filteredServers.length }} / 总计 {{ serverCount.total }}
+              <span v-if="listResultHint" class="section-summary">
+                {{ listResultHint }}
               </span>
             </div>
             <button
@@ -75,36 +79,41 @@
               <i class="ri-arrow-right-s-line" />
             </button>
           </div>
-          <div class="section-search-row">
-            <label class="search-box">
-              <i class="ri-search-line" />
-              <input
-                v-model="searchKeyword"
-                type="text"
-                placeholder="搜索名称 / 地区 / 系统"
-              >
-            </label>
-            <button
-              type="button"
-              class="clear-search"
-              :disabled="searchKeyword.trim() === ''"
-              title="清空搜索"
-              @click="clearSearchKeyword"
-            >
-              <i class="ri-close-line" />
-            </button>
-          </div>
-          <div class="section-filter-row">
-            <button
-              v-for="option in FILTER_OPTIONS"
-              :key="option.value || 'all'"
-              type="button"
-              :class="['filter-btn', { active: filterOnline === option.value }]"
-              @click="filterOnline = option.value"
-            >
-              <span class="filter-label">{{ option.label }}</span>
-              <span class="filter-count">{{ filterStats[option.countKey] }}</span>
-            </button>
+          <div class="section-toolbar">
+            <div class="search-filter-bar">
+              <label class="search-box">
+                <i class="ri-search-line" />
+                <input
+                  v-model="searchKeyword"
+                  type="text"
+                  placeholder="搜索名称 / 地区 / 系统"
+                >
+                <button
+                  v-if="searchKeyword.trim() !== ''"
+                  type="button"
+                  class="clear-search"
+                  title="清空搜索"
+                  @click="clearSearchKeyword"
+                >
+                  <i class="ri-close-line" />
+                </button>
+              </label>
+              <div class="filter-group" role="group" aria-label="筛选状态">
+                <button
+                  v-for="option in FILTER_OPTIONS"
+                  :key="option.value || 'all'"
+                  type="button"
+                  :class="['filter-btn', { active: filterOnline === option.value }]"
+                  @click="filterOnline = option.value"
+                >
+                  <span
+                    v-if="option.dot"
+                    :class="['status-dot', option.dot]"
+                  />
+                  <span class="filter-label">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <server-table
@@ -143,9 +152,9 @@ import IconEarth from '@/components/icons/icon-earth.vue';
 
 const SERVER_HOVER_FOCUS_DELAY = 3000;
 const FILTER_OPTIONS = [
-  { label: '全部', value: '', countKey: 'total' },
-  { label: '在线', value: '1', countKey: 'online' },
-  { label: '离线', value: '-1', countKey: 'offline' },
+  { label: '全部', value: '' },
+  { label: '在线', value: '1', dot: 'online' },
+  { label: '离线', value: '-1', dot: 'offline' },
 ];
 
 const store = useStore();
@@ -191,20 +200,9 @@ const searchMatchedServers = computed(() => {
   return serverList.value.filter((server) => getServerSearchText(server).includes(keyword));
 });
 
-const filterStats = computed(() => searchMatchedServers.value.reduce((stats, server) => {
-  const nextStats = { ...stats };
-  nextStats.total += 1;
-  if (server.online === 1) {
-    nextStats.online += 1;
-  } else if (server.online === -1) {
-    nextStats.offline += 1;
-  }
-  return nextStats;
-}, {
-  total: 0,
-  online: 0,
-  offline: 0,
-}));
+const isListFiltered = computed(() => (
+  normalizedSearchKeyword.value !== '' || filterOnline.value !== ''
+));
 
 const filteredServers = computed(() => {
   let list = searchMatchedServers.value;
@@ -212,6 +210,13 @@ const filteredServers = computed(() => {
     list = list.filter((s) => String(s.online) === filterOnline.value);
   }
   return list;
+});
+
+const listResultHint = computed(() => {
+  if (!isListFiltered.value) {
+    return '';
+  }
+  return `${filteredServers.value.length} 条匹配`;
 });
 
 const serverLocations = computed(() => {
@@ -352,18 +357,12 @@ onUnmounted(() => {
     justify-content: flex-end;
   }
 
-  .action-cluster {
+  .status-summary {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-  }
-
-  .status-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     min-height: 40px;
-    padding: 0 14px;
+    padding: 0 16px;
     border: 1px solid var(--status-chip-border);
     border-radius: 999px;
     background: var(--status-chip-bg);
@@ -373,11 +372,32 @@ onUnmounted(() => {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
+    white-space: nowrap;
+  }
 
-    span:last-child {
-      font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums;
+  .status-summary__total {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+
+    strong {
+      font-weight: 700;
     }
+  }
+
+  .status-summary__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status-summary__sep {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1;
+    user-select: none;
   }
 
   .status-dot {
@@ -393,50 +413,6 @@ onUnmounted(() => {
     &.offline {
       background: var(--accent-danger);
       box-shadow: var(--status-offline-glow);
-    }
-  }
-
-  .total {
-    border-color: var(--border-strong);
-    background: var(--status-chip-total-bg);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.1),
-      0 12px 22px rgba(var(--accent-cyan-rgb), 0.12);
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .sidebar-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 40px;
-    padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid var(--button-subtle-border);
-    background: var(--button-subtle-bg);
-    color: var(--text-secondary);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      color var(--transition-fast),
-      background var(--transition-fast),
-      border-color var(--transition-fast),
-      box-shadow var(--transition-fast),
-      transform var(--transition-fast);
-
-    i {
-      font-size: 15px;
-    }
-
-    &:hover,
-    &.active {
-      background: var(--button-active-bg);
-      border-color: var(--button-active-border);
-      box-shadow: var(--button-active-shadow);
-      color: var(--text-on-accent);
-      transform: translateY(-1px);
     }
   }
 }
@@ -481,58 +457,62 @@ onUnmounted(() => {
   display: none;
 }
 
-.server-list-section {
-  position: fixed;
-  top: 96px;
-  right: 16px;
-  bottom: 88px;
-  width: clamp(380px, 26vw, 460px);
-  z-index: 20;
-  border-radius: 28px;
+.sidebar-expand-handle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 72px;
+  padding: 0;
   border: 1px solid var(--border-color);
-  background: var(--panel-floating-bg);
-  backdrop-filter: blur(22px) saturate(160%);
+  border-right: none;
+  border-radius: 14px 0 0 14px;
+  background: var(--section-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transform: translateY(-50%);
+  box-shadow: var(--shadow-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+
+  i {
+    font-size: 18px;
+  }
+
+  &:hover {
+    color: var(--text-on-accent);
+    background: var(--button-active-bg);
+    border-color: var(--button-active-border);
+    box-shadow: var(--button-active-shadow);
+  }
+}
+
+.server-list-section {
+  min-height: 0;
+  min-width: 0;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  background: var(--section-bg);
+  backdrop-filter: blur(18px) saturate(150%);
   box-shadow:
-    var(--shadow-lg),
+    var(--shadow-sm),
     inset 0 1px 0 var(--surface-highlight);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   transition:
-    transform var(--transition-normal),
     opacity var(--transition-normal),
     visibility var(--transition-normal);
 
-  &.collapsed {
-    transform: translateX(calc(100% + 24px));
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-
   .tech-frame {
     display: none;
-  }
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 14%),
-      radial-gradient(circle at top center, rgba(var(--accent-cyan-rgb), 0.08), transparent 36%);
-    z-index: 3;
-    pointer-events: none;
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.02) 100%);
-    opacity: 0.8;
-    z-index: 0;
   }
 
   > * {
@@ -600,24 +580,20 @@ onUnmounted(() => {
     white-space: nowrap;
   }
 
-  .section-search-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .section-toolbar {
+    min-width: 0;
   }
 
-  .search-box {
-    flex: 1;
-    min-width: 0;
+  .search-filter-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 40px;
-    padding: 0 13px;
-    border-radius: 15px;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 4px 0 0;
     border: 1px solid var(--panel-search-border);
+    border-radius: 15px;
     background: var(--panel-search-bg);
-    color: var(--panel-search-icon);
+    overflow: hidden;
     transition:
       border-color var(--transition-fast),
       background var(--transition-fast),
@@ -630,6 +606,21 @@ onUnmounted(() => {
         0 0 0 4px rgba(var(--accent-cyan-rgb), 0.12),
         0 14px 28px rgba(var(--accent-cyan-rgb), 0.1);
     }
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: auto;
+    min-height: 38px;
+    padding: 0 10px 0 13px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--panel-search-icon);
 
     i {
       font-size: 16px;
@@ -652,19 +643,34 @@ onUnmounted(() => {
     }
   }
 
+  .filter-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin: 4px 4px 4px 0;
+    padding: 3px;
+    border: 1px solid var(--button-subtle-border);
+    border-radius: 999px;
+    background: var(--button-subtle-bg);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 4px 10px rgba(15, 23, 42, 0.03);
+    flex: 0 0 auto;
+  }
+
   .clear-search,
   .close-sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     padding: 0;
-    border-radius: 12px;
-    border: 1px solid var(--button-subtle-border);
-    background: var(--button-subtle-bg);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
     color: var(--text-secondary);
-    font-size: 15px;
+    font-size: 14px;
     cursor: pointer;
     transition:
       color var(--transition-fast),
@@ -675,79 +681,91 @@ onUnmounted(() => {
     flex: 0 0 auto;
 
     &:hover:not(:disabled) {
+      background: var(--button-subtle-bg);
+      border-color: var(--button-subtle-border);
+      color: var(--text-primary);
+    }
+
+    &:disabled {
+      cursor: default;
+      color: var(--panel-search-disabled);
+      opacity: 0.45;
+    }
+  }
+
+  .close-sidebar {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    border: 1px solid var(--button-subtle-border);
+    background: var(--button-subtle-bg);
+    font-size: 15px;
+
+    &:hover:not(:disabled) {
       background: var(--button-active-bg);
       border-color: var(--button-active-border);
       box-shadow: var(--button-active-shadow);
       color: var(--text-on-accent);
       transform: translateY(-1px);
     }
-
-    &:disabled {
-      cursor: default;
-      color: var(--panel-search-disabled);
-      border-color: var(--panel-search-disabled-border);
-      background: var(--panel-search-disabled-bg);
-    }
-  }
-
-  .section-filter-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
   }
 
   .filter-btn {
     min-width: 0;
-    min-height: 38px;
-    padding: 0 11px;
-    border-radius: 15px;
-    border: 1px solid var(--button-subtle-border);
-    background: var(--button-subtle-bg);
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
     transition:
       color var(--transition-fast),
       background var(--transition-fast),
       border-color var(--transition-fast),
-      box-shadow var(--transition-fast),
-      transform var(--transition-fast);
-    display: flex;
+      box-shadow var(--transition-fast);
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    justify-content: center;
+    gap: 5px;
 
-    &:hover,
+    &:hover:not(.active) {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
     &.active {
       background: var(--button-active-bg);
       border-color: var(--button-active-border);
       box-shadow: var(--button-active-shadow);
       color: var(--text-on-accent);
-      transform: translateY(-1px);
     }
 
-    &.active .filter-count {
-      background: rgba(255, 255, 255, 0.18);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    &.active .status-dot {
+      box-shadow: none;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+
+      &.online {
+        background: var(--accent-success);
+        box-shadow: var(--status-online-glow);
+      }
+
+      &.offline {
+        background: var(--accent-danger);
+        box-shadow: var(--status-offline-glow);
+      }
     }
 
     .filter-label {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       white-space: nowrap;
-    }
-
-    .filter-count {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 26px;
-      height: 22px;
-      padding: 0 6px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.12);
-      font-size: 11px;
-      font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums;
     }
   }
 }
@@ -755,12 +773,6 @@ onUnmounted(() => {
 :deep(.server-table-wrap) {
   flex: 1;
   min-height: 0;
-}
-
-:deep(.server-row) {
-  &::before {
-    display: none;
-  }
 }
 
 .home-footer {
@@ -830,8 +842,22 @@ onUnmounted(() => {
 }
 
 @media screen and (min-width: 1280px) {
-  .server-list-section {
-    width: clamp(380px, 26vw, 460px);
+  .main-content {
+    grid-template-columns: minmax(0, 1fr) clamp(380px, 28vw, 440px);
+    gap: 12px;
+    transition: grid-template-columns var(--transition-normal);
+
+    &.sidebar-collapsed {
+      grid-template-columns: minmax(0, 1fr) 0;
+    }
+  }
+
+  .server-list-section.collapsed {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
+    border: none;
   }
 }
 
@@ -850,20 +876,6 @@ onUnmounted(() => {
   }
 
   .server-list-section {
-    position: relative;
-    inset: auto;
-    width: auto;
-    border-radius: 28px;
-    border: 1px solid var(--border-color);
-    background: var(--section-bg);
-    backdrop-filter: blur(18px) saturate(150%);
-    box-shadow:
-      var(--shadow-md),
-      inset 0 1px 0 var(--surface-highlight);
-    transform: none;
-    opacity: 1;
-    visibility: visible;
-
     &.collapsed {
       display: none;
     }
@@ -904,45 +916,15 @@ onUnmounted(() => {
       flex: 0 0 auto;
     }
 
-    .action-cluster {
-      gap: 6px;
-      min-width: max-content;
-      flex: 0 0 auto;
-    }
-
-    .status-item {
-      min-height: 30px;
-      padding: 0 10px;
-      font-size: 11px;
-      flex: 0 1 auto;
-    }
-
-    .status-item.total {
-      min-width: max-content;
+    .status-summary {
       min-height: 32px;
       padding: 0 12px;
-      margin-left: auto;
-      border-color: var(--border-strong);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        0 10px 20px rgba(var(--accent-cyan-rgb), 0.1);
+      gap: 8px;
+      font-size: 12px;
     }
 
-    .sidebar-toggle {
-      width: 32px;
-      min-width: 32px;
-      min-height: 32px;
-      padding: 0;
-      justify-content: center;
-      border-radius: 50%;
-
-      i {
-        font-size: 14px;
-      }
-    }
-
-    .sidebar-toggle span {
-      display: none;
+    .status-summary__sep {
+      font-size: 11px;
     }
   }
 
@@ -1025,12 +1007,19 @@ onUnmounted(() => {
       padding: 0 10px;
     }
 
-    .section-filter-row {
-      gap: 6px;
+    .search-filter-bar {
+      min-height: 36px;
+      padding: 0 3px 0 0;
+    }
+
+    .filter-group {
+      margin: 3px 3px 3px 0;
+      padding: 2px;
     }
 
     .filter-btn {
-      padding: 0 10px;
+      padding: 0 8px;
+      min-height: 26px;
     }
   }
 }
@@ -1051,29 +1040,19 @@ onUnmounted(() => {
     .status-actions {
       width: 100%;
       margin-left: 0;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 8px;
       flex: 1 1 100%;
     }
 
-    .action-cluster {
-      gap: 6px;
-      flex: 1 1 auto;
-    }
-
-    .status-item {
+    .status-summary {
       min-height: 30px;
       padding: 0 10px;
+      gap: 6px;
     }
 
-    .status-item.total,
-    .sidebar-toggle {
-      min-height: 32px;
-    }
-
-    .sidebar-toggle {
-      width: 32px;
-      min-width: 32px;
+    .status-summary__sep {
+      display: none;
     }
   }
 
@@ -1081,18 +1060,34 @@ onUnmounted(() => {
     inset: auto 8px 8px 8px;
     max-height: min(72vh, 640px);
 
-    .section-title-row,
-    .section-search-row {
+    .section-title-row {
       align-items: stretch;
+    }
+
+    .search-filter-bar {
+      flex-wrap: wrap;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 0 8px 0 10px;
+    }
+
+    .filter-group {
+      width: 100%;
+      margin: 0;
+      justify-content: center;
+    }
+
+    .filter-btn {
+      flex: 1 1 0;
     }
 
     .section-summary {
       width: 100%;
       justify-content: center;
-    }
-
-    .section-filter-row {
-      grid-template-columns: 1fr;
     }
   }
 }
