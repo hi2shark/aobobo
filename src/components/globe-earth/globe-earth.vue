@@ -77,7 +77,7 @@ import {
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import Globe from 'globe.gl';
-import createGlobeMaps from '@/utils/globe-textures';
+import createGlobeMaps, { createSceneBackgroundTexture } from '@/utils/globe-textures';
 import { getLandPolygonsData } from '@/utils/globe-land-polygons';
 import {
   createRimAtmosphereGroup,
@@ -159,7 +159,7 @@ let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
-const GLOBE_TEXTURE_VERSION = 23;
+const GLOBE_TEXTURE_VERSION = 24;
 const BLOOM_CONFIG = {
   strength: 0.28,
   radius: 0.42,
@@ -169,6 +169,7 @@ const globeTextureCache = { light: null, dark: null };
 let rimAtmosphereGroup = null;
 let bloomPass = null;
 let cameraKeyLight = null;
+let sceneBackgroundTexture = null;
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -269,6 +270,26 @@ function syncRimAtmosphere(palette) {
   }
 
   updateRimAtmosphereGroup(rimAtmosphereGroup, palette.atmosphere);
+}
+
+function syncSceneBackground() {
+  const scene = globe?.scene?.();
+  if (!scene) {
+    return;
+  }
+
+  if (sceneBackgroundTexture) {
+    sceneBackgroundTexture.dispose();
+    sceneBackgroundTexture = null;
+  }
+
+  if (props.theme !== 'dark') {
+    scene.background = null;
+    return;
+  }
+
+  sceneBackgroundTexture = createSceneBackgroundTexture();
+  scene.background = sceneBackgroundTexture;
 }
 
 function getMarkerDimensions(count) {
@@ -796,6 +817,7 @@ function applyThemeToGlobe() {
     .polygonsTransitionDuration(0);
 
   syncRimAtmosphere(palette);
+  syncSceneBackground();
   configureRenderer();
   configureBloom();
   configureSceneAndLights();
@@ -1096,6 +1118,11 @@ onUnmounted(() => {
     globe?.camera?.()?.remove(cameraKeyLight);
     cameraKeyLight.dispose?.();
     cameraKeyLight = null;
+  }
+
+  if (sceneBackgroundTexture) {
+    sceneBackgroundTexture.dispose();
+    sceneBackgroundTexture = null;
   }
 
   disposeBloomPass();

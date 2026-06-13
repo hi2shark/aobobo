@@ -6,10 +6,46 @@ const TEXTURE_HEIGHT = 2048;
 const BUMP_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_HEIGHT = 1024;
 
+const LAND_BRIGHTEN_PERCENT = 10;
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    }
+    : null;
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r, g, b]
+    .map((channel) => {
+      const hex = Math.round(Math.max(0, Math.min(255, channel))).toString(16);
+      return hex.length === 1 ? `0${hex}` : hex;
+    })
+    .join('')}`;
+}
+
+function brighten(hex, percent) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return hex;
+  }
+  const factor = 1 + percent / 100;
+  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
+}
+
+const BASE_LAND_COLORS = {
+  light: '#f3f6fa',
+  dark: '#98a4b4',
+};
+
 const THEME_COLORS = {
   light: {
     oceanBase: '#d9edff',
-    land: '#f3f6fa',
+    land: BASE_LAND_COLORS.light,
   },
   dark: {
     oceanBase: '#020a14',
@@ -17,7 +53,7 @@ const THEME_COLORS = {
     oceanMid: '#071a2c',
     oceanEdge: '#0b2438',
     oceanLimb: '#0d2c40',
-    land: '#98a4b4',
+    land: brighten(BASE_LAND_COLORS.dark, LAND_BRIGHTEN_PERCENT),
   },
 };
 
@@ -235,6 +271,60 @@ export function createGlobeOceanMap(theme = 'dark') {
   drawLandColor(ctx, canvas.width, canvas.height, THEME_COLORS[theme].land);
 
   return createColorTexture(canvas);
+}
+
+const SCENE_BG_SIZE = 1024;
+
+export function createSceneBackgroundTexture(theme = 'dark') {
+  if (theme !== 'dark') {
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = SCENE_BG_SIZE;
+  canvas.height = SCENE_BG_SIZE;
+  const ctx = canvas.getContext('2d');
+
+  const base = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  base.addColorStop(0, '#0d1b30');
+  base.addColorStop(0.48, '#061020');
+  base.addColorStop(1, '#02050a');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const topGlow = ctx.createRadialGradient(
+    canvas.width * 0.5,
+    canvas.height * 0.32,
+    0,
+    canvas.width * 0.5,
+    canvas.height * 0.32,
+    canvas.height * 0.72,
+  );
+  topGlow.addColorStop(0, 'rgba(72, 140, 255, 0.28)');
+  topGlow.addColorStop(0.42, 'rgba(72, 140, 255, 0.12)');
+  topGlow.addColorStop(1, 'rgba(72, 140, 255, 0)');
+  ctx.fillStyle = topGlow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const bottomGlow = ctx.createRadialGradient(
+    canvas.width * 0.5,
+    canvas.height * 0.72,
+    0,
+    canvas.width * 0.5,
+    canvas.height * 0.72,
+    canvas.height * 0.55,
+  );
+  bottomGlow.addColorStop(0, 'rgba(26, 69, 160, 0.18)');
+  bottomGlow.addColorStop(1, 'rgba(26, 69, 160, 0)');
+  ctx.fillStyle = bottomGlow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 export function createGlobeMaps(theme = 'dark') {
