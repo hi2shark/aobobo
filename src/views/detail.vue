@@ -41,6 +41,7 @@ const serverInfo = computed(() => store.state.serverList
   overflow-y: auto;
   background: var(--page-bg);
   position: relative;
+  padding: 14px 16px 16px;
 }
 
 .detail-view::before {
@@ -56,13 +57,10 @@ const serverInfo = computed(() => store.state.serverList
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(var(--tech-grid-color) 1px, transparent 1px),
-    linear-gradient(90deg, var(--tech-grid-color) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 70%);
-  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 70%);
-  opacity: 0.55;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(var(--accent-cyan-rgb), 0.08), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(var(--accent-cyan-rgb), 0.05), transparent 38%);
+  opacity: 0.9;
   z-index: 0;
 }
 
@@ -72,16 +70,16 @@ const serverInfo = computed(() => store.state.serverList
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 16px 20px;
+  padding: 14px 18px;
   background: var(--status-bar-bg);
-  backdrop-filter: blur(16px) saturate(135%);
-  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(18px) saturate(145%);
+  border: 1px solid var(--border-color);
+  border-radius: calc(var(--radius-lg) + 2px);
   box-shadow:
     var(--shadow-sm),
-    0 0 32px rgba(var(--accent-cyan-rgb), 0.12),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+    inset 0 1px 0 var(--surface-highlight);
   position: sticky;
-  top: 0;
+  top: 14px;
   z-index: 10;
 
   .header-main {
@@ -94,33 +92,42 @@ const serverInfo = computed(() => store.state.serverList
   .back-btn {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
     border: 1px solid var(--button-subtle-border);
     background: var(--button-subtle-bg);
     color: var(--text-secondary);
     font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast),
+      transform var(--transition-fast);
 
     &:hover {
-      background: var(--bg-hover);
-      border-color: var(--button-subtle-hover-border);
-      color: var(--text-primary);
-      box-shadow: 0 0 14px rgba(var(--accent-cyan-rgb), 0.18);
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      color: var(--text-on-accent);
+      box-shadow: var(--button-active-shadow);
+      transform: translateY(-1px);
     }
   }
 
   h2 {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
 
 .detail-content {
-  padding: 20px;
-  max-width: 900px;
+  padding: 18px 0 0;
+  max-width: 980px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
@@ -131,8 +138,13 @@ const serverInfo = computed(() => store.state.serverList
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 20px;
-  color: var(--text-muted);
+  min-height: 320px;
+  padding: 80px 24px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  color: var(--text-secondary);
   gap: 12px;
 
   i {
@@ -142,12 +154,21 @@ const serverInfo = computed(() => store.state.serverList
 }
 
 @media screen and (max-width: 768px) {
+  .detail-view {
+    padding: 10px;
+  }
+
   .detail-header {
+    top: 10px;
     padding: 12px;
   }
 
   .detail-content {
-    padding: 12px;
+    padding: 12px 0 0;
+  }
+
+  .detail-header h2 {
+    font-size: 18px;
   }
 }
 </style>

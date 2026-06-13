@@ -109,23 +109,35 @@ function formatSummary(server) {
 <style lang="scss" scoped>
 .location-popup {
   position: relative;
-  width: min(360px, calc(100vw - 32px));
+  width: min(380px, calc(100vw - 32px));
   max-height: min(440px, calc(100vh - 64px));
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 18px;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 24px;
   background: var(--globe-popup-bg);
   border: 1px solid var(--globe-popup-border);
   box-shadow: var(--globe-popup-shadow);
-  backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(20px) saturate(150%);
   color: var(--text-primary);
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 76px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 78%),
+      radial-gradient(circle at top left, rgba(var(--accent-cyan-rgb), 0.08), transparent 46%);
+    pointer-events: none;
+  }
 
   &.mobile {
     width: 100%;
     max-height: min(56vh, 480px);
-    border-radius: 20px 20px 0 0;
+    border-radius: 24px 24px 0 0;
     padding: 18px 16px 16px;
   }
 }
@@ -135,15 +147,18 @@ function formatSummary(server) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .title-group {
   min-width: 0;
 
   h3 {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1.25;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -157,13 +172,14 @@ function formatSummary(server) {
 .stat-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
+  min-height: 26px;
   padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--globe-popup-chip-border);
   background: var(--globe-popup-chip-bg);
   font-size: 12px;
   color: var(--globe-popup-muted);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
   &.total {
     color: var(--text-primary);
@@ -179,26 +195,30 @@ function formatSummary(server) {
 }
 
 .close-btn {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--button-subtle-border);
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--button-subtle-bg);
   color: var(--text-secondary);
   cursor: pointer;
   transition:
     color var(--transition-fast),
     background var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
 
   &:hover {
-    color: var(--text-primary);
-    background: var(--bg-hover);
-    border-color: var(--button-subtle-hover-border);
+    color: var(--text-on-accent);
+    background: var(--button-active-bg);
+    border-color: var(--button-active-border);
+    box-shadow: var(--button-active-shadow);
+    transform: translateY(-1px);
   }
 
   i {
@@ -208,19 +228,21 @@ function formatSummary(server) {
 
 .server-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
+  position: relative;
+  z-index: 1;
 }
 
 .server-row {
   width: 100%;
   display: grid;
   gap: 8px;
-  padding: 12px 13px;
+  padding: 13px 14px;
   border: 1px solid var(--globe-popup-chip-border);
-  border-radius: 14px;
+  border-radius: 18px;
   background: var(--globe-popup-list-bg);
   color: inherit;
   text-align: left;
@@ -230,16 +252,19 @@ function formatSummary(server) {
     border-color var(--transition-fast),
     background var(--transition-fast),
     box-shadow var(--transition-fast);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
   &:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     background: var(--table-row-hover-bg);
     border-color: var(--border-strong);
-    box-shadow: 0 14px 26px rgba(15, 23, 42, 0.1);
+    box-shadow:
+      0 16px 30px rgba(15, 23, 42, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   &.offline {
-    opacity: 0.84;
+    opacity: 0.92;
   }
 }
 
@@ -268,8 +293,8 @@ function formatSummary(server) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 650;
 }
 
 .status-badge {
@@ -284,6 +309,7 @@ function formatSummary(server) {
   border: 1px solid transparent;
   font-size: 11px;
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
   &.online {
     color: var(--badge-online-text);

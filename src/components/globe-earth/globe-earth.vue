@@ -203,11 +203,11 @@ function getThemePalette(theme) {
       fillLightIntensity: 0.2,
       rimLight: '#ffffff',
       rimLightIntensity: 0.25,
-      markerOnline: readThemeToken('--globe-marker-active', '#8ab4ff'),
-      markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(138, 180, 255, 0.28)'),
-      markerOffline: readThemeToken('--globe-marker-muted', '#8e96a3'),
-      markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(142, 150, 163, 0.22)'),
-      onlineRing: readThemeToken('--globe-ring-rgb', '138, 180, 255'),
+      markerOnline: readThemeToken('--globe-marker-active', '#ffc853'),
+      markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(255, 200, 83, 0.26)'),
+      markerOffline: readThemeToken('--globe-marker-muted', '#9aa3af'),
+      markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(154, 163, 175, 0.2)'),
+      onlineRing: readThemeToken('--globe-ring-rgb', '255, 200, 83'),
     };
   }
 
@@ -235,11 +235,11 @@ function getThemePalette(theme) {
     fillLightIntensity: 0.25,
     rimLight: '#7ec0f8',
     rimLightIntensity: 0.14,
-    markerOnline: readThemeToken('--globe-marker-active', '#66a9e8'),
-    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(102, 169, 232, 0.24)'),
-    markerOffline: readThemeToken('--globe-marker-muted', '#5f6b78'),
-    markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(95, 107, 120, 0.22)'),
-    onlineRing: readThemeToken('--globe-ring-rgb', '102, 169, 232'),
+    markerOnline: readThemeToken('--globe-marker-active', '#ffc857'),
+    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(255, 200, 87, 0.28)'),
+    markerOffline: readThemeToken('--globe-marker-muted', '#7d8797'),
+    markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(125, 135, 151, 0.22)'),
+    onlineRing: readThemeToken('--globe-ring-rgb', '255, 200, 87'),
   };
 }
 
@@ -803,8 +803,8 @@ function applyThemeToGlobe() {
 
 function createMarkerElement(marker) {
   const ringStyle = props.theme === 'dark'
-    ? { ringWidth: 2.5, showDot: true }
-    : { ringWidth: 2, showDot: true };
+    ? { ringWidth: 2.75, showDot: true }
+    : { ringWidth: 2.25, showDot: true };
   const element = document.createElement('button');
   element.type = 'button';
   element.className = `globe-marker ${marker.hasOnline ? 'is-online' : 'is-offline'}`;
@@ -1125,35 +1125,35 @@ onUnmounted(() => {
 }
 
 .globe-earth.theme-dark::before {
-  inset: -20%;
-  height: 140%;
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-      rgba(77, 155, 232, 0.07) 0%,
-      rgba(77, 155, 232, 0.04) 30%,
-      rgba(77, 155, 232, 0.015) 50%,
-      rgba(77, 155, 232, 0.006) 64%,
-      transparent 84%
-    );
-  filter: blur(96px);
-  opacity: 0.72;
-}
-
-.globe-earth.theme-light::before {
   inset: -18%;
   height: 136%;
   background:
     radial-gradient(
       circle at 50% 50%,
-      rgba(200, 225, 255, 0.10) 0%,
-      rgba(200, 225, 255, 0.05) 30%,
-      rgba(200, 225, 255, 0.02) 50%,
-      rgba(200, 225, 255, 0.008) 64%,
+      rgba(72, 140, 255, 0.09) 0%,
+      rgba(72, 140, 255, 0.045) 30%,
+      rgba(72, 140, 255, 0.016) 50%,
+      rgba(72, 140, 255, 0.006) 64%,
       transparent 84%
     );
-  filter: blur(90px);
-  opacity: 0.85;
+  filter: blur(92px);
+  opacity: 0.76;
+}
+
+.globe-earth.theme-light::before {
+  inset: -16%;
+  height: 132%;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(177, 219, 255, 0.16) 0%,
+      rgba(177, 219, 255, 0.08) 30%,
+      rgba(177, 219, 255, 0.03) 50%,
+      rgba(177, 219, 255, 0.01) 64%,
+      transparent 84%
+    );
+  filter: blur(84px);
+  opacity: 0.88;
 }
 
 .globe-container {
@@ -1172,17 +1172,17 @@ onUnmounted(() => {
   position: absolute;
   z-index: 4;
   transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
+    opacity 0.24s ease,
+    transform 0.24s ease;
 
   &.hidden {
     opacity: 0;
     pointer-events: none;
-    transform: scale(0.98);
+    transform: translateY(6px) scale(0.985);
   }
 
   &.mobile {
-    inset: auto 12px 12px 12px;
+    inset: auto 16px 16px 16px;
   }
 }
 
@@ -1227,14 +1227,14 @@ onUnmounted(() => {
   position: absolute;
   z-index: 3;
   pointer-events: none;
-  padding: 8px 12px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
   background: var(--globe-popup-bg);
   border: 1px solid var(--globe-popup-border);
   box-shadow: var(--globe-popup-shadow);
-  backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(145%);
   color: var(--text-primary);
-  max-width: 240px;
+  max-width: 260px;
   opacity: 0;
   transform: translateY(6px);
   transition:
@@ -1248,7 +1248,7 @@ onUnmounted(() => {
 
   .tooltip-title {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.3;
     margin-bottom: 2px;
   }
@@ -1274,8 +1274,8 @@ onUnmounted(() => {
   pointer-events: auto;
   touch-action: none;
   transition:
-    transform 0.18s ease,
-    opacity 0.18s ease;
+    transform 0.2s ease,
+    opacity 0.2s ease;
 
   &.is-hidden {
     opacity: 0;
@@ -1283,11 +1283,11 @@ onUnmounted(() => {
   }
 
   &.is-hovered {
-    transform: scale(1.12);
+    transform: scale(1.1);
   }
 
   &.is-selected {
-    transform: scale(1.2);
+    transform: scale(1.16);
   }
 
   &.is-selected .marker-flat-ring {
@@ -1326,30 +1326,31 @@ onUnmounted(() => {
   border-radius: 999px;
   border: var(--marker-ring-width, 2px) solid var(--marker-core-color);
   background: transparent;
-  opacity: 0.92;
+  opacity: 0.98;
   transition: border-width 0.18s ease;
 }
 
 :deep(.marker-flat-dot) {
-  width: 32%;
-  height: 32%;
+  width: 34%;
+  height: 34%;
   border-radius: 999px;
-  background: var(--marker-core-color);
+  background: var(--marker-highlight-color, #fffef7);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--marker-core-color) 42%, transparent);
 }
 
 :deep(.globe-marker.is-offline .marker-flat-ring) {
   border-color: var(--marker-core-color);
-  opacity: 0.65;
+  opacity: 0.58;
 }
 
 :deep(.globe-marker.is-offline .marker-flat-dot) {
-  opacity: 0.65;
+  opacity: 0.58;
 }
 
 :deep(.marker-pulse) {
   position: absolute;
-  width: calc(var(--marker-visual-size) + 6px);
-  height: calc(var(--marker-visual-size) + 6px);
+  width: calc(var(--marker-visual-size) + 8px);
+  height: calc(var(--marker-visual-size) + 8px);
   border-radius: 999px;
   border: 2px solid var(--marker-core-color);
   opacity: 0.45;
@@ -1358,37 +1359,40 @@ onUnmounted(() => {
 
 .globe-earth.theme-dark {
   :deep(.marker-flat-ring) {
-    border: 2.5px solid var(--marker-core-color);
+    border: 2.75px solid var(--marker-core-color);
     background: transparent;
-    opacity: 0.95;
+    opacity: 0.98;
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.12),
-      0 0 10px 2px color-mix(in srgb, var(--marker-core-color) 55%, transparent);
+      0 0 0 1px rgba(255, 250, 224, 0.2),
+      0 0 0 6px color-mix(in srgb, var(--marker-core-color) 10%, transparent),
+      0 0 18px 2px color-mix(in srgb, var(--marker-core-color) 58%, transparent);
   }
 
   :deep(.marker-flat-dot) {
-    width: 36%;
-    height: 36%;
-    background: #ffffff;
-    box-shadow: 0 0 4px 1px color-mix(in srgb, var(--marker-core-color) 60%, transparent);
+    width: 38%;
+    height: 38%;
+    background: #fff8da;
+    box-shadow:
+      0 0 10px color-mix(in srgb, var(--marker-core-color) 40%, transparent),
+      0 0 4px rgba(255, 255, 255, 0.85);
   }
 
   :deep(.marker-pulse) {
     border-width: 1.5px;
     border-color: var(--marker-core-color);
-    opacity: 0.35;
+    opacity: 0.28;
     box-shadow: none;
   }
 
   :deep(.globe-marker.is-offline .marker-flat-ring) {
     border-color: var(--marker-core-color);
     background: transparent;
-    opacity: 0.65;
+    opacity: 0.56;
     box-shadow: none;
   }
 
   :deep(.globe-marker.is-offline .marker-flat-dot) {
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.68);
     box-shadow: none;
   }
 }
@@ -1413,29 +1417,38 @@ onUnmounted(() => {
 
 .globe-earth.theme-light {
   :deep(.marker-flat-ring) {
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    background: color-mix(in srgb, var(--marker-core-color) 88%, #ffffff);
-    opacity: 0.92;
+    border: 2.25px solid var(--marker-core-color);
+    background: transparent;
+    opacity: 0.98;
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.35),
-      0 0 14px 4px color-mix(in srgb, var(--marker-core-color) 22%, transparent);
+      0 0 0 1px rgba(255, 255, 255, 0.6),
+      0 0 0 8px color-mix(in srgb, var(--marker-core-color) 12%, transparent),
+      0 0 16px 4px color-mix(in srgb, var(--marker-core-color) 20%, transparent);
   }
 
   :deep(.marker-flat-dot) {
-    display: none;
+    background: #fffdfa;
+    box-shadow:
+      0 0 8px color-mix(in srgb, var(--marker-core-color) 30%, transparent),
+      0 0 4px rgba(255, 255, 255, 0.86);
   }
 
   :deep(.marker-pulse) {
     border-width: 1.5px;
     border-color: var(--marker-core-color);
-    opacity: 0.28;
+    opacity: 0.2;
     box-shadow: none;
   }
 
   :deep(.globe-marker.is-offline .marker-flat-ring) {
-    background: var(--marker-core-color);
-    border-color: rgba(255, 255, 255, 0.35);
-    opacity: 0.65;
+    background: transparent;
+    border-color: var(--marker-core-color);
+    opacity: 0.52;
+    box-shadow: none;
+  }
+
+  :deep(.globe-marker.is-offline .marker-flat-dot) {
+    background: rgba(255, 255, 255, 0.82);
     box-shadow: none;
   }
 }

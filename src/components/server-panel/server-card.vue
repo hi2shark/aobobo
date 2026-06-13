@@ -197,51 +197,48 @@ function getLoadColor(val) {
 <style lang="scss" scoped>
 .server-card {
   position: relative;
+  overflow: hidden;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-top: 1px solid rgba(var(--accent-cyan-rgb), 0.45);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-bottom: 10px;
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 12px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    opacity var(--transition-fast);
   box-shadow:
     var(--card-shadow),
-    0 0 28px var(--tech-glow);
-
-  &:hover {
-    transform: translateY(-1px);
-    border-color: var(--card-hover-border);
-    box-shadow:
-      var(--card-hover-shadow),
-      0 0 36px var(--tech-glow);
-  }
-
-  &.offline {
-    opacity: 0.82;
-    border-color: var(--card-offline-border);
-    border-top-color: rgba(var(--accent-danger-rgb), 0.25);
-    box-shadow:
-      var(--card-shadow),
-      0 0 20px rgba(var(--accent-danger-rgb), 0.08);
-  }
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px) saturate(145%);
 
   &::before {
     content: '';
     position: absolute;
-    left: 0;
-    top: 14px;
-    bottom: 14px;
-    width: 3px;
-    border-radius: 0 999px 999px 0;
-    background: rgba(var(--accent-primary-rgb), 0.45);
-    box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.4);
+    inset: 0 0 auto;
+    height: 72px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 78%),
+      radial-gradient(circle at top left, rgba(var(--accent-cyan-rgb), 0.1), transparent 48%);
     pointer-events: none;
   }
 
-  &.offline::before {
-    background: rgba(var(--accent-danger-rgb), 0.35);
-    box-shadow: 0 0 10px rgba(var(--accent-danger-rgb), 0.25);
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--card-hover-border);
+    box-shadow:
+      var(--card-hover-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  &.offline {
+    opacity: 0.96;
+    border-color: var(--card-offline-border);
+    box-shadow:
+      var(--card-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 }
 
@@ -249,27 +246,36 @@ function getLoadColor(val) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
 
   .header-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    min-width: 0;
 
     .fi {
       font-size: 18px;
-      border-radius: 2px;
+      border-radius: 3px;
     }
 
     .server-name {
-      font-weight: 600;
-      font-size: 14px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.01em;
       color: var(--text-primary);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
 
       &.online {
@@ -286,11 +292,12 @@ function getLoadColor(val) {
   .header-right {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     color: var(--text-muted);
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-size: 12px;
+    flex: 0 0 auto;
 
     i {
       font-size: 16px;
@@ -299,16 +306,23 @@ function getLoadColor(val) {
 }
 
 .card-body {
+  position: relative;
+  z-index: 1;
+
   .info-row {
     display: flex;
-    gap: 20px;
-    margin-bottom: 12px;
+    gap: 16px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
 
     .info-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      display: grid;
+      gap: 4px;
+      padding: 10px 12px;
+      border: 1px solid var(--panel-stat-border);
+      border-radius: 16px;
+      background: var(--panel-stat-bg);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
       .label {
         font-size: 12px;
@@ -331,13 +345,18 @@ function getLoadColor(val) {
   .metrics-row {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 
     .metric {
       display: grid;
-      grid-template-columns: 36px 1fr 40px;
+      grid-template-columns: 42px 1fr 42px;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--panel-stat-border);
+      background: var(--panel-metric-bg);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
       .metric-label {
         font-size: 12px;
@@ -345,7 +364,7 @@ function getLoadColor(val) {
       }
 
       .metric-bar {
-        height: 6px;
+        height: 7px;
         background: var(--progress-track);
         border-radius: 999px;
         overflow: hidden;
@@ -369,19 +388,20 @@ function getLoadColor(val) {
   }
 
   .expanded-info {
-    margin-top: 12px;
+    margin-top: 16px;
     border-top: 1px solid var(--border-color);
     background: var(--surface-subtle);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 18px;
+    padding: 14px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
+    gap: 10px;
 
     .detail-row {
       display: flex;
       justify-content: space-between;
       font-size: 12px;
+      gap: 10px;
 
       .detail-label {
         color: var(--text-muted);
@@ -389,9 +409,32 @@ function getLoadColor(val) {
       .detail-value {
         font-family: var(--font-mono);
         font-variant-numeric: tabular-nums;
-        font-weight: 500;
+        font-weight: 600;
       }
     }
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .server-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .card-header .header-left .server-name {
+    font-size: 15px;
+  }
+
+  .card-body .info-row {
+    gap: 10px;
+  }
+
+  .card-body .info-row .info-item {
+    flex: 1 1 140px;
+  }
+
+  .card-body .expanded-info {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -52,19 +52,21 @@ function setMode(mode) {
 .theme-mode-switch {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  height: 32px;
-  padding: 2px;
+  gap: 3px;
+  min-height: 40px;
+  padding: 3px;
   border: 1px solid var(--button-subtle-border);
   border-radius: 999px;
   background: var(--button-subtle-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 16px rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(18px) saturate(145%);
 }
 
 .switch-option {
-  min-width: 28px;
-  height: 28px;
+  min-width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -80,7 +82,8 @@ function setMode(mode) {
     background var(--transition-fast),
     color var(--transition-fast),
     box-shadow var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
 
   i {
     font-size: 14px;
@@ -93,6 +96,7 @@ function setMode(mode) {
   &:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
+    transform: translateY(-1px);
   }
 
   &.active {
@@ -100,18 +104,25 @@ function setMode(mode) {
     background: var(--button-active-bg);
     border-color: var(--button-active-border);
     box-shadow: var(--button-active-shadow);
-    text-shadow: 0 0 10px rgba(var(--accent-cyan-rgb), 0.5);
+    transform: translateY(-1px);
   }
 }
 
 @media screen and (max-width: 768px) {
   .theme-mode-switch {
     max-width: 100%;
+    min-height: 32px;
+    padding: 2px;
   }
 
   .switch-option {
     flex: 0 0 auto;
-    min-width: 28px;
+    min-width: 26px;
+    height: 26px;
+
+    i {
+      font-size: 13px;
+    }
   }
 }
 </style>
