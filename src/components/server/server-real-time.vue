@@ -6,6 +6,7 @@
       class="server-real-time-item"
       :class="`server-real-time--${item.key}`"
     >
+      <span class="item-label">{{ item.label }}</span>
       <div class="item-content">
         <div
           v-if="item.show && item.values"
@@ -37,12 +38,6 @@
           >{{ item?.unit }}</span>
         </template>
       </div>
-      <span
-        v-if="!item.values"
-        class="item-label"
-      >
-        {{ item.label }}
-      </span>
     </div>
   </div>
 </template>
@@ -82,22 +77,37 @@ const {
 
 <style lang="scss" scoped>
 .server-real-time-group {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 
   .server-real-time-item {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: var(--panel-stat-bg);
+    border: 1px solid var(--panel-stat-border);
     cursor: default;
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      transform var(--transition-fast);
+
+    &:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
 
     .item-value {
-      line-height: 1em;
-      font-size: var(--real-time-value-font-size, 24px);
+      line-height: 1.1;
+      font-size: var(--real-time-value-font-size, 22px);
       font-family: var(--font-mono);
       font-variant-numeric: tabular-nums;
+      font-weight: 700;
     }
 
     .item-content {
@@ -108,14 +118,15 @@ const {
 
     .item-text {
       line-height: 1.3em;
-      font-size: var(--real-time-text-font-size, 12px);
+      font-size: var(--real-time-text-font-size, 11px);
       color: var(--text-secondary);
     }
 
     .item-label {
       line-height: 1.2em;
-      font-size: var(--real-time-label-font-size, 14px);
-      color: var(--text-secondary);
+      font-size: var(--real-time-label-font-size, 11px);
+      color: var(--text-muted);
+      font-weight: 500;
     }
 
     .item-content-sub-group {
@@ -123,20 +134,22 @@ const {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      gap: 3px;
 
       .item-content-sub-item {
-        flex: 1;
         display: flex;
         align-items: center;
-        gap: 0.2em;
+        gap: 0.3em;
       }
 
-      --real-time-label-line-height: calc(var(--real-time-label-font-size, 14px) * 1.8);
+      --real-time-label-line-height: calc(var(--real-time-label-font-size, 11px) * 1.5);
 
       .item-content-sub-label {
         height: var(--real-time-label-line-height);
         line-height: var(--real-time-label-line-height);
         white-space: nowrap;
+        color: var(--text-muted);
+        font-size: var(--real-time-label-font-size, 11px);
       }
 
       .item-content-sub-content {
@@ -150,7 +163,7 @@ const {
       .item-label {
         height: var(--real-time-label-line-height);
         line-height: var(--real-time-label-line-height);
-        font-size: var(--real-time-label-font-size, 14px);
+        font-size: var(--real-time-label-font-size, 11px);
       }
 
       .item-content-sub-item--L-A-P-load {
@@ -219,6 +232,12 @@ const {
     .item-value {
       color: var(--net-speed-out-color);
     }
+  }
+}
+
+@media screen and (max-width: 900px) {
+  .server-real-time-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

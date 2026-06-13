@@ -3,266 +3,283 @@
     variant="flat"
     class="server-detail-info"
   >
-    <div
-      v-if="info?.Host?.CPU?.length"
-      class="server-info-group server-info--cpu"
-    >
-      <div class="server-info-label">
-        CPU
-      </div>
-      <div class="server-info-content">
-        <template v-if="info?.Host?.CPU?.length === 1">
-          <span
-            class="cpu-info"
-            :title="info.Host.CPU[0]"
-          >
-            <span>{{ info.Host.CPU[0] }}</span>
-          </span>
-        </template>
-        <div
-          v-else
-          class="server-info-item-group"
-        >
-          <span
-            v-for="(cpuItem, cpuIndex) in info.Host.CPU"
-            :key="`${info.ID}_cpu_${cpuIndex}`"
-            class="server-info-item"
-          >
-            <span class="server-info-item-label">CPU.{{ cpuIndex + 1 }}</span>
-            <span class="server-info-item-value">{{ cpuItem }}</span>
-          </span>
+    <div class="info-grid">
+      <div
+        v-if="info?.Host?.CPU?.length"
+        class="info-cell info-cell--full"
+      >
+        <div class="info-cell-label">
+          <i class="ri-cpu-line" />
+          <span>CPU</span>
         </div>
-      </div>
-    </div>
-    <div
-      v-if="gpuList.length"
-      class="server-info-group server-info--gpu"
-    >
-      <div class="server-info-label">
-        GPU
-      </div>
-      <div class="server-info-content">
-        <template v-if="gpuList.length === 1">
-          <span
-            class="gpu-info"
-            :title="gpuList[0]"
-          >
-            <span>{{ gpuList[0] }}</span>
-          </span>
-        </template>
-        <div
-          v-else
-          class="server-info-item-group"
-        >
-          <span
-            v-for="(gpuItem, gpuIndex) in gpuList"
-            :key="`${info.ID}_gpu_${gpuIndex}`"
-            class="server-info-item"
-          >
-            <span class="server-info-item-label">GPU.{{ gpuIndex + 1 }}</span>
-            <span class="server-info-item-value">{{ gpuItem }}</span>
-          </span>
-        </div>
-      </div>
-    </div>
-    <div
-      v-if="temperatureData.list.length"
-      class="server-info-group server-info--temperature"
-    >
-      <div class="server-info-label">
-        温度
-      </div>
-      <div class="server-info-content">
-        <div class="server-info-item-group">
-          <span
-            v-for="(ttItem, ttIndex) in temperatureData.list"
-            :key="`${info.ID}_temperature_${ttIndex}`"
-            class="server-info-item"
-            :class="`temperature--${ttItem.type}`"
-            :title="ttItem?.title || (`${ttItem.label}: ${ttItem.value}`)"
-          >
-            <span class="server-info-item-icon">
-              <i
-                v-if="ttItem.type === 'cpu' || ttItem.label.toLowerCase().includes('cpu')"
-                class="ri-cpu-line"
-              />
-              <i
-                v-else-if="ttItem.type === 'gpu' || ttItem.label.toLowerCase().includes('gpu')"
-                class="ri-gamepad-line"
-              />
-              <i
-                v-else-if="ttItem.type === 'nvme' || ttItem.label.toLowerCase().includes('nvme')"
-                class="ri-hard-drive-3-line"
-              />
-              <i
-                v-else-if="ttItem.type === 'motherboard'"
-                class="ri-instance-line"
-              />
-              <i
-                v-else
-                class="ri-temp-hot-line"
-              />
+        <div class="info-cell-content">
+          <template v-if="info?.Host?.CPU?.length === 1">
+            <span
+              class="cpu-info"
+              :title="info.Host.CPU[0]"
+            >
+              {{ info.Host.CPU[0] }}
             </span>
-            <span class="server-info-item-value">
-              {{ ttItem.value }}
-            </span>
-          </span>
-        </div>
-      </div>
-    </div>
-    <div class="server-info-group server-info--system-os">
-      <div class="server-info-label">
-        系统
-      </div>
-      <div class="server-info-content">
-        <span class="server-info-item">
-          <span class="server-info-item-label">{{ systemOSLabel }}</span>
-          <span
-            v-if="info?.Host?.PlatformVersion"
-            class="server-info-item-value"
-          >
-            {{ info?.Host?.PlatformVersion }}
-          </span>
-        </span>
-      </div>
-    </div>
-    <div class="server-info-group server-info--load">
-      <div class="server-info-label">
-        占用
-      </div>
-      <div class="server-info-content">
-        <div class="server-info-item-group">
-          <span class="server-info-item process-count">
-            <span class="server-info-item-label">进程数</span>
-            <span class="server-info-item-value">{{ processCount }}</span>
-          </span>
-          <span class="server-info-item load">
-            <span class="server-info-item-label">负载</span>
-            <span class="server-info-item-value">
-              {{ sysLoadInfo }}
-            </span>
-          </span>
-        </div>
-      </div>
-    </div>
-    <div class="server-info-group server-info--transfer">
-      <div class="server-info-label">
-        流量
-      </div>
-      <div class="server-info-content">
-        <div class="server-info-item-group">
-          <span class="server-info-item transfer--in">
-            <span class="server-info-item-label">入网</span>
-            <span class="server-info-item-value">
-              <span class="text-value">{{ transfer?.in?.value }}</span>
-              <span class="text-unit">{{ transfer?.in?.unit }}</span>
-            </span>
-          </span>
-          <span class="server-info-item transfer--out">
-            <span class="server-info-item-label">出网</span>
-            <span class="server-info-item-value">
-              <span class="text-value">{{ transfer?.out?.value }}</span>
-              <span class="text-unit">{{ transfer?.out?.unit }}</span>
-            </span>
-          </span>
-        </div>
-      </div>
-    </div>
-    <div
-      v-if="!hideConns"
-      class="server-info-group server-info--conn"
-    >
-      <div class="server-info-label">
-        连接
-      </div>
-      <div class="server-info-content">
-        <div class="server-info-item-group">
-          <span class="server-info-item conn--tcp">
-            <span class="server-info-item-label">TCP</span>
-            <span class="server-info-item-value">{{ tcpConnCount }}</span>
-          </span>
-          <span class="server-info-item conn--tcp">
-            <span class="server-info-item-label">UDP</span>
-            <span class="server-info-item-value">{{ udpConnCount }}</span>
-          </span>
-        </div>
-      </div>
-    </div>
-    <div class="server-info-group server-info--boottime">
-      <div class="server-info-label">
-        启动
-      </div>
-      <div class="server-info-content">
-        <span class="server-info-item runtime--boottime">
-          <span class="server-info-item-value">{{ bootTime }}</span>
-        </span>
-      </div>
-    </div>
-    <div class="server-info-group server-info--lasttime">
-      <div class="server-info-label">
-        活跃
-      </div>
-      <div class="server-info-content">
-        <span class="server-info-item runtime--lasttime">
-          <span class="server-info-item-value">{{ lastActive }}</span>
-        </span>
-      </div>
-    </div>
-    <div
-      v-if="billPlanData.length"
-      class="server-info-group server-info--biil-plan"
-    >
-      <div class="server-info-label">
-        套餐
-      </div>
-      <div class="server-info-content">
-        <div class="server-info-item-group">
-          <span
-            v-for="item in billPlanData"
-            :key="item.label"
-            class="server-info-item"
+          </template>
+          <div
+            v-else
+            class="info-chip-group"
           >
             <span
-              v-if="item.label"
-              class="server-info-item-label"
-            >{{ item.label }}</span>
-            <span class="server-info-item-value">{{ item.value }}</span>
-          </span>
+              v-for="(cpuItem, cpuIndex) in info.Host.CPU"
+              :key="`${info.ID}_cpu_${cpuIndex}`"
+              class="info-chip"
+            >
+              <span class="info-chip-label">CPU.{{ cpuIndex + 1 }}</span>
+              <span class="info-chip-value">{{ cpuItem }}</span>
+            </span>
+          </div>
         </div>
       </div>
-    </div>
-    <div
-      v-if="tagList?.length"
-      class="server-info-group server-info--tag-list"
-    >
-      <div class="server-info-label">
-        标签
-      </div>
-      <div class="server-info-content">
-        <div class="server-info-tag-list">
-          <span
-            v-for="(tag, index) in tagList"
-            :key="`${tag}_${index}`"
-            class="server-info-tag-item"
+
+      <div
+        v-if="gpuList.length"
+        class="info-cell info-cell--full"
+      >
+        <div class="info-cell-label">
+          <i class="ri-gamepad-line" />
+          <span>GPU</span>
+        </div>
+        <div class="info-cell-content">
+          <template v-if="gpuList.length === 1">
+            <span
+              class="gpu-info"
+              :title="gpuList[0]"
+            >
+              {{ gpuList[0] }}
+            </span>
+          </template>
+          <div
+            v-else
+            class="info-chip-group"
           >
-            {{ tag }}
+            <span
+              v-for="(gpuItem, gpuIndex) in gpuList"
+              :key="`${info.ID}_gpu_${gpuIndex}`"
+              class="info-chip"
+            >
+              <span class="info-chip-label">GPU.{{ gpuIndex + 1 }}</span>
+              <span class="info-chip-value">{{ gpuItem }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="temperatureData.list.length"
+        class="info-cell info-cell--full"
+      >
+        <div class="info-cell-label">
+          <i class="ri-temp-hot-line" />
+          <span>温度</span>
+        </div>
+        <div class="info-cell-content">
+          <div class="info-chip-group">
+            <span
+              v-for="(ttItem, ttIndex) in temperatureData.list"
+              :key="`${info.ID}_temperature_${ttIndex}`"
+              class="info-chip"
+              :class="`temperature--${ttItem.type}`"
+              :title="ttItem?.title || (`${ttItem.label}: ${ttItem.value}`)"
+            >
+              <span class="info-chip-label">
+                <i
+                  v-if="ttItem.type === 'cpu' || ttItem.label.toLowerCase().includes('cpu')"
+                  class="ri-cpu-line"
+                />
+                <i
+                  v-else-if="ttItem.type === 'gpu' || ttItem.label.toLowerCase().includes('gpu')"
+                  class="ri-gamepad-line"
+                />
+                <i
+                  v-else-if="ttItem.type === 'nvme' || ttItem.label.toLowerCase().includes('nvme')"
+                  class="ri-hard-drive-3-line"
+                />
+                <i
+                  v-else-if="ttItem.type === 'motherboard'"
+                  class="ri-instance-line"
+                />
+                <i
+                  v-else
+                  class="ri-temp-hot-line"
+                />
+                {{ ttItem.label }}
+              </span>
+              <span class="info-chip-value">{{ ttItem.value }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-cell">
+        <div class="info-cell-label">
+          <i class="ri-ubuntu-line" />
+          <span>系统</span>
+        </div>
+        <div class="info-cell-content">
+          <span class="info-chip">
+            <span class="info-chip-label">{{ systemOSLabel }}</span>
+            <span
+              v-if="info?.Host?.PlatformVersion"
+              class="info-chip-value"
+            >
+              {{ info?.Host?.PlatformVersion }}
+            </span>
           </span>
         </div>
       </div>
-    </div>
-    <div
-      v-if="showBuyBtn"
-      class="server-info-group server-info--order-link"
-    >
-      <div class="server-info-content">
+
+      <div class="info-cell">
+        <div class="info-cell-label">
+          <i class="ri-pulse-line" />
+          <span>占用</span>
+        </div>
+        <div class="info-cell-content">
+          <div class="info-chip-group">
+            <span class="info-chip">
+              <span class="info-chip-label">进程</span>
+              <span class="info-chip-value">{{ processCount }}</span>
+            </span>
+            <span class="info-chip">
+              <span class="info-chip-label">负载</span>
+              <span class="info-chip-value">{{ sysLoadInfo }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-cell">
+        <div class="info-cell-label">
+          <i class="ri-arrow-up-down-line" />
+          <span>流量</span>
+        </div>
+        <div class="info-cell-content">
+          <div class="info-chip-group">
+            <span class="info-chip transfer--in">
+              <span class="info-chip-label">入网</span>
+              <span class="info-chip-value">
+                <span class="text-value">{{ transfer?.in?.value }}</span>
+                <span class="text-unit">{{ transfer?.in?.unit }}</span>
+              </span>
+            </span>
+            <span class="info-chip transfer--out">
+              <span class="info-chip-label">出网</span>
+              <span class="info-chip-value">
+                <span class="text-value">{{ transfer?.out?.value }}</span>
+                <span class="text-unit">{{ transfer?.out?.unit }}</span>
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="!hideConns"
+        class="info-cell"
+      >
+        <div class="info-cell-label">
+          <i class="ri-link-m" />
+          <span>连接</span>
+        </div>
+        <div class="info-cell-content">
+          <div class="info-chip-group">
+            <span class="info-chip conn--tcp">
+              <span class="info-chip-label">TCP</span>
+              <span class="info-chip-value">{{ tcpConnCount }}</span>
+            </span>
+            <span class="info-chip conn--udp">
+              <span class="info-chip-label">UDP</span>
+              <span class="info-chip-value">{{ udpConnCount }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-cell">
+        <div class="info-cell-label">
+          <i class="ri-restart-line" />
+          <span>启动</span>
+        </div>
+        <div class="info-cell-content">
+          <span class="info-chip">
+            <span class="info-chip-value">{{ bootTime }}</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="info-cell">
+        <div class="info-cell-label">
+          <i class="ri-time-line" />
+          <span>活跃</span>
+        </div>
+        <div class="info-cell-content">
+          <span class="info-chip">
+            <span class="info-chip-value">{{ lastActive }}</span>
+          </span>
+        </div>
+      </div>
+
+      <div
+        v-if="billPlanData.length"
+        class="info-cell info-cell--full"
+      >
+        <div class="info-cell-label">
+          <i class="ri-vip-crown-line" />
+          <span>套餐</span>
+        </div>
+        <div class="info-cell-content">
+          <div class="info-chip-group">
+            <span
+              v-for="item in billPlanData"
+              :key="item.label"
+              class="info-chip"
+            >
+              <span
+                v-if="item.label"
+                class="info-chip-label"
+              >{{ item.label }}</span>
+              <span class="info-chip-value">{{ item.value }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="tagList?.length"
+        class="info-cell info-cell--full"
+      >
+        <div class="info-cell-label">
+          <i class="ri-price-tag-3-line" />
+          <span>标签</span>
+        </div>
+        <div class="info-cell-content">
+          <div class="info-tag-list">
+            <span
+              v-for="(tag, index) in tagList"
+              :key="`${tag}_${index}`"
+              class="info-tag-item"
+            >
+              {{ tag }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showBuyBtn"
+        class="info-cell info-cell--full info-cell--action"
+      >
         <div
           class="buy-btn"
           @click.stop="toBuy"
         >
-          <span class="icon">
-            <span :class="buyBtnIcon" />
-          </span>
-          <span class="text">{{ buyBtnText }}</span>
+          <span :class="buyBtnIcon" />
+          <span>{{ buyBtnText }}</span>
         </div>
       </div>
     </div>
@@ -600,152 +617,179 @@ const processCount = computed(() => props.info?.State?.ProcessCount);
 
 <style lang="scss" scoped>
 .server-detail-info {
-  --server-info-item-size: 24px;
+  padding: 16px 18px;
+}
 
-  @media screen and (max-width: 480px) {
-    --server-info-item-size: 30px;
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.info-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--panel-metric-bg);
+  border: 1px solid var(--panel-stat-border);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-strong);
   }
 
-  .server-info-group {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    font-size: 14px;
-    padding: 8px 10px;
-    margin: 0 -10px;
-    border-bottom: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    transition:
-      background var(--transition-fast),
-      border-color var(--transition-fast);
-
-    &:hover:not(.server-info--order-link) {
-      background: var(--bg-hover);
-      border-color: var(--border-strong);
-    }
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .server-info-label {
-      width: 3em;
-      flex-shrink: 0;
-      text-align: left;
-      line-height: var(--server-info-item-size);
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 13px;
-    }
-
-    .server-info-content {
-      flex: 1;
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      line-height: 18px;
-      text-align: right;
-      cursor: default;
-      min-width: 0;
-      font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums;
-    }
+  &--full {
+    grid-column: 1 / -1;
   }
 
-  .server-info-item-group {
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 0 12px;
-  }
-
-  .server-info-item {
-    display: flex;
-    gap: 0.2em;
-    align-items: center;
-
-    .server-info-item-icon {
-      width: 24px;
-      height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      color: var(--text-muted);
-    }
-  }
-
-  .server-info-item-label {
-    color: var(--text-secondary);
-  }
-
-  .server-info-item-value {
-    color: var(--accent-primary);
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .transfer--in {
-    .text-value {
-      color: var(--transfer-in-color);
-    }
-  }
-
-  .transfer--out {
-    .text-value {
-      color: var(--transfer-out-color);
-    }
-  }
-
-  .server-info--order-link {
-    padding: 10px 0 0;
-    border-bottom: none;
-  }
-
-  .buy-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 36px;
-    padding: 0 10px;
-    gap: 5px;
-    line-height: 1;
-    font-weight: bold;
-    color: var(--accent-warning);
-    border: 2px solid var(--accent-warning);
-    border-radius: var(--radius-sm);
-    transition: all 150ms ease;
-    cursor: pointer;
+  &--action {
+    background: transparent;
+    border-color: transparent;
+    padding: 4px 0 0;
 
     &:hover {
-      color: var(--text-on-accent);
-      background-color: var(--accent-warning);
-    }
-
-    .icon {
-      font-size: 18px;
-      font-weight: normal;
+      background: transparent;
+      border-color: transparent;
+      transform: none;
     }
   }
+}
 
-  .server-info-tag-list {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
+.info-cell-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
 
-    .server-info-tag-item {
-      height: 22px;
-      padding: 0 8px;
-      line-height: 22px;
-      font-size: 12px;
-      color: var(--list-tag-text);
-      background: var(--list-tag-bg);
-      border: 1px solid var(--list-tag-border);
-      border-radius: 6px;
-    }
+  i {
+    font-size: 14px;
+    color: var(--accent-primary);
+  }
+}
+
+.info-cell-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.info-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--panel-chip-bg);
+  border: 1px solid var(--panel-chip-border);
+  font-size: 12px;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-strong);
+  }
+}
+
+.info-chip-label {
+  color: var(--text-secondary);
+}
+
+.info-chip-value {
+  color: var(--accent-primary);
+}
+
+.cpu-info,
+.gpu-info {
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.transfer--in {
+  .text-value {
+    color: var(--transfer-in-color);
+  }
+}
+
+.transfer--out {
+  .text-value {
+    color: var(--transfer-out-color);
+  }
+}
+
+.buy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  gap: 6px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--accent-warning);
+  border: 1.5px solid var(--accent-warning);
+  border-radius: var(--radius-md);
+  transition: all 150ms ease;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-on-accent);
+    background-color: var(--accent-warning);
+  }
+
+  & > [class^="ri-"] {
+    font-size: 18px;
+  }
+}
+
+.info-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+
+  .info-tag-item {
+    height: 24px;
+    padding: 0 8px;
+    line-height: 24px;
+    font-size: 12px;
+    color: var(--list-tag-text);
+    background: var(--list-tag-bg);
+    border: 1px solid var(--list-tag-border);
+    border-radius: 6px;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .server-detail-info {
+    padding: 14px 16px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-cell {
+    padding: 10px 12px;
   }
 }
 </style>

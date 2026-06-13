@@ -48,6 +48,25 @@ const props = defineProps({
   },
 });
 
+function getCssVar(name, fallback = '') {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+const themeColors = computed(() => {
+  const isDark = props.mode === 'dark';
+  return {
+    textPrimary: getCssVar('--text-primary', isDark ? '#f4f8ff' : '#1c2840'),
+    textSecondary: getCssVar('--text-secondary', isDark ? '#a2b0c5' : '#5a6b84'),
+    textMuted: getCssVar('--text-muted', isDark ? '#6f7c92' : '#8290a5'),
+    borderColor: getCssVar('--border-color', isDark ? 'rgba(146,169,204,0.18)' : 'rgba(154,169,191,0.28)'),
+    accentPrimary: getCssVar('--accent-primary', isDark ? '#4e90ff' : '#4383ff'),
+    panelBg: getCssVar('--panel-metric-bg', isDark ? 'rgba(255,255,255,0.028)' : 'rgba(245,249,255,0.92)'),
+  };
+});
+
 const chartRef = ref();
 const option = computed(() => {
   if (props.dateList && props.valueList) {
@@ -56,6 +75,7 @@ const option = computed(() => {
       valueList: props.valueList,
       connectNulls: props.connectNulls,
       mode: props.mode,
+      themeColors: themeColors.value,
     });
   }
   return null;

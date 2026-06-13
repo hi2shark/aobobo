@@ -18,70 +18,56 @@
       <div class="right-box">
         <div
           v-if="config.nazhua.monitorChartTypeToggle"
-          class="chart-type-switch-group"
+          class="control-switch"
           title="监控折线图是否聚合"
           @click="switchChartType"
         >
           <span class="label-text">聚合</span>
           <div
             class="switch-box"
-            :class="{
-              active: monitorChartType === 'multi',
-            }"
+            :class="{ active: monitorChartType === 'multi' }"
           >
             <span class="switch-dot" />
           </div>
         </div>
         <div
-          class="refresh-data-group"
+          class="control-switch"
           title="是否自动刷新"
           @click="switchRefresh"
         >
           <span class="label-text">刷新</span>
           <div
             class="switch-box"
-            :class="{
-              active: refreshData,
-            }"
+            :class="{ active: refreshData }"
           >
             <span class="switch-dot" />
           </div>
         </div>
         <div
-          class="peak-shaving-group"
+          class="control-switch"
           title="过滤太高或太低的数据"
           @click="switchPeakShaving"
         >
           <span class="label-text">削峰</span>
           <div
             class="switch-box"
-            :class="{
-              active: peakShaving,
-            }"
+            :class="{ active: peakShaving }"
           >
             <span class="switch-dot" />
           </div>
         </div>
-        <div class="last-update-time-group">
-          <span class="last-update-time-label">
-            最近
-          </span>
-          <div class="minutes">
+        <div class="time-range-group">
+          <span class="time-range-label">最近</span>
+          <div class="time-range-options">
             <div
               v-for="minuteItem in minutes"
               :key="minuteItem.value"
-              class="minute-item"
-              :class="{
-                active: minuteItem.value === minute,
-              }"
+              class="time-range-item"
+              :class="{ active: minuteItem.value === minute }"
               @click="toggleMinute(minuteItem.value)"
             >
               <span>{{ minuteItem.label }}</span>
             </div>
-            <div
-              class="active-arrow"
-              :style="minuteActiveArrowStyle"
-            />
           </div>
         </div>
       </div>
@@ -100,18 +86,12 @@
           <div class="cate-name-box">
             <div
               class="monitor-cate-item"
-              :class="{
-                disabled: showCates[cateItem.id] === false,
-              }"
-              :style="{
-                '--cate-color': cateItem.color,
-              }"
+              :class="{ disabled: showCates[cateItem.id] === false }"
+              :style="{ '--cate-color': cateItem.color }"
               :title="cateItem.title"
             >
               <span class="cate-legend" />
-              <span class="cate-name">
-                {{ cateItem.name }}
-              </span>
+              <span class="cate-name">{{ cateItem.name }}</span>
               <span
                 v-if="cateItem.avg !== 0"
                 class="cate-avg-ms"
@@ -142,12 +122,8 @@
           v-for="cateItem in monitorChartData.cateList"
           :key="cateItem.id"
           class="monitor-cate-item"
-          :class="{
-            disabled: showCates[cateItem.id] === false,
-          }"
-          :style="{
-            '--cate-color': cateItem.color,
-          }"
+          :class="{ disabled: showCates[cateItem.id] === false }"
+          :style="{ '--cate-color': cateItem.color }"
           :title="cateItem.title"
           @click="toggleShowCate(cateItem.id)"
           @touchstart="handleTouchStart(cateItem.id)"
@@ -155,9 +131,7 @@
           @touchmove="handleTouchMove(cateItem.id)"
         >
           <span class="cate-legend" />
-          <span class="cate-name">
-            {{ cateItem.name }}
-          </span>
+          <span class="cate-name">{{ cateItem.name }}</span>
           <span
             v-if="cateItem.avg !== 0"
             class="cate-avg-ms"
@@ -274,13 +248,6 @@ const nowServerTime = computed(() => store.state.serverTime || Date.now());
 const acceptShowTime = computed(() => {
   const minuteFloor = Math.floor(nowServerTime.value / 60000);
   return (minuteFloor - minute.value) * 60000;
-});
-
-const minuteActiveArrowStyle = computed(() => {
-  const index = minutes.value.findIndex((i) => i.value === minute.value);
-  return {
-    left: `calc(${index} * var(--minute-item-width))`,
-  };
 });
 
 const monitorChartData = computed(() => {
@@ -540,6 +507,7 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .server-detail-monitor {
   --line-chart-size: 300px;
+  padding: 14px 18px;
 
   &.chart-type--single {
     --line-chart-size: 240px;
@@ -547,49 +515,57 @@ onUnmounted(() => {
 
   .monitor-cate-item {
     --cate-item-height: 28px;
-    --cate-item-font-size: 14px;
+    --cate-item-font-size: 13px;
     --cate-color: var(--text-primary);
 
     display: flex;
     align-items: center;
-    width: var(--cate-item-width, auto);
-    height: var(--cate-item-height);
     gap: 6px;
-    padding: 0 6px;
+    height: var(--cate-item-height);
+    padding: 0 10px;
     font-size: var(--cate-item-font-size);
-    border-radius: 4px;
+    border-radius: 999px;
     cursor: pointer;
+    background: var(--panel-chip-bg);
+    border: 1px solid var(--panel-chip-border);
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast);
 
     @media screen and (max-width: 768px) {
       cursor: default;
     }
 
+    &:hover:not(.disabled) {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
+
     .cate-legend {
-      width: 0.5em;
-      height: 0.5em;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
       background: var(--cate-color);
     }
 
     .cate-name {
-      height: var(--cate-item-height);
-      line-height: calc(var(--cate-item-height) + 2px);
+      line-height: var(--cate-item-height);
       color: var(--text-primary);
+      font-weight: 500;
     }
 
     .cate-avg-ms {
-      height: var(--cate-item-height);
-      line-height: calc(var(--cate-item-height) + 2px);
-      text-align: right;
+      line-height: var(--cate-item-height);
       color: var(--text-secondary);
       font-family: var(--font-mono);
+      font-size: 12px;
     }
 
     .cate-over-rate {
-      height: var(--cate-item-height);
-      line-height: calc(var(--cate-item-height) + 2px);
-      text-align: right;
+      line-height: var(--cate-item-height);
       color: var(--accent-warning);
       font-family: var(--font-mono);
+      font-size: 12px;
     }
 
     &.disabled {
@@ -604,18 +580,17 @@ onUnmounted(() => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
 
   .module-title {
     display: flex;
     align-items: center;
-    gap: 7px;
-    width: max-content;
-    min-height: 30px;
+    gap: 6px;
+    min-height: 28px;
     line-height: 1.3;
     font-family: var(--font-sans);
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--text-primary);
@@ -630,15 +605,13 @@ onUnmounted(() => {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
   }
 
-  .peak-shaving-group,
-  .refresh-data-group,
-  .chart-type-switch-group {
+  .control-switch {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     cursor: pointer;
 
     @media screen and (max-width: 1024px) {
@@ -647,18 +620,18 @@ onUnmounted(() => {
 
     .switch-box {
       position: relative;
-      width: 30px;
-      height: 16px;
+      width: 32px;
+      height: 18px;
       background: var(--progress-track);
-      border-radius: 10px;
+      border-radius: 999px;
       transition: background-color 0.3s;
 
       .switch-dot {
         position: absolute;
         top: 2px;
         left: 2px;
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         background: var(--text-on-accent);
         border-radius: 50%;
         transition: left 0.3s;
@@ -677,90 +650,70 @@ onUnmounted(() => {
     .label-text {
       color: var(--text-secondary);
       font-size: 12px;
+      font-weight: 500;
     }
   }
 
-  .last-update-time-group {
-    --minute-item-width: 50px;
-    --minute-item-height: 20px;
+  .time-range-group {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 
-    .last-update-time-label {
+    .time-range-label {
       color: var(--text-secondary);
-      height: var(--minute-item-height);
-      line-height: var(--minute-item-height);
       font-size: 12px;
+      font-weight: 500;
     }
 
-    @media screen and (max-width: 660px) {
-      --minute-item-width: 46px;
-    }
-
-    @media screen and (max-width: 400px) {
-      .last-update-time-label {
-        display: none;
-      }
-    }
-  }
-
-  .minutes {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    min-height: var(--minute-item-height);
-    padding: 2px;
-    background: var(--panel-search-bg);
-    border: 1px solid var(--panel-search-border);
-    border-radius: 15px;
-
-    .minute-item {
-      position: relative;
-      z-index: 10;
-      min-width: var(--minute-item-width);
-      height: var(--minute-item-height);
-      line-height: var(--minute-item-height);
-      padding: 0 8px;
-      font-size: 12px;
-      font-weight: 600;
-      text-align: center;
-      cursor: pointer;
-      color: var(--text-secondary);
+    .time-range-options {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      background: var(--panel-search-bg);
+      border: 1px solid var(--panel-search-border);
       border-radius: 999px;
-      border: 1px solid transparent;
-      background: transparent;
-      transition:
-        color var(--transition-fast),
-        background var(--transition-fast),
-        border-color var(--transition-fast),
-        box-shadow var(--transition-fast);
 
-      &:hover:not(.active) {
-        color: var(--text-primary);
-        background: var(--bg-hover);
+      .time-range-item {
+        min-width: 46px;
+        height: 24px;
+        line-height: 24px;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+        cursor: pointer;
+        color: var(--text-secondary);
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: transparent;
+        transition:
+          color var(--transition-fast),
+          background var(--transition-fast),
+          border-color var(--transition-fast),
+          box-shadow var(--transition-fast);
+
+        &:hover:not(.active) {
+          color: var(--text-primary);
+          background: var(--bg-hover);
+        }
+
+        &.active {
+          color: var(--text-on-accent);
+          background: var(--button-active-bg);
+          border-color: var(--button-active-border);
+          box-shadow: var(--button-active-shadow);
+        }
       }
-
-      &.active {
-        color: var(--text-on-accent);
-        background: var(--button-active-bg);
-        border-color: var(--button-active-border);
-        box-shadow: var(--button-active-shadow);
-      }
-    }
-
-    .active-arrow {
-      display: none;
     }
   }
 }
 
 .monitor-cate-group {
-  margin: 10px 0;
+  margin: 10px 0 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
 }
 
 .monitor-chart-group {
@@ -789,6 +742,24 @@ onUnmounted(() => {
     .monitor-chart-item {
       width: 100%;
     }
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .server-detail-monitor {
+    padding: 12px 14px;
+  }
+
+  .module-head-group {
+    .right-box {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+
+  .time-range-group .time-range-options .time-range-item {
+    min-width: 40px;
+    padding: 0 8px;
   }
 }
 </style>

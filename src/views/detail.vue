@@ -1,20 +1,5 @@
 <template>
   <div class="detail-view">
-    <div class="status-bar">
-      <div class="status-group">
-        <button type="button" class="back-btn" @click="router.back()">
-          <i class="ri-arrow-left-line" />
-          返回
-        </button>
-        <h1 class="detail-title">
-          {{ info?.Name || '服务器详情' }}
-        </h1>
-      </div>
-      <div class="status-actions">
-        <theme-mode-switch />
-      </div>
-    </div>
-
     <div
       v-if="info"
       class="detail-main"
@@ -22,26 +7,33 @@
         'server--offline': info.online !== 1,
       }"
     >
-      <div class="detail-section">
-        <div class="section-header">
-          <server-detail-header :info="info" />
+      <div class="status-bar">
+        <div class="status-group">
+          <button type="button" class="back-btn" @click="router.back()">
+            <i class="ri-arrow-left-line" />
+            返回
+          </button>
+          <h1 class="detail-title">
+            {{ info?.Name || '服务器详情' }}
+          </h1>
         </div>
-        <div class="detail-body">
-          <div class="detail-body-col detail-body-col--primary">
-            <server-detail-status :info="info" />
-            <server-detail-cycle-transfer :info="info" />
-          </div>
-          <div class="detail-body-col detail-body-col--secondary">
-            <server-detail-info :info="info" />
-            <server-detail-monitor :info="info" />
-          </div>
+        <div class="status-actions">
+          <theme-mode-switch />
         </div>
       </div>
-    </div>
 
-    <footer class="home-footer">
-      <p>Powered by 哪吒监控 · Theme By AoBoBo 3D Globe</p>
-    </footer>
+      <div class="detail-stack">
+        <server-detail-header :info="info" class="stack-item stack-item--header" />
+        <server-detail-status :info="info" class="stack-item stack-item--status" />
+        <server-detail-info :info="info" class="stack-item stack-item--info" />
+        <server-detail-cycle-transfer :info="info" class="stack-item stack-item--cycle" />
+        <server-detail-monitor :info="info" class="stack-item stack-item--monitor" />
+      </div>
+
+      <footer class="home-footer">
+        <p>Powered by 哪吒监控 · Theme By AoBoBo 3D Globe</p>
+      </footer>
+    </div>
   </div>
 </template>
 
@@ -90,10 +82,7 @@ watch([dataInit, info], () => {
   position: relative;
   width: 100%;
   height: 100vh;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  padding: 14px 16px 12px;
+  padding: 0;
   overflow: hidden;
   background: var(--page-bg);
 }
@@ -106,33 +95,39 @@ watch([dataInit, info], () => {
   pointer-events: none;
 }
 
+.detail-main {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+
+  &.server--offline {
+    filter: grayscale(1);
+  }
+}
+
 .status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px 18px;
-  padding: 12px 18px;
-  position: relative;
+  width: calc(100% - 28px);
+  margin: 14px 14px 12px;
+  padding: 10px 16px;
+  position: sticky;
+  top: 14px;
+  z-index: 100;
   overflow: hidden;
   background: var(--status-bar-bg);
   backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--border-color);
-  border-radius: calc(var(--radius-lg) + 2px);
+  border-radius: var(--radius-lg);
   box-shadow:
     var(--shadow-sm),
     inset 0 1px 0 var(--surface-highlight);
-  z-index: 10;
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 40%),
-      radial-gradient(circle at 15% 0%, rgba(var(--accent-cyan-rgb), 0.08), transparent 30%);
-    pointer-events: none;
-  }
 
   .status-group,
   .status-actions {
@@ -153,8 +148,8 @@ watch([dataInit, info], () => {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 40px;
-    padding: 0 14px;
+    min-height: 36px;
+    padding: 0 12px;
     border-radius: 999px;
     border: 1px solid var(--button-subtle-border);
     background: var(--button-subtle-bg);
@@ -179,7 +174,7 @@ watch([dataInit, info], () => {
   }
 
   .detail-title {
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text-primary);
@@ -190,21 +185,18 @@ watch([dataInit, info], () => {
   }
 }
 
-.detail-main {
-  min-height: 0;
-  overflow-y: auto;
+.detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 100%;
-  position: relative;
-  z-index: 1;
-
-  &.server--offline {
-    filter: grayscale(1);
-  }
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-bottom: 2px;
 }
 
-.detail-section {
-  min-height: 100%;
-  border-radius: var(--radius-xl);
+.stack-item {
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
   background: var(--section-bg);
   backdrop-filter: blur(18px) saturate(150%);
@@ -212,37 +204,13 @@ watch([dataInit, info], () => {
     var(--shadow-sm),
     inset 0 1px 0 var(--surface-highlight);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.section-header {
-  padding: 16px 16px 14px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--section-header-bg);
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.detail-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0 16px 16px;
-}
-
-.detail-body-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-
-  :deep(.detail-panel--flat + .detail-panel--flat) {
-    border-top: 1px solid var(--border-color);
-  }
 }
 
 .home-footer {
-  min-height: 50px;
-  padding: 0 18px;
+  width: calc(100% - 28px);
+  min-height: 42px;
+  margin: 12px 14px 14px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -252,57 +220,53 @@ watch([dataInit, info], () => {
   color: var(--text-secondary);
   background: var(--footer-bg);
   border: 1px solid var(--border-color);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   backdrop-filter: blur(18px) saturate(145%);
   box-shadow:
     var(--shadow-sm),
     inset 0 1px 0 var(--surface-highlight);
-  position: relative;
-  z-index: 1;
-}
-
-@media screen and (min-width: 1280px) {
-  .detail-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: 0 20px;
-    padding: 0 16px 16px;
-  }
-
-  .detail-body-col--secondary {
-    border-left: 1px solid var(--border-color);
-    padding-left: 20px;
-  }
-}
-
-@media screen and (max-width: 1279px) {
-  .detail-body-col--secondary {
-    border-top: 1px solid var(--border-color);
-    margin-top: 0;
-    padding-top: 0;
-  }
+  position: sticky;
+  bottom: 14px;
+  z-index: 100;
 }
 
 @media screen and (max-width: 768px) {
   .detail-view {
-    gap: 10px;
-    padding: 10px;
+    padding: 0;
   }
 
   .status-bar {
-    padding: 10px 12px;
+    width: calc(100% - 24px);
+    margin: 12px 12px 10px;
+    padding: 8px 12px;
+    top: 12px;
 
     .detail-title {
-      font-size: 17px;
+      font-size: 15px;
+    }
+
+    .back-btn {
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 12px;
     }
   }
 
-  .section-header {
-    padding: 12px 12px 10px;
+  .detail-stack {
+    gap: 8px;
   }
 
-  .detail-body {
-    padding: 0 12px 12px;
+  .stack-item {
+    border-radius: var(--radius-md);
+  }
+
+  .home-footer {
+    width: calc(100% - 24px);
+    min-height: 36px;
+    margin: 8px 12px 12px;
+    border-radius: var(--radius-md);
+    font-size: 11px;
+    bottom: 12px;
   }
 }
 </style>

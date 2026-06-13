@@ -129,7 +129,7 @@
     </div>
 
     <footer class="home-footer">
-      <p>Powered by 哪吒监控 · Theme By AoBoBo 3D Globe</p>
+      <p>Powered by 哪吒监控 · Theme By AoBoBo</p>
     </footer>
   </div>
 </template>
@@ -476,7 +476,6 @@ onUnmounted(() => {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   position: relative;
-  overflow: hidden;
 }
 
 .globe-section {
@@ -831,6 +830,7 @@ onUnmounted(() => {
 
 .home-footer {
   min-height: 50px;
+  margin: 0 0 14px;
   padding: 0 18px;
   display: flex;
   align-items: center;
@@ -990,6 +990,10 @@ onUnmounted(() => {
   .globe-section {
     min-height: 0;
     border-radius: 24px;
+  }
+
+  .home-footer {
+    margin-bottom: 12px;
   }
 
   .mobile-drawer-backdrop {

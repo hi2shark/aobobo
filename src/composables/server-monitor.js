@@ -1,11 +1,10 @@
 const lineColorMap = {};
 const lineColors = [];
 const defaultColors = [
-  '#5470C6', '#91CC75', '#FAC858', '#EE6666',
-  '#73C0DE', '#3BA272', '#FC8452', '#9A60B4',
-  '#EA7CCC', '#C23531', '#2F4554', '#61A0A8',
-  '#D48265', '#91C7AE', '#749F83', '#CA8622',
-  '#BDA29A', '#6E7074', '#546570', '#C4CCD3',
+  '#4e90ff', '#27c975', '#ffbe56', '#ff687e',
+  '#70f3ff', '#a78bfa', '#fb923c', '#38bdf8',
+  '#f472b6', '#34d399', '#fbbf24', '#f87171',
+  '#22d3ee', '#c084fc', '#fb923c', '#2dd4bf',
 ];
 
 export function getThreshold(data) {

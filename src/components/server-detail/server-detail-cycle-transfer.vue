@@ -178,6 +178,8 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .server-detail-cycle-transfer {
+  padding: 14px 18px;
+
   .module-head-group {
     display: flex;
     align-items: center;
@@ -353,7 +355,13 @@ onUnmounted(() => {
     }
   }
 
-  .status--neutral {
+  @media screen and (max-width: 768px) {
+  .server-detail-cycle-transfer {
+    padding: 12px 14px;
+  }
+}
+
+.status--neutral {
     &.rule-status {
       color: var(--text-muted);
       border-color: var(--border-color);
