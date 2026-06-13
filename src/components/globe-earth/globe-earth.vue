@@ -236,11 +236,11 @@ function getThemePalette(theme) {
     fillLightIntensity: 0.25,
     rimLight: '#7ec0f8',
     rimLightIntensity: 0.14,
-    markerOnline: readThemeToken('--globe-marker-active', '#ffc857'),
-    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(255, 200, 87, 0.28)'),
+    markerOnline: readThemeToken('--globe-marker-active', '#5eb8ff'),
+    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(94, 184, 255, 0.28)'),
     markerOffline: readThemeToken('--globe-marker-muted', '#7d8797'),
     markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(125, 135, 151, 0.22)'),
-    onlineRing: readThemeToken('--globe-ring-rgb', '255, 200, 87'),
+    onlineRing: readThemeToken('--globe-ring-rgb', '94, 184, 255'),
   };
 }
 
@@ -293,16 +293,22 @@ function syncSceneBackground() {
 }
 
 function getMarkerDimensions(count) {
-  if (count >= 12) {
-    return { visualSize: 28, hitSize: 48, ringMaxR: 2.3 };
+  if (count > 9) {
+    return { visualSize: 22, hitSize: 38, dotSize: 0, isLarge: true, ringMaxR: 2.6 };
   }
-  if (count >= 8) {
-    return { visualSize: 24, hitSize: 44, ringMaxR: 1.9 };
+  if (count >= 7) {
+    return { visualSize: 20, hitSize: 36, dotSize: 5, isLarge: false, ringMaxR: 1.8 };
   }
-  if (count >= 4) {
-    return { visualSize: 20, hitSize: 40, ringMaxR: 1.55 };
+  if (count >= 5) {
+    return { visualSize: 18, hitSize: 34, dotSize: 5, isLarge: false, ringMaxR: 1.7 };
   }
-  return { visualSize: 16, hitSize: 36, ringMaxR: 1.2 };
+  if (count >= 3) {
+    return { visualSize: 16, hitSize: 32, dotSize: 5, isLarge: false, ringMaxR: 1.5 };
+  }
+  if (count === 2) {
+    return { visualSize: 14, hitSize: 30, dotSize: 5, isLarge: false, ringMaxR: 1.4 };
+  }
+  return { visualSize: 10, hitSize: 26, dotSize: 5, isLarge: false, ringMaxR: 1.2 };
 }
 
 const markerData = computed(() => {
@@ -314,7 +320,7 @@ const markerData = computed(() => {
     const onlineCount = servers.filter((server) => server.online === 1).length;
     const offlineCount = totalCount - onlineCount;
     const hasOnline = onlineCount > 0;
-    const { visualSize, hitSize, ringMaxR } = getMarkerDimensions(totalCount);
+    const { visualSize, hitSize, dotSize, isLarge, ringMaxR } = getMarkerDimensions(totalCount);
 
     return {
       key: location.key || location.code || `${location.lat}-${location.lng}-${index}`,
@@ -329,6 +335,8 @@ const markerData = computed(() => {
       offlineCount,
       visualSize,
       hitSize,
+      dotSize,
+      isLarge,
       ringMaxR,
       altitude: 0,
       markerColor: hasOnline ? palette.markerOnline : palette.markerOffline,
@@ -824,31 +832,41 @@ function applyThemeToGlobe() {
 }
 
 function createMarkerElement(marker) {
-  const ringStyle = props.theme === 'dark'
-    ? { ringWidth: 2.75, showDot: true }
-    : { ringWidth: 2.25, showDot: true };
   const element = document.createElement('button');
   element.type = 'button';
   element.className = `globe-marker ${marker.hasOnline ? 'is-online' : 'is-offline'}`;
   element.dataset.key = marker.key;
   element.setAttribute('aria-label', `${marker.label}，${marker.totalCount}台服务器`);
+
+  let badgeHTML;
+  if (marker.isLarge) {
+    badgeHTML = '<span class="marker-cluster marker-cluster--large" aria-hidden="true"></span>';
+  } else if (marker.totalCount > 1) {
+    const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
+    const dots = Array.from({ length: marker.totalCount }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / marker.totalCount - (Math.PI / 2);
+      const x = Math.round(Math.cos(angle) * radius * 100) / 100;
+      const y = Math.round(Math.sin(angle) * radius * 100) / 100;
+      return `<span class="marker-dot" style="transform: translate(${x}px, ${y}px)"></span>`;
+    }).join('');
+    badgeHTML = `<span class="marker-dots" aria-hidden="true">${dots}</span>`;
+  } else {
+    badgeHTML = '<span class="marker-dot marker-dot--single" aria-hidden="true"></span>';
+  }
+
   element.innerHTML = `
     <span class="marker-hit">
       ${marker.hasOnline ? '<span class="marker-pulse"></span>' : ''}
-      <span class="marker-badge" aria-hidden="true">
-        <span class="marker-flat-ring"></span>
-        ${ringStyle.showDot ? '<span class="marker-flat-dot"></span>' : ''}
-      </span>
+      ${badgeHTML}
     </span>
   `;
 
   element.style.setProperty('--marker-visual-size', `${marker.visualSize}px`);
   element.style.setProperty('--marker-hit-size', `${marker.hitSize}px`);
-  element.style.setProperty('--marker-ring-width', `${ringStyle.ringWidth}px`);
+  element.style.setProperty('--marker-dot-size', `${marker.dotSize}px`);
   element.style.setProperty('--marker-core-color', marker.markerColor);
   element.style.setProperty('--marker-shell-color', marker.markerColorSoft);
   element.style.setProperty('--marker-shadow-color', marker.markerColorSoft);
-  element.style.setProperty('--marker-highlight-color', marker.hasOnline ? 'rgba(255, 255, 255, 0.94)' : 'rgba(255, 255, 255, 0.82)');
 
   element.addEventListener('pointerenter', () => setHoveredMarker(marker.key));
   element.addEventListener('pointerleave', () => clearHoveredMarker(marker.key));
@@ -1310,19 +1328,11 @@ onUnmounted(() => {
   }
 
   &.is-hovered {
-    transform: scale(1.1);
+    transform: scale(1.15);
   }
 
   &.is-selected {
-    transform: scale(1.16);
-  }
-
-  &.is-selected .marker-flat-ring {
-    border-width: 3px;
-  }
-
-  &:focus-visible .marker-flat-ring {
-    border-width: 3px;
+    transform: scale(1.22);
   }
 }
 
@@ -1335,43 +1345,36 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-:deep(.marker-badge) {
+:deep(.marker-dots) {
   width: var(--marker-visual-size);
   height: var(--marker-visual-size);
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  background: transparent;
-  overflow: visible;
 }
 
-:deep(.marker-flat-ring) {
+:deep(.marker-dot) {
   position: absolute;
-  inset: 0;
+  width: var(--marker-dot-size);
+  height: var(--marker-dot-size);
   border-radius: 999px;
-  border: var(--marker-ring-width, 2px) solid var(--marker-core-color);
-  background: transparent;
-  opacity: 0.98;
-  transition: border-width 0.18s ease;
+  background: var(--marker-core-color);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--marker-core-color) 50%, transparent);
 }
 
-:deep(.marker-flat-dot) {
-  width: 34%;
-  height: 34%;
+:deep(.marker-dot--single) {
+  position: static;
+}
+
+:deep(.marker-cluster--large) {
+  width: var(--marker-visual-size);
+  height: var(--marker-visual-size);
   border-radius: 999px;
-  background: var(--marker-highlight-color, #fffef7);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--marker-core-color) 42%, transparent);
-}
-
-:deep(.globe-marker.is-offline .marker-flat-ring) {
-  border-color: var(--marker-core-color);
-  opacity: 0.58;
-}
-
-:deep(.globe-marker.is-offline .marker-flat-dot) {
-  opacity: 0.58;
+  background: var(--marker-core-color);
+  box-shadow:
+    0 0 0 3px var(--marker-shell-color),
+    0 0 10px color-mix(in srgb, var(--marker-core-color) 50%, transparent);
 }
 
 :deep(.marker-pulse) {
@@ -1384,42 +1387,29 @@ onUnmounted(() => {
   animation: marker-pulse 2.4s ease-out infinite;
 }
 
+:deep(.globe-marker.is-offline .marker-dot),
+:deep(.globe-marker.is-offline .marker-cluster--large) {
+  opacity: 0.58;
+}
+
 .globe-earth.theme-dark {
-  :deep(.marker-flat-ring) {
-    border: 2.75px solid var(--marker-core-color);
-    background: transparent;
-    opacity: 0.98;
+  :deep(.marker-dot) {
     box-shadow:
-      0 0 0 1px rgba(255, 250, 224, 0.2),
-      0 0 0 6px color-mix(in srgb, var(--marker-core-color) 10%, transparent),
-      0 0 18px 2px color-mix(in srgb, var(--marker-core-color) 58%, transparent);
+      0 0 0 1px rgba(255, 250, 224, 0.15),
+      0 0 6px color-mix(in srgb, var(--marker-core-color) 60%, transparent);
   }
 
-  :deep(.marker-flat-dot) {
-    width: 38%;
-    height: 38%;
-    background: #fff8da;
+  :deep(.marker-cluster--large) {
     box-shadow:
-      0 0 10px color-mix(in srgb, var(--marker-core-color) 40%, transparent),
-      0 0 4px rgba(255, 255, 255, 0.85);
+      0 0 0 1px rgba(255, 250, 224, 0.2),
+      0 0 0 5px color-mix(in srgb, var(--marker-core-color) 10%, transparent),
+      0 0 18px 2px color-mix(in srgb, var(--marker-core-color) 58%, transparent);
   }
 
   :deep(.marker-pulse) {
     border-width: 1.5px;
     border-color: var(--marker-core-color);
     opacity: 0.28;
-    box-shadow: none;
-  }
-
-  :deep(.globe-marker.is-offline .marker-flat-ring) {
-    border-color: var(--marker-core-color);
-    background: transparent;
-    opacity: 0.56;
-    box-shadow: none;
-  }
-
-  :deep(.globe-marker.is-offline .marker-flat-dot) {
-    background: rgba(255, 255, 255, 0.68);
     box-shadow: none;
   }
 }
@@ -1430,9 +1420,9 @@ onUnmounted(() => {
     transform: none;
   }
 
-  :deep(.marker-badge),
-  :deep(.marker-flat-ring),
-  :deep(.marker-flat-dot) {
+  :deep(.marker-dots),
+  :deep(.marker-dot),
+  :deep(.marker-cluster--large) {
     transition: none;
   }
 
@@ -1443,39 +1433,23 @@ onUnmounted(() => {
 }
 
 .globe-earth.theme-light {
-  :deep(.marker-flat-ring) {
-    border: 2.25px solid var(--marker-core-color);
-    background: transparent;
-    opacity: 0.98;
+  :deep(.marker-dot) {
     box-shadow:
       0 0 0 1px rgba(255, 255, 255, 0.6),
-      0 0 0 8px color-mix(in srgb, var(--marker-core-color) 12%, transparent),
-      0 0 16px 4px color-mix(in srgb, var(--marker-core-color) 20%, transparent);
+      0 0 6px color-mix(in srgb, var(--marker-core-color) 30%, transparent);
   }
 
-  :deep(.marker-flat-dot) {
-    background: #fffdfa;
+  :deep(.marker-cluster--large) {
     box-shadow:
-      0 0 8px color-mix(in srgb, var(--marker-core-color) 30%, transparent),
-      0 0 4px rgba(255, 255, 255, 0.86);
+      0 0 0 1px rgba(255, 255, 255, 0.7),
+      0 0 0 7px color-mix(in srgb, var(--marker-core-color) 12%, transparent),
+      0 0 16px 4px color-mix(in srgb, var(--marker-core-color) 20%, transparent);
   }
 
   :deep(.marker-pulse) {
     border-width: 1.5px;
     border-color: var(--marker-core-color);
     opacity: 0.2;
-    box-shadow: none;
-  }
-
-  :deep(.globe-marker.is-offline .marker-flat-ring) {
-    background: transparent;
-    border-color: var(--marker-core-color);
-    opacity: 0.52;
-    box-shadow: none;
-  }
-
-  :deep(.globe-marker.is-offline .marker-flat-dot) {
-    background: rgba(255, 255, 255, 0.82);
     box-shadow: none;
   }
 }

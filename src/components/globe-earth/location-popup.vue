@@ -5,8 +5,8 @@
         <h3>{{ location.label }}</h3>
         <div class="popup-stats">
           <span class="stat-chip total">{{ location.totalCount }}台</span>
-          <span class="stat-chip online">在线 {{ location.onlineCount }}</span>
-          <span class="stat-chip offline">离线 {{ location.offlineCount }}</span>
+          <span v-if="location.offlineCount > 0" class="stat-chip online">在线 {{ location.onlineCount }}</span>
+          <span v-if="location.offlineCount > 0" class="stat-chip offline">离线 {{ location.offlineCount }}</span>
         </div>
       </div>
       <button type="button" class="close-btn" aria-label="关闭位置弹窗" @click="$emit('close')">
@@ -133,11 +133,10 @@ function hasMetaTags(server) {
   &::before {
     content: '';
     position: absolute;
-    inset: 0 0 auto;
-    height: 76px;
+    inset: 0;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 78%),
-      radial-gradient(circle at top left, rgba(var(--accent-cyan-rgb), 0.08), transparent 46%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, transparent 72%),
+      radial-gradient(ellipse at 0% 0%, rgba(var(--accent-cyan-rgb), 0.12), transparent 60%);
     pointer-events: none;
   }
 
