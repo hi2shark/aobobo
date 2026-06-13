@@ -953,8 +953,9 @@ onUnmounted(() => {
 
 @media screen and (max-width: 768px) {
   .home-view {
-    gap: 10px;
-    padding: 10px;
+    gap: 0;
+    padding: 0;
+    grid-template-rows: 1fr;
   }
 
   .status-bar {
@@ -964,6 +965,11 @@ onUnmounted(() => {
     border-radius: 20px;
     flex-wrap: nowrap;
     align-items: center;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    z-index: 20;
 
     .status-group {
       width: auto;
@@ -1000,15 +1006,31 @@ onUnmounted(() => {
   .main-content {
     grid-template-rows: minmax(0, 1fr);
     gap: 0;
+    min-height: 100%;
   }
 
   .globe-section {
     min-height: 0;
-    border-radius: 24px;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
   }
 
   .home-footer {
-    margin-bottom: 12px;
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: transparent;
+    border: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    margin: 0;
+    min-height: auto;
+    padding: 8px;
+    font-size: 11px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .mobile-drawer-backdrop {
