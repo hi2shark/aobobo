@@ -309,7 +309,7 @@ const markerData = computed(() => {
       visualSize,
       hitSize,
       ringMaxR,
-      altitude: hasOnline ? 0.017 : 0.014,
+      altitude: 0,
       markerColor: hasOnline ? palette.markerOnline : palette.markerOffline,
       markerColorSoft: hasOnline ? palette.markerOnlineSoft : palette.markerOfflineSoft,
     };
