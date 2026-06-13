@@ -50,12 +50,12 @@ void main() {
 }
 `;
 
-function createInnerFresnelLayer(color) {
+function createInnerFresnelLayer(color, strengthScale = 1) {
   const geometry = new THREE.SphereGeometry(GLOBE_RADIUS * INNER_FRESNEL.scale, 72, 72);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       glowColor: { value: new THREE.Color(color) },
-      fresnelStrength: { value: INNER_FRESNEL.strength },
+      fresnelStrength: { value: INNER_FRESNEL.strength * strengthScale },
     },
     vertexShader: ATMOSPHERE_VERTEX,
     fragmentShader: INNER_FRESNEL_FRAGMENT,
@@ -71,13 +71,13 @@ function createInnerFresnelLayer(color) {
   return mesh;
 }
 
-function createGlowLayer(color, layer) {
+function createGlowLayer(color, layer, intensityScale = 1) {
   const geometry = new THREE.SphereGeometry(GLOBE_RADIUS * layer.scale, 72, 72);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       glowColor: { value: new THREE.Color(color) },
-      wideStrength: { value: layer.wide },
-      edgeStrength: { value: layer.edge },
+      wideStrength: { value: layer.wide * intensityScale },
+      edgeStrength: { value: layer.edge * intensityScale },
     },
     vertexShader: ATMOSPHERE_VERTEX,
     fragmentShader: ATMOSPHERE_FRAGMENT,
@@ -104,13 +104,14 @@ function updateAtmosphereColor(group, color) {
   });
 }
 
-export function createRimAtmosphereGroup(color) {
+export function createRimAtmosphereGroup(color, options = {}) {
+  const { innerStrengthScale = 1, glowIntensityScale = 1 } = options;
   const group = new THREE.Group();
   group.name = 'globe-rim-atmosphere';
 
-  group.add(createInnerFresnelLayer(color));
+  group.add(createInnerFresnelLayer(color, innerStrengthScale));
   GLOW_LAYERS.forEach((layer) => {
-    group.add(createGlowLayer(color, layer));
+    group.add(createGlowLayer(color, layer, glowIntensityScale));
   });
 
   return group;
