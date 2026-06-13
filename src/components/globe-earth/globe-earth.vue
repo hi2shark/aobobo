@@ -670,7 +670,6 @@ function selectMarker(marker) {
   selectedMarker.value = marker;
   isPopupHovered.value = false;
   emit('marker-click', marker);
-  focusLocation(marker);
   syncMarkerElementState();
   applyAutoRotateState();
 
