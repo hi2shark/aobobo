@@ -4,18 +4,15 @@
       <div class="status-group">
         <div class="status-summary" aria-label="服务器统计">
           <span class="status-summary__total">
-            <strong>{{ serverCount.total }}</strong> 台
+            <strong>{{ serverCount.total }}</strong>台
           </span>
-          <span class="status-summary__sep" aria-hidden="true">·</span>
-          <span class="status-summary__item">
-            <span class="status-dot online" />
-            {{ serverCount.online }} 在线
-          </span>
-          <span class="status-summary__sep" aria-hidden="true">·</span>
-          <span class="status-summary__item">
-            <span class="status-dot offline" />
-            {{ serverCount.offline }} 离线
-          </span>
+          <template v-if="serverCount.offline > 0">
+            <span class="status-summary__sep" aria-hidden="true">·</span>
+            <span class="status-summary__item">
+              <span class="status-dot offline" />
+              {{ serverCount.offline }} 离线
+            </span>
+          </template>
         </div>
       </div>
 
@@ -50,7 +47,7 @@
       />
 
       <button
-        v-if="!sidebarOpen"
+        v-if="!sidebarOpen && !isWideScreen"
         type="button"
         class="sidebar-expand-handle"
         aria-label="展开服务器列表"
@@ -71,6 +68,7 @@
               </span>
             </div>
             <button
+              v-if="!isWideScreen"
               type="button"
               class="close-sidebar"
               title="收起"
@@ -164,13 +162,26 @@ const FILTER_OPTIONS = [
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
+const WIDE_BREAKPOINT = 1280;
+
 const filterOnline = ref('');
 const searchKeyword = ref('');
 const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth > 768);
+const isWideScreen = ref(false);
 const globeRef = ref(null);
 let serverHoverTimer = null;
 
+function updateWideScreen() {
+  isWideScreen.value = window.innerWidth >= WIDE_BREAKPOINT;
+  if (isWideScreen.value) {
+    sidebarOpen.value = true;
+  }
+}
+
 function toggleSidebar() {
+  if (isWideScreen.value) {
+    return;
+  }
   sidebarOpen.value = !sidebarOpen.value;
 }
 
@@ -339,10 +350,13 @@ watch(
 );
 
 onMounted(() => {
+  updateWideScreen();
+  window.addEventListener('resize', updateWideScreen);
   tryFocusFromQuery();
 });
 
 onUnmounted(() => {
+  window.removeEventListener('resize', updateWideScreen);
   clearServerHoverTimer();
 });
 </script>
@@ -352,6 +366,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
@@ -1084,23 +1099,28 @@ onUnmounted(() => {
 
 @media screen and (max-width: 420px) {
   .status-bar {
-    padding: 8px;
+    padding: 8px 10px;
     gap: 8px;
-    flex-wrap: wrap;
-    align-items: stretch;
+    flex-wrap: nowrap;
+    align-items: center;
 
     .status-group {
-      width: 100%;
-      flex: 1 1 100%;
-      flex-wrap: wrap;
+      width: auto;
+      min-width: 0;
+      flex: 1 1 auto;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
     }
 
     .status-actions {
-      width: 100%;
-      margin-left: 0;
+      width: auto;
+      min-width: 0;
+      margin-left: auto;
       justify-content: flex-end;
       gap: 8px;
-      flex: 1 1 100%;
+      flex: 0 0 auto;
+      flex-wrap: nowrap;
+      align-items: center;
     }
 
     .status-summary {

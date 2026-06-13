@@ -94,6 +94,20 @@ const INITIAL_POINT_OF_VIEW = {
   altitude: 1.75,
 };
 
+const GLOBE_RADIUS = 100;
+const CAMERA_FOV = 50;
+const FIT_PADDING = 0.12;
+
+function computeFitAltitude(width, height) {
+  const aspect = width / height;
+  const vFovRad = THREE.MathUtils.degToRad(CAMERA_FOV);
+  const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
+  const minFov = Math.min(vFovRad, hFovRad) * (1 - FIT_PADDING);
+  const maxAngularRadius = minFov / 2;
+  const distance = GLOBE_RADIUS / Math.tan(maxAngularRadius);
+  return Math.max(distance / GLOBE_RADIUS - 1, 0.1);
+}
+
 const MOBILE_BREAKPOINT = 768;
 const POPUP_PADDING = 16;
 const POPUP_OFFSET = 20;
@@ -170,6 +184,9 @@ let rimAtmosphereGroup = null;
 let bloomPass = null;
 let cameraKeyLight = null;
 let sceneBackgroundTexture = null;
+let resizeObserver = null;
+let pendingResizeRaf = null;
+let fitAltitude = INITIAL_POINT_OF_VIEW.altitude;
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -895,8 +912,9 @@ function configureControls() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
+  const fitDistance = GLOBE_RADIUS * (1 + fitAltitude);
   controls.minDistance = 145;
-  controls.maxDistance = 285;
+  controls.maxDistance = Math.max(285, fitDistance * 1.1);
   controls.rotateSpeed = 0.42;
 
   controlsStartHandler = () => {
@@ -914,6 +932,17 @@ function configureControls() {
   controls.addEventListener('start', controlsStartHandler);
   controls.addEventListener('end', controlsEndHandler);
   applyAutoRotateState();
+}
+
+function updateZoomLimits() {
+  if (!globe) {
+    return;
+  }
+
+  const controls = globe.controls();
+  const fitDistance = GLOBE_RADIUS * (1 + fitAltitude);
+  controls.minDistance = 145;
+  controls.maxDistance = Math.max(285, fitDistance * 1.1);
 }
 
 function resetView() {
@@ -944,6 +973,9 @@ function handleResize() {
   }
 
   const { clientWidth: width, clientHeight: height } = globeContainer.value;
+  fitAltitude = computeFitAltitude(width, height);
+  updateZoomLimits();
+
   globe.width(width).height(height);
 
   if (bloomPass) {
@@ -956,6 +988,16 @@ function handleResize() {
   });
 }
 
+function scheduleHandleResize() {
+  if (pendingResizeRaf) {
+    cancelAnimationFrame(pendingResizeRaf);
+  }
+  pendingResizeRaf = requestAnimationFrame(() => {
+    pendingResizeRaf = null;
+    handleResize();
+  });
+}
+
 function initGlobe() {
   if (!globeContainer.value) {
     return;
@@ -963,6 +1005,7 @@ function initGlobe() {
 
   try {
     const { clientWidth: width, clientHeight: height } = globeContainer.value;
+    fitAltitude = computeFitAltitude(width, height);
     globe = Globe()(globeContainer.value);
 
     zoomHandler = () => {
@@ -977,7 +1020,7 @@ function initGlobe() {
     globe
       .width(width)
       .height(height)
-      .globeOffset([0, 10])
+      .globeOffset([0, 0])
       .backgroundColor('rgba(0,0,0,0)')
       .pointOfView(INITIAL_POINT_OF_VIEW)
       .htmlLat('lat')
@@ -1100,10 +1143,26 @@ onMounted(() => {
   updateViewportMode();
   initGlobe();
   window.addEventListener('resize', handleResize);
+
+  if (typeof ResizeObserver !== 'undefined' && globeContainer.value) {
+    resizeObserver = new ResizeObserver(() => scheduleHandleResize());
+    resizeObserver.observe(globeContainer.value);
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+
+  if (pendingResizeRaf) {
+    cancelAnimationFrame(pendingResizeRaf);
+    pendingResizeRaf = null;
+  }
+
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
+
   clearInteractionSettleTimer();
 
   const controls = globe?.controls?.();
