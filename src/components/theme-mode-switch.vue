@@ -51,10 +51,10 @@ function setMode(mode) {
 <style lang="scss" scoped>
 .theme-mode-switch {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
+  gap: 2px;
+  height: 32px;
+  padding: 2px;
   border: 1px solid var(--button-subtle-border);
   border-radius: 999px;
   background: var(--button-subtle-bg);
@@ -63,12 +63,12 @@ function setMode(mode) {
 }
 
 .switch-option {
-  min-width: 72px;
+  min-width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 7px 12px;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
@@ -86,6 +86,10 @@ function setMode(mode) {
     font-size: 14px;
   }
 
+  span {
+    display: none;
+  }
+
   &:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
@@ -96,6 +100,7 @@ function setMode(mode) {
     background: var(--button-active-bg);
     border-color: var(--button-active-border);
     box-shadow: var(--button-active-shadow);
+    text-shadow: 0 0 10px rgba(var(--accent-cyan-rgb), 0.5);
   }
 }
 
@@ -105,8 +110,8 @@ function setMode(mode) {
   }
 
   .switch-option {
-    flex: 1 1 auto;
-    min-width: 68px;
+    flex: 0 0 auto;
+    min-width: 28px;
   }
 }
 </style>

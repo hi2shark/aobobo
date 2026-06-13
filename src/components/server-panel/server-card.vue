@@ -196,24 +196,52 @@ function getLoadColor(val) {
 
 <style lang="scss" scoped>
 .server-card {
+  position: relative;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
+  border-top: 1px solid rgba(var(--accent-cyan-rgb), 0.45);
   border-radius: var(--radius-md);
   padding: 14px 16px;
   margin-bottom: 10px;
   cursor: pointer;
   transition: all var(--transition-fast);
-  box-shadow: var(--card-shadow);
+  box-shadow:
+    var(--card-shadow),
+    0 0 28px var(--tech-glow);
 
   &:hover {
     transform: translateY(-1px);
     border-color: var(--card-hover-border);
-    box-shadow: var(--card-hover-shadow);
+    box-shadow:
+      var(--card-hover-shadow),
+      0 0 36px var(--tech-glow);
   }
 
   &.offline {
     opacity: 0.82;
     border-color: var(--card-offline-border);
+    border-top-color: rgba(var(--accent-danger-rgb), 0.25);
+    box-shadow:
+      var(--card-shadow),
+      0 0 20px rgba(var(--accent-danger-rgb), 0.08);
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 3px;
+    border-radius: 0 999px 999px 0;
+    background: rgba(var(--accent-primary-rgb), 0.45);
+    box-shadow: 0 0 12px rgba(var(--accent-primary-rgb), 0.4);
+    pointer-events: none;
+  }
+
+  &.offline::before {
+    background: rgba(var(--accent-danger-rgb), 0.35);
+    box-shadow: 0 0 10px rgba(var(--accent-danger-rgb), 0.25);
   }
 }
 

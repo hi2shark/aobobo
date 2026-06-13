@@ -51,6 +51,21 @@ const serverInfo = computed(() => store.state.serverList
   pointer-events: none;
 }
 
+.detail-view::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--tech-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tech-grid-color) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 70%);
+  opacity: 0.55;
+  z-index: 0;
+}
+
 .detail-header {
   display: flex;
   align-items: center;
@@ -63,6 +78,7 @@ const serverInfo = computed(() => store.state.serverList
   border-bottom: 1px solid var(--border-color);
   box-shadow:
     var(--shadow-sm),
+    0 0 32px rgba(var(--accent-cyan-rgb), 0.12),
     inset 0 -1px 0 rgba(255, 255, 255, 0.03);
   position: sticky;
   top: 0;
@@ -92,6 +108,7 @@ const serverInfo = computed(() => store.state.serverList
       background: var(--bg-hover);
       border-color: var(--button-subtle-hover-border);
       color: var(--text-primary);
+      box-shadow: 0 0 14px rgba(var(--accent-cyan-rgb), 0.18);
     }
   }
 
