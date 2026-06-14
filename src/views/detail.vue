@@ -114,7 +114,7 @@ watch([dataInit, info], () => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px 18px;
-  width: 100%;
+  width: calc(100% - 28px);
   max-width: 1100px;
   margin: 14px auto 12px;
   padding: 10px 16px;
@@ -200,7 +200,7 @@ watch([dataInit, info], () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 100%;
+  width: calc(100% - 28px);
   max-width: 1100px;
   margin: 0 auto;
   padding-bottom: 2px;
@@ -219,7 +219,8 @@ watch([dataInit, info], () => {
 
 .detail-footer {
   width: calc(100% - 28px);
-  margin: 12px 14px 6px;
+  max-width: 1100px;
+  margin: 12px auto 6px;
   padding: 0 16px;
 }
 

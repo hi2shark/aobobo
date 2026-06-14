@@ -1,7 +1,7 @@
 /* ===== CSS Variables ===== */
 :root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, 'Courier New', 'Noto Sans Mono CJK SC', 'Sarasa Mono SC', 'Source Han Mono SC', monospace;
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 24px;

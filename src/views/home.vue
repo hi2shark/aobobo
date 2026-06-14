@@ -266,7 +266,7 @@ const serverSortOptionsList = serverSortOptions();
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
-const WIDE_BREAKPOINT = 1280;
+const WIDE_BREAKPOINT = 1024;
 
 const filterOnline = ref('');
 const searchKeyword = ref('');
@@ -1360,7 +1360,7 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-@media screen and (min-width: 1280px) {
+@media screen and (min-width: 1024px) {
   .home-view {
     grid-template-columns: minmax(0, 1fr) clamp(380px, 28vw, 440px);
 
@@ -1398,28 +1398,7 @@ onUnmounted(() => {
   }
 }
 
-@media screen and (max-width: 1279px) {
-  .home-view {
-    grid-template-rows: auto minmax(0, 1fr) minmax(320px, 42vh) auto;
-    gap: 12px;
-
-    &.sidebar-collapsed {
-      grid-template-rows: auto minmax(0, 1fr) auto;
-    }
-  }
-
-  .globe-section {
-    min-height: 320px;
-  }
-
-  .server-list-section {
-    &.collapsed {
-      display: none;
-    }
-  }
-}
-
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1023px) {
   .home-view {
     gap: 0;
     padding: 0;
@@ -1539,25 +1518,57 @@ onUnmounted(() => {
     }
   }
 
+  .app-footer--absolute {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin: 0;
+    min-height: auto;
+    padding: 8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
   .server-list-section {
     position: fixed;
+    inset: 10px 10px 10px auto;
+    width: min(420px, calc(100vw - 20px));
+    height: auto;
+    z-index: 30;
+    border-radius: 28px 0 0 28px;
+    transform: translateX(0);
+    transition:
+      transform var(--transition-normal),
+      opacity var(--transition-normal),
+      visibility var(--transition-normal);
+
+    .section-title-row {
+      display: none;
+    }
+
+    .drawer-drag-handle {
+      display: none;
+    }
+
+    &.collapsed {
+      display: flex;
+      transform: translateX(calc(100% + 20px));
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .server-list-section {
     inset: auto 10px 10px 10px;
     width: auto;
     height: min(72vh, 660px);
     height: min(72dvh, 660px);
-    z-index: 30;
     border-radius: 28px;
-    border: 1px solid var(--border-color);
-    background: var(--panel-floating-bg);
-    backdrop-filter: blur(22px) saturate(160%);
-    box-shadow:
-      var(--shadow-lg),
-      inset 0 1px 0 var(--surface-highlight);
-    display: flex;
     transform: translateY(0);
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
     transition:
       transform var(--transition-normal),
       height var(--transition-normal),
@@ -1571,10 +1582,6 @@ onUnmounted(() => {
     &.expanded {
       height: calc(100vh - 20px);
       height: calc(100dvh - 20px);
-    }
-
-    .section-title-row {
-      display: none;
     }
 
     .drawer-drag-handle {
@@ -1601,11 +1608,7 @@ onUnmounted(() => {
     }
 
     &.collapsed {
-      display: flex;
       transform: translateY(calc(100% + 20px));
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
     }
 
     .section-header {
