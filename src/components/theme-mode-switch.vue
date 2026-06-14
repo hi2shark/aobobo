@@ -1,24 +1,50 @@
 <template>
-  <div class="theme-mode-switch" role="group" aria-label="Theme mode switch">
-    <button
-      v-for="option in options"
-      :key="option.value"
-      type="button"
-      :class="['switch-option', { active: themeMode === option.value }]"
-      @click="setMode(option.value)"
-    >
-      <i :class="option.icon" />
-      <span>{{ option.label }}</span>
-    </button>
+  <div
+    :class="[
+      'theme-mode-switch',
+      { 'theme-mode-switch--compact': isCompact },
+    ]"
+    role="group"
+    aria-label="Theme mode switch"
+  >
+    <template v-if="isCompact">
+      <button
+        type="button"
+        class="switch-option active"
+        :aria-label="`切换主题，当前：${activeOption.label}`"
+        @click="cycleMode"
+      >
+        <i :class="activeOption.icon" />
+      </button>
+    </template>
+    <template v-else>
+      <button
+        v-for="option in options"
+        :key="option.value"
+        type="button"
+        :class="['switch-option', { active: themeMode === option.value }]"
+        @click="setMode(option.value)"
+      >
+        <i :class="option.icon" />
+        <span>{{ option.label }}</span>
+      </button>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+} from 'vue';
 import { useStore } from 'vuex';
 import { THEME_MODES } from '@/utils/theme';
 
 const store = useStore();
+
+const COMPACT_BREAKPOINT = '(max-width: 420px)';
 
 const options = [
   {
@@ -40,11 +66,39 @@ const options = [
 
 const themeMode = computed(() => store.state.themeMode);
 
+const isCompact = ref(false);
+
+const activeOption = computed(() => options.find((o) => o.value === themeMode.value) || options[0]);
+
+function checkCompact() {
+  isCompact.value = window.matchMedia(COMPACT_BREAKPOINT).matches;
+}
+
+let mediaQueryList = null;
+
+onMounted(() => {
+  mediaQueryList = window.matchMedia(COMPACT_BREAKPOINT);
+  isCompact.value = mediaQueryList.matches;
+  mediaQueryList.addEventListener('change', checkCompact);
+});
+
+onBeforeUnmount(() => {
+  if (mediaQueryList) {
+    mediaQueryList.removeEventListener('change', checkCompact);
+  }
+});
+
 function setMode(mode) {
   if (mode === themeMode.value) {
     return;
   }
   store.dispatch('setThemeMode', mode);
+}
+
+function cycleMode() {
+  const currentIndex = options.findIndex((o) => o.value === themeMode.value);
+  const nextIndex = (currentIndex + 1) % options.length;
+  store.dispatch('setThemeMode', options[nextIndex].value);
 }
 </script>
 
@@ -62,6 +116,16 @@ function setMode(mode) {
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 8px 16px rgba(15, 23, 42, 0.04);
   backdrop-filter: blur(18px) saturate(145%);
+
+  &--compact {
+    gap: 0;
+    min-height: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
 }
 
 .switch-option {
@@ -108,6 +172,38 @@ function setMode(mode) {
     box-shadow: var(--button-active-shadow);
     transform: translateY(-1px);
   }
+
+  .theme-mode-switch--compact & {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0;
+    color: var(--text-secondary);
+    border: 1px solid var(--button-subtle-border);
+    background: var(--button-subtle-bg);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 8px 16px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(18px) saturate(145%);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--text-on-accent);
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      box-shadow: var(--button-active-shadow);
+    }
+
+    &.active {
+      color: var(--text-secondary);
+      background: var(--button-subtle-bg);
+      border-color: var(--button-subtle-border);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 8px 16px rgba(15, 23, 42, 0.04);
+      transform: none;
+    }
+  }
 }
 
 @media screen and (max-width: 768px) {
@@ -129,6 +225,12 @@ function setMode(mode) {
     &:hover,
     &.active {
       transform: none;
+    }
+
+    .theme-mode-switch--compact & {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
     }
   }
 }

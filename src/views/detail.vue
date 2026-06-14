@@ -11,7 +11,7 @@
         <div class="status-group">
           <button type="button" class="back-btn" @click="router.back()">
             <i class="ri-arrow-left-line" />
-            返回
+            <span class="back-btn__text">返回</span>
           </button>
           <h1 class="detail-title">
             {{ info?.Name || '服务器详情' }}
@@ -114,8 +114,9 @@ watch([dataInit, info], () => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px 18px;
-  width: calc(100% - 28px);
-  margin: 14px 14px 12px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 14px auto 12px;
   padding: 10px 16px;
   position: sticky;
   top: 14px;
@@ -241,6 +242,23 @@ watch([dataInit, info], () => {
       min-height: 32px;
       padding: 0 10px;
       font-size: 12px;
+    }
+  }
+
+  @media screen and (max-width: 420px) {
+    .back-btn {
+      padding: 0;
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+    }
+
+    .back-btn__text {
+      display: none;
+    }
+
+    .detail-title {
+      max-width: calc(100vw - 140px);
     }
   }
 

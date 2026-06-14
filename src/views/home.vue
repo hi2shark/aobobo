@@ -1039,7 +1039,6 @@ onUnmounted(() => {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
   }
 
   .toolbar-row {
@@ -1263,7 +1262,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
     margin-top: 10px;
     padding: 0 2px;
   }
@@ -1272,8 +1271,8 @@ onUnmounted(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 28px;
-    padding: 0 12px;
+    min-height: 26px;
+    padding: 0 10px;
     border-radius: 999px;
     border: 1px solid var(--button-subtle-border);
     background: var(--button-subtle-bg);

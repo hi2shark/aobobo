@@ -25,22 +25,32 @@
         <div class="server-list-item__content">
           <div class="server-list-item__head">
             <div class="server-list-item__name-group">
-              <span
-                v-if="server.Host?.CountryCode"
-                :class="`fi fi-${server.Host.CountryCode.toLowerCase()}`"
-              />
               <span class="server-list-item__name">{{ server.Name }}</span>
             </div>
-            <span class="server-list-item__status">
-              <span
-                :class="['status-dot', server.online === 1 ? 'online' : 'offline']"
-              />
-              <span>{{ server.online === 1 ? '在线' : '离线' }}</span>
+            <span
+              v-if="getSpec(server)"
+              class="server-list-item__head-spec"
+            >
+              <i :class="getPlatformLogoClass(server)" />
+              <span>{{ getSpec(server) }}</span>
             </span>
           </div>
-          <div v-if="hasMetaTags(server)" class="server-list-item__tags">
-            <span v-if="getOS(server)" class="meta-tag">{{ getOS(server) }}</span>
-            <span v-if="getSpec(server)" class="meta-tag">{{ getSpec(server) }}</span>
+          <div class="server-list-item__tags">
+            <span
+              :class="[
+                'meta-tag',
+                'meta-tag--status',
+                server.online === 1 ? 'online' : 'offline',
+              ]"
+            >
+              {{ server.online === 1 ? '在线' : '离线' }}
+            </span>
+            <span v-if="getCPUCompany(server)" class="meta-tag meta-tag--cpu">
+              {{ getCPUCompany(server) }}
+            </span>
+            <span v-if="getTraffic(server)" class="meta-tag">
+              {{ getTraffic(server) }}
+            </span>
             <span v-if="getUptime(server)" class="meta-tag">{{ getUptime(server) }}</span>
           </div>
         </div>
@@ -52,7 +62,11 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { duration } from '@/utils/date';
-import { getSystemOSLabel } from '@/utils/host';
+import {
+  calcTransfer,
+  getCPUInfo,
+  getPlatformLogoIconClassName,
+} from '@/utils/host';
 
 defineEmits(['close']);
 
@@ -77,8 +91,44 @@ function openServer(server) {
   router.push(`/server/${server.ID}`);
 }
 
-function getOS(server) {
-  return getSystemOSLabel(server.Host?.Platform) || '';
+function getCPUCompany(server) {
+  const cpu = server?.Host?.CPU?.[0];
+  if (!cpu) {
+    return '';
+  }
+  const info = getCPUInfo(cpu);
+  return info.company || '';
+}
+
+function formatTransferValue(value) {
+  if (!value) {
+    return '0';
+  }
+  const t = calcTransfer(value);
+  return `${t.value}${t.unit}`;
+}
+
+function getTraffic(server) {
+  const trafficType = server?.PublicNote?.planDataMod?.trafficType;
+  const netIn = server.State?.NetInTransfer || 0;
+  const netOut = server.State?.NetOutTransfer || 0;
+
+  switch (+trafficType) {
+    case 1:
+      return `单向出 ${formatTransferValue(netOut)}`;
+    case 3: {
+      const isOut = netOut >= netIn;
+      return `${isOut ? '最大出' : '最大入'} ${formatTransferValue(isOut ? netOut : netIn)}`;
+    }
+    case 2:
+      return `双向 ${formatTransferValue(netIn + netOut)}`;
+    default:
+      return `双向 ${formatTransferValue(netIn + netOut)}`;
+  }
+}
+
+function getPlatformLogoClass(server) {
+  return getPlatformLogoIconClassName(server?.Host?.Platform);
 }
 
 function getSpec(server) {
@@ -88,6 +138,9 @@ function getSpec(server) {
   const memGB = server.Host?.MemTotal
     ? (server.Host.MemTotal / 1024 / 1024 / 1024).toFixed(0)
     : '';
+  const diskGB = server.Host?.DiskTotal
+    ? (server.Host.DiskTotal / 1024 / 1024 / 1024).toFixed(0)
+    : '';
   const parts = [];
 
   if (coreStr) {
@@ -96,8 +149,11 @@ function getSpec(server) {
   if (memGB) {
     parts.push(`${memGB}G`);
   }
+  if (diskGB) {
+    parts.push(`${diskGB}G`);
+  }
 
-  return parts.join(' / ') || '';
+  return parts.join('') || '';
 }
 
 function getUptime(server) {
@@ -106,10 +162,6 @@ function getUptime(server) {
     return '';
   }
   return duration(bootTime * 1000, Date.now(), true);
-}
-
-function hasMetaTags(server) {
-  return Boolean(getOS(server) || getSpec(server) || getUptime(server));
 }
 </script>
 
@@ -142,7 +194,8 @@ function hasMetaTags(server) {
 
   &.mobile {
     width: 100%;
-    max-height: min(56vh, 480px);
+    max-height: min(60vh, 480px);
+    max-height: min(60dvh, 480px);
     border-radius: 24px 24px 0 0;
     padding: 18px 16px 16px;
   }
@@ -150,7 +203,7 @@ function hasMetaTags(server) {
 
 .popup-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   position: relative;
@@ -159,8 +212,12 @@ function hasMetaTags(server) {
 
 .title-group {
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 
   h3 {
+    flex: 0 0 auto;
     font-size: 17px;
     font-weight: 700;
     line-height: 1.25;
@@ -169,10 +226,10 @@ function hasMetaTags(server) {
 }
 
 .popup-stats {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  margin-top: 10px;
 }
 
 .stat-chip {
@@ -242,10 +299,27 @@ function hasMetaTags(server) {
   z-index: 1;
 }
 
+.meta-tag--status {
+  padding: 0 9px;
+
+  &.online {
+    color: var(--accent-success);
+    border-color: rgba(var(--accent-success-rgb), 0.28);
+    background: rgba(var(--accent-success-rgb), 0.08);
+  }
+
+  &.offline {
+    color: var(--accent-danger);
+    border-color: rgba(var(--accent-danger-rgb), 0.28);
+    background: rgba(var(--accent-danger-rgb), 0.08);
+  }
+}
+
 @media screen and (max-width: 768px) {
   .location-popup {
     width: 100%;
-    max-height: min(58vh, 500px);
+    max-height: min(60vh, 500px);
+    max-height: min(60dvh, 500px);
   }
 }
 </style>

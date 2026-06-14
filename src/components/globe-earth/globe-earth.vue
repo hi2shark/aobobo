@@ -1483,6 +1483,7 @@ onUnmounted(() => {
 
   &.mobile {
     inset: auto 16px 16px 16px;
+    z-index: 22;
   }
 }
 
