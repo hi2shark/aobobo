@@ -1,5 +1,5 @@
 <template>
-  <div class="home-view">
+  <div class="home-view" :class="{ 'sidebar-collapsed': !sidebarOpen }">
     <div class="status-bar">
       <div class="status-group">
         <button
@@ -30,196 +30,194 @@
       </div>
     </div>
 
-    <div class="main-content" :class="{ 'sidebar-collapsed': !sidebarOpen }">
-      <div class="globe-section">
-        <div v-if="!store.state.init" class="empty-state">
-          <icon-loading class="spin empty-icon" />
-          <span>正在连接哪吒探针...</span>
+    <div class="globe-section">
+      <div v-if="!store.state.init" class="empty-state">
+        <icon-loading class="spin empty-icon" />
+        <span>正在连接哪吒探针...</span>
+      </div>
+      <div v-else-if="serverList.length === 0" class="empty-state">
+        <icon-earth class="empty-icon" />
+        <span>暂无服务器数据</span>
+      </div>
+      <globe-earth
+        v-else
+        :key="globeKey"
+        ref="globeRef"
+        :locations="serverLocations"
+        :theme="resolvedTheme"
+      />
+      <div
+        v-if="isWideScreen"
+        class="globe-stats-floating"
+      >
+        <div class="globe-stats-count">
+          共 <strong>{{ serverCount.total }}</strong> 台服务器
         </div>
-        <div v-else-if="serverList.length === 0" class="empty-state">
-          <icon-earth class="empty-icon" />
-          <span>暂无服务器数据</span>
+        <div class="globe-stats-row">
+          <div class="globe-stats-item globe-stats-item--in">
+            <span class="stats-label">流量</span>
+            <i class="ri-arrow-down-line" />
+            <span class="stats-value-group">
+              <span class="stats-value">{{ totalStats.netInTransfer.value }}</span>
+              <span class="stats-unit">{{ totalStats.netInTransfer.unit }}</span>
+            </span>
+          </div>
+          <div class="globe-stats-item globe-stats-item--out">
+            <i class="ri-arrow-up-line" />
+            <span class="stats-value-group">
+              <span class="stats-value">{{ totalStats.netOutTransfer.value }}</span>
+              <span class="stats-unit">{{ totalStats.netOutTransfer.unit }}</span>
+            </span>
+          </div>
         </div>
-        <globe-earth
-          v-else
-          :key="globeKey"
-          ref="globeRef"
-          :locations="serverLocations"
-          :theme="resolvedTheme"
-        />
-        <div
-          v-if="isWideScreen"
-          class="globe-stats-floating"
-        >
-          <div class="globe-stats-count">
-            共 <strong>{{ serverCount.total }}</strong> 台服务器
+        <div class="globe-stats-row">
+          <div class="globe-stats-item globe-stats-item--in">
+            <span class="stats-label">网速</span>
+            <i class="ri-arrow-down-line" />
+            <span class="stats-value-group">
+              <span class="stats-value">{{ totalStats.netInSpeed.value }}</span>
+              <span class="stats-unit">{{ totalStats.netInSpeed.unit }}/s</span>
+            </span>
           </div>
-          <div class="globe-stats-row">
-            <div class="globe-stats-item globe-stats-item--in">
-              <span class="stats-label">流量</span>
-              <i class="ri-arrow-down-line" />
-              <span class="stats-value-group">
-                <span class="stats-value">{{ totalStats.netInTransfer.value }}</span>
-                <span class="stats-unit">{{ totalStats.netInTransfer.unit }}</span>
-              </span>
-            </div>
-            <div class="globe-stats-item globe-stats-item--out">
-              <i class="ri-arrow-up-line" />
-              <span class="stats-value-group">
-                <span class="stats-value">{{ totalStats.netOutTransfer.value }}</span>
-                <span class="stats-unit">{{ totalStats.netOutTransfer.unit }}</span>
-              </span>
-            </div>
-          </div>
-          <div class="globe-stats-row">
-            <div class="globe-stats-item globe-stats-item--in">
-              <span class="stats-label">网速</span>
-              <i class="ri-arrow-down-line" />
-              <span class="stats-value-group">
-                <span class="stats-value">{{ totalStats.netInSpeed.value }}</span>
-                <span class="stats-unit">{{ totalStats.netInSpeed.unit }}/s</span>
-              </span>
-            </div>
-            <div class="globe-stats-item globe-stats-item--out">
-              <i class="ri-arrow-up-line" />
-              <span class="stats-value-group">
-                <span class="stats-value">{{ totalStats.netOutSpeed.value }}</span>
-                <span class="stats-unit">{{ totalStats.netOutSpeed.unit }}/s</span>
-              </span>
-            </div>
+          <div class="globe-stats-item globe-stats-item--out">
+            <i class="ri-arrow-up-line" />
+            <span class="stats-value-group">
+              <span class="stats-value">{{ totalStats.netOutSpeed.value }}</span>
+              <span class="stats-unit">{{ totalStats.netOutSpeed.unit }}/s</span>
+            </span>
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        class="mobile-drawer-backdrop"
-        :class="{ visible: sidebarOpen }"
-        aria-label="关闭服务器列表抽屉"
-        @click="toggleSidebar"
-      />
+    </div>
+    <button
+      type="button"
+      class="mobile-drawer-backdrop"
+      :class="{ visible: sidebarOpen }"
+      aria-label="关闭服务器列表抽屉"
+      @click="toggleSidebar"
+    />
 
-      <button
-        v-if="!sidebarOpen && !isWideScreen"
-        type="button"
-        class="sidebar-expand-handle"
-        aria-label="展开服务器列表"
-        title="展开服务器列表"
-        @click="toggleSidebar"
-      >
-        <i class="ri-server-line" />
-      </button>
+    <button
+      v-if="!sidebarOpen && !isWideScreen"
+      type="button"
+      class="sidebar-expand-handle"
+      aria-label="展开服务器列表"
+      title="展开服务器列表"
+      @click="toggleSidebar"
+    >
+      <i class="ri-server-line" />
+    </button>
 
-      <div
-        ref="panelRef"
-        class="server-list-section"
-        :class="{ collapsed: !sidebarOpen, expanded: panelExpanded && sidebarOpen }"
-      >
-        <div class="tech-frame" aria-hidden="true" />
-        <div class="section-header">
-          <div
-            v-if="!isWideScreen"
-            class="drawer-drag-handle"
-            @touchstart.passive="onDragStart"
-            @touchmove.passive="onDragMove"
-            @touchend="onDragEnd"
-            @touchcancel="onDragEnd"
+    <div
+      ref="panelRef"
+      class="server-list-section"
+      :class="{ collapsed: !sidebarOpen, expanded: panelExpanded && sidebarOpen }"
+    >
+      <div class="tech-frame" aria-hidden="true" />
+      <div class="section-header">
+        <div
+          v-if="!isWideScreen"
+          class="drawer-drag-handle"
+          @touchstart.passive="onDragStart"
+          @touchmove.passive="onDragMove"
+          @touchend="onDragEnd"
+          @touchcancel="onDragEnd"
+        >
+          <span class="drawer-drag-handle__bar" />
+        </div>
+        <div
+          v-if="!isWideScreen"
+          class="section-title-row"
+        >
+          <button
+            type="button"
+            class="close-sidebar"
+            title="收起"
+            @click="toggleSidebar"
           >
-            <span class="drawer-drag-handle__bar" />
+            <i class="ri-arrow-right-s-line" />
+          </button>
+        </div>
+        <div class="section-toolbar">
+          <div class="toolbar-row toolbar-row--primary">
+            <div class="search-filter-bar">
+              <label class="search-box">
+                <i class="ri-search-line" />
+                <input
+                  v-model="searchKeyword"
+                  type="text"
+                  placeholder="搜索名称 / 地区 / 系统"
+                >
+                <button
+                  v-if="searchKeyword.trim() !== ''"
+                  type="button"
+                  class="clear-search"
+                  title="清空搜索"
+                  @click="clearSearchKeyword"
+                >
+                  <i class="ri-close-line" />
+                </button>
+              </label>
+              <div
+                v-if="hasOfflineServer"
+                class="filter-group"
+                role="group"
+                aria-label="筛选状态"
+              >
+                <button
+                  v-for="option in FILTER_OPTIONS"
+                  :key="option.value || 'all'"
+                  type="button"
+                  :class="['filter-btn', { active: filterOnline === option.value }]"
+                  @click="filterOnline = option.value"
+                >
+                  <span class="filter-label">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+            <server-sort-select
+              v-model="serverSortConfig"
+              :options="serverSortOptionsList"
+            />
           </div>
           <div
-            v-if="!isWideScreen"
-            class="section-title-row"
+            v-if="serverGroups.length > 0"
+            class="group-filter-bar"
           >
             <button
               type="button"
-              class="close-sidebar"
-              title="收起"
-              @click="toggleSidebar"
+              :class="['group-chip', { active: selectedGroup === '' }]"
+              @click="selectedGroup = ''"
             >
-              <i class="ri-arrow-right-s-line" />
+              全部
+            </button>
+            <button
+              v-for="group in serverGroups"
+              :key="group.name"
+              type="button"
+              :class="['group-chip', { active: selectedGroup === group.name }]"
+              @click="selectedGroup = group.name"
+            >
+              {{ group.name }}
             </button>
           </div>
-          <div class="section-toolbar">
-            <div class="toolbar-row toolbar-row--primary">
-              <div class="search-filter-bar">
-                <label class="search-box">
-                  <i class="ri-search-line" />
-                  <input
-                    v-model="searchKeyword"
-                    type="text"
-                    placeholder="搜索名称 / 地区 / 系统"
-                  >
-                  <button
-                    v-if="searchKeyword.trim() !== ''"
-                    type="button"
-                    class="clear-search"
-                    title="清空搜索"
-                    @click="clearSearchKeyword"
-                  >
-                    <i class="ri-close-line" />
-                  </button>
-                </label>
-                <div
-                  v-if="hasOfflineServer"
-                  class="filter-group"
-                  role="group"
-                  aria-label="筛选状态"
-                >
-                  <button
-                    v-for="option in FILTER_OPTIONS"
-                    :key="option.value || 'all'"
-                    type="button"
-                    :class="['filter-btn', { active: filterOnline === option.value }]"
-                    @click="filterOnline = option.value"
-                  >
-                    <span class="filter-label">{{ option.label }}</span>
-                  </button>
-                </div>
-              </div>
-              <server-sort-select
-                v-model="serverSortConfig"
-                :options="serverSortOptionsList"
-              />
-            </div>
-            <div
-              v-if="serverGroups.length > 0"
-              class="group-filter-bar"
-            >
-              <button
-                type="button"
-                :class="['group-chip', { active: selectedGroup === '' }]"
-                @click="selectedGroup = ''"
-              >
-                全部
-              </button>
-              <button
-                v-for="group in serverGroups"
-                :key="group.name"
-                type="button"
-                :class="['group-chip', { active: selectedGroup === group.name }]"
-                @click="selectedGroup = group.name"
-              >
-                {{ group.name }}
-              </button>
-            </div>
-          </div>
         </div>
-        <server-table
-          v-if="filteredServers.length > 0"
-          :servers="filteredServers"
-          :cycle-transfer-map="cycleTransferMap"
-          @hover-server="handleServerHover"
-        />
-        <div v-else class="empty-list">
-          <icon-inbox class="empty-icon" />
-          <span>没有符合条件的服务器</span>
-        </div>
-        <div
-          v-if="listResultHint"
-          class="result-hint-floating"
-        >
-          <span class="section-summary">{{ listResultHint }}</span>
-        </div>
+      </div>
+      <server-table
+        v-if="filteredServers.length > 0"
+        :servers="filteredServers"
+        :cycle-transfer-map="cycleTransferMap"
+        @hover-server="handleServerHover"
+      />
+      <div v-else class="empty-list">
+        <icon-inbox class="empty-icon" />
+        <span>没有符合条件的服务器</span>
+      </div>
+      <div
+        v-if="listResultHint"
+        class="result-hint-floating"
+      >
+        <span class="section-summary">{{ listResultHint }}</span>
       </div>
     </div>
 
@@ -820,13 +818,6 @@ onUnmounted(() => {
   }
 }
 
-.main-content {
-  min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  position: relative;
-}
-
 .globe-section {
   min-height: 0;
   position: relative;
@@ -1371,32 +1362,50 @@ onUnmounted(() => {
 }
 
 @media screen and (min-width: 1280px) {
-  .main-content {
+  .home-view {
     grid-template-columns: minmax(0, 1fr) clamp(380px, 28vw, 440px);
-    gap: 12px;
-    transition: grid-template-columns var(--transition-normal);
 
     &.sidebar-collapsed {
       grid-template-columns: minmax(0, 1fr) 0;
     }
   }
 
-  .server-list-section.collapsed {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    overflow: hidden;
-    border: none;
+  .status-bar {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+
+  .globe-section {
+    grid-column: 1 / 2;
+    grid-row: 1 / 4;
+  }
+
+  .server-list-section {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+
+    &.collapsed {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      overflow: hidden;
+      border: none;
+    }
+  }
+
+  .app-footer--absolute {
+    grid-column: 2 / 3;
+    grid-row: 3 / 4;
   }
 }
 
 @media screen and (max-width: 1279px) {
-  .main-content {
-    grid-template-rows: minmax(0, 1fr) minmax(320px, 42vh);
+  .home-view {
+    grid-template-rows: auto minmax(0, 1fr) minmax(320px, 42vh) auto;
     gap: 12px;
 
     &.sidebar-collapsed {
-      grid-template-rows: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) auto;
     }
   }
 
@@ -1461,12 +1470,6 @@ onUnmounted(() => {
     .status-summary__sep {
       font-size: 11px;
     }
-  }
-
-  .main-content {
-    grid-template-rows: minmax(0, 1fr);
-    gap: 0;
-    min-height: 100%;
   }
 
   .globe-section {
