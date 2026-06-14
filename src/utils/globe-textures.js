@@ -39,7 +39,7 @@ function brighten(hex, percent) {
 
 const BASE_LAND_COLORS = {
   light: '#f3f6fa',
-  dark: '#98a4b4',
+  dark: '#a7b2c2',
 };
 
 const THEME_COLORS = {
@@ -48,11 +48,11 @@ const THEME_COLORS = {
     land: BASE_LAND_COLORS.light,
   },
   dark: {
-    oceanBase: '#020a14',
-    oceanCenter: '#051220',
-    oceanMid: '#071a2c',
-    oceanEdge: '#0b2438',
-    oceanLimb: '#0d2c40',
+    oceanBase: '#03080f',
+    oceanCenter: '#051018',
+    oceanMid: '#071420',
+    oceanEdge: '#091c2c',
+    oceanLimb: '#0b2234',
     land: brighten(BASE_LAND_COLORS.dark, LAND_BRIGHTEN_PERCENT),
   },
 };
@@ -286,36 +286,36 @@ export function createSceneBackgroundTexture(theme = 'dark') {
   const ctx = canvas.getContext('2d');
 
   const base = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  base.addColorStop(0, '#0d1b30');
-  base.addColorStop(0.48, '#061020');
-  base.addColorStop(1, '#02050a');
+  base.addColorStop(0, '#081221');
+  base.addColorStop(0.48, '#03080f');
+  base.addColorStop(1, '#010306');
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const topGlow = ctx.createRadialGradient(
     canvas.width * 0.5,
-    canvas.height * 0.32,
+    canvas.height * 0.30,
     0,
     canvas.width * 0.5,
-    canvas.height * 0.32,
+    canvas.height * 0.30,
     canvas.height * 0.72,
   );
-  topGlow.addColorStop(0, 'rgba(72, 140, 255, 0.28)');
-  topGlow.addColorStop(0.42, 'rgba(72, 140, 255, 0.12)');
-  topGlow.addColorStop(1, 'rgba(72, 140, 255, 0)');
+  topGlow.addColorStop(0, 'rgba(45, 154, 255, 0.22)');
+  topGlow.addColorStop(0.42, 'rgba(45, 154, 255, 0.08)');
+  topGlow.addColorStop(1, 'rgba(45, 154, 255, 0)');
   ctx.fillStyle = topGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const bottomGlow = ctx.createRadialGradient(
     canvas.width * 0.5,
-    canvas.height * 0.72,
+    canvas.height * 0.74,
     0,
     canvas.width * 0.5,
-    canvas.height * 0.72,
+    canvas.height * 0.74,
     canvas.height * 0.55,
   );
-  bottomGlow.addColorStop(0, 'rgba(26, 69, 160, 0.18)');
-  bottomGlow.addColorStop(1, 'rgba(26, 69, 160, 0)');
+  bottomGlow.addColorStop(0, 'rgba(22, 60, 140, 0.14)');
+  bottomGlow.addColorStop(1, 'rgba(22, 60, 140, 0)');
   ctx.fillStyle = bottomGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 

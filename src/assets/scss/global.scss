@@ -67,13 +67,13 @@ html[data-theme='dark'] {
   --status-online-glow: 0 0 10px rgba(var(--accent-success-rgb), 0.42);
   --status-offline-glow: 0 0 8px rgba(var(--accent-danger-rgb), 0.26);
   --globe-stage-bg:
-    radial-gradient(circle at 50% 30%, rgba(56, 123, 255, 0.18), transparent 28%),
-    radial-gradient(circle at 50% 58%, rgba(20, 44, 108, 0.18), transparent 38%),
-    linear-gradient(180deg, #07101c 0%, #040912 48%, #02050a 100%);
+    radial-gradient(circle at 50% 28%, rgba(45, 154, 255, 0.14), transparent 28%),
+    radial-gradient(circle at 50% 60%, rgba(18, 48, 112, 0.14), transparent 38%),
+    linear-gradient(180deg, #060e19 0%, #03070d 48%, #010306 100%);
   --globe-stage-vignette:
-    radial-gradient(circle at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.18) 82%, rgba(0, 0, 0, 0.58) 100%);
-  --globe-orb-glow: rgba(72, 140, 255, 0.11);
-  --globe-stage-border: rgba(122, 150, 188, 0.14);
+    radial-gradient(circle at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.22) 82%, rgba(0, 0, 0, 0.62) 100%);
+  --globe-orb-glow: rgba(45, 154, 255, 0.11);
+  --globe-stage-border: rgba(110, 140, 178, 0.14);
   --globe-stage-shadow: 0 32px 72px rgba(2, 6, 18, 0.48);
   --tech-grid-color: rgba(var(--accent-primary-rgb), 0.025);
   --tech-scanline: rgba(var(--accent-primary-rgb), 0.03);
@@ -152,11 +152,11 @@ html[data-theme='dark'] {
   --metric-good: #33cd7b;
   --metric-warn: #ffbe56;
   --metric-danger: #ff6a80;
-  --globe-marker-active: #5eb8ff;
-  --globe-marker-active-soft: rgba(94, 184, 255, 0.28);
-  --globe-marker-muted: #7d8797;
-  --globe-marker-muted-soft: rgba(125, 135, 151, 0.22);
-  --globe-ring-rgb: 94, 184, 255;
+  --globe-marker-active: #2ecfff;
+  --globe-marker-active-soft: rgba(46, 207, 255, 0.30);
+  --globe-marker-muted: #6d7888;
+  --globe-marker-muted-soft: rgba(109, 120, 136, 0.22);
+  --globe-ring-rgb: 46, 207, 255;
   --card-bg:
     linear-gradient(180deg, rgba(18, 29, 46, 0.88), rgba(10, 17, 28, 0.92)),
     rgba(10, 18, 30, 0.88);

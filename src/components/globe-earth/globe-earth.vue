@@ -201,7 +201,7 @@ let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
 let focusBubbleTimer = null;
-const GLOBE_TEXTURE_VERSION = 24;
+const GLOBE_TEXTURE_VERSION = 25;
 const BLOOM_CONFIG = {
   strength: 0.28,
   radius: 0.42,
@@ -258,34 +258,34 @@ function getThemePalette(theme) {
   }
 
   return {
-    ocean: '#060a12',
+    ocean: '#03080f',
     oceanEmissive: '#000000',
-    oceanSpecular: '#203448',
-    land: '#626d7c',
-    landEmissive: '#2a3038',
+    oceanSpecular: '#1a2d40',
+    land: '#b6c3d5',
+    landEmissive: '#1c2128',
     landEmissiveIntensity: 0,
-    landSpecular: '#707a88',
-    coastline: 'rgba(130, 150, 172, 0.28)',
-    landSide: '#2f3a46',
-    atmosphere: '#4d9be8',
+    landSpecular: '#6a7a8c',
+    coastline: 'rgba(120, 140, 165, 0.16)',
+    landSide: '#252e38',
+    atmosphere: '#2d9aff',
     atmosphereAltitude: 0.018,
     polygonAltitude: 0.0008,
     polygonCurvature: 8,
-    fog: '#080a0f',
+    fog: '#05070c',
     fogDensity: 0.00028,
-    ambient: '#d8e4f0',
-    ambientIntensity: 0.60,
-    keyLight: '#f0f6ff',
+    ambient: '#c8d8e8',
+    ambientIntensity: 0.58,
+    keyLight: '#e8f4ff',
     keyLightIntensity: 0.80,
-    fillLight: '#1e2834',
-    fillLightIntensity: 0.25,
-    rimLight: '#7ec0f8',
-    rimLightIntensity: 0.14,
-    markerOnline: readThemeToken('--globe-marker-active', '#5eb8ff'),
-    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(94, 184, 255, 0.28)'),
-    markerOffline: readThemeToken('--globe-marker-muted', '#7d8797'),
-    markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(125, 135, 151, 0.22)'),
-    onlineRing: readThemeToken('--globe-ring-rgb', '94, 184, 255'),
+    fillLight: '#151e28',
+    fillLightIntensity: 0.20,
+    rimLight: '#5eaeff',
+    rimLightIntensity: 0.20,
+    markerOnline: readThemeToken('--globe-marker-active', '#2ecfff'),
+    markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(46, 207, 255, 0.30)'),
+    markerOffline: readThemeToken('--globe-marker-muted', '#6d7888'),
+    markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(109, 120, 136, 0.22)'),
+    onlineRing: readThemeToken('--globe-ring-rgb', '46, 207, 255'),
   };
 }
 
@@ -306,7 +306,7 @@ function syncRimAtmosphere(palette) {
   const isLight = props.theme === 'light';
   const rimOptions = isLight
     ? { innerStrengthScale: 0.32, glowIntensityScale: 0.32 }
-    : {};
+    : { innerStrengthScale: 1.18, glowIntensityScale: 1.12 };
 
   if (!rimAtmosphereGroup) {
     rimAtmosphereGroup = createRimAtmosphereGroup(palette.atmosphere, rimOptions);
@@ -954,7 +954,7 @@ function applyThemeToGlobe() {
     : new THREE.MeshPhongMaterial({
       map: colorMap,
       bumpMap,
-      bumpScale: 0.008,
+      bumpScale: 0.004,
 
       color: '#ffffff',
       emissive: palette.oceanEmissive,
