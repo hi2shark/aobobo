@@ -1,0 +1,95 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'
+        required: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 20
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Get version from package.json
+        id: get_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Determine version
+        id: determine_version
+        run: |
+          if [ "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.get_version.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build default bundle
+        run: npm run build
+
+      - name: Package v${{ steps.determine_version.outputs.version }}-all.zip
+        run: zip -r v${{ steps.determine_version.outputs.version }}-all.zip dist
+
+      - name: Build Nezha v0 bundle
+        env:
+          VITE_NEZHA_VERSION: 'v0'
+        run: npm run build
+
+      - name: Package v0-dist.zip
+        run: zip -r v0-dist.zip dist
+
+      - name: Build Nezha v0 /nazhua/ subdirectory bundle
+        env:
+          VITE_BASE_PATH: '/nazhua/'
+          VITE_NEZHA_VERSION: 'v0'
+        run: npm run build
+
+      - name: Package v0-nazhua.zip
+        run: zip -r v0-nazhua.zip dist
+
+      - name: Build Nezha v1 bundle
+        env:
+          VITE_NEZHA_VERSION: 'v1'
+        run: npm run build
+
+      - name: Package dist.zip
+        run: zip -r dist.zip dist
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          echo "#### Changes" > release_notes.md
+          git log -20 --pretty=format:"- %s" >> release_notes.md
+          echo -e "\n-----------\n哪吒 v1 请下载 dist.zip\n哪吒 v0 请下载 v0-dist.zip\n哪吒 v0 /nazhua/ 子目录需求请下载 v0-nazhua.zip\nv${{ steps.determine_version.outputs.version }}-all.zip 是默认构建的全量包" >> release_notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.determine_version.outputs.version }}
+          name: Release v${{ steps.determine_version.outputs.version }}
+          body_path: release_notes.md
+          draft: true
+          files: |
+            v${{ steps.determine_version.outputs.version }}-all.zip
+            v0-dist.zip
+            v0-nazhua.zip
+            dist.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
