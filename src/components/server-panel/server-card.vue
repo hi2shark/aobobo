@@ -50,6 +50,20 @@
         <span v-if="speedLabel && speedLabel !== '-'" class="meta-tag">{{ speedLabel }}</span>
       </div>
 
+      <div v-if="billingDisplay || remainingDisplay" class="billing-row">
+        <span v-if="billingDisplay" class="billing-tag billing-tag--price">
+          <i class="ri-price-tag-3-line" />
+          <span>{{ billingDisplay }}</span>
+        </span>
+        <span
+          v-if="remainingDisplay"
+          :class="['billing-tag', 'billing-tag--remaining', remainingClass]"
+        >
+          <i class="ri-hourglass-line" />
+          <span>{{ remainingDisplay }}</span>
+        </span>
+      </div>
+
       <div class="metrics-row">
         <div class="metric">
           <span class="metric-label">CPU</span>
@@ -120,6 +134,7 @@ import { duration } from '@/utils/date';
 import {
   getCycleTransferSummaryByServer,
 } from '@/utils/cycle-transfer';
+import useServerBillAndPlan from '@/composables/server-bill-and-plan';
 
 const props = defineProps({
   info: {
@@ -137,6 +152,12 @@ const props = defineProps({
 });
 
 const router = useRouter();
+
+const {
+  billAndPlan,
+} = useServerBillAndPlan({
+  props,
+});
 
 const osLabel = computed(() => getSystemOSLabel(props.info.Host?.Platform));
 
@@ -279,6 +300,34 @@ const connCount = computed(() => {
   const tcp = props.info.State?.TcpConnCount || 0;
   const udp = props.info.State?.UdpConnCount || 0;
   return `${tcp}/${udp}`;
+});
+
+const billingDisplay = computed(() => {
+  const billing = billAndPlan.value.billing;
+  if (!billing) return '';
+  if (billing.isFree) return billing.value;
+  if (billing.value === '按量') return billing.value;
+  if (billing.cycleLabel) {
+    return `${billing.value}/${billing.cycleLabel}`;
+  }
+  return String(billing.value);
+});
+
+const remainingDisplay = computed(() => {
+  const remaining = billAndPlan.value.remainingTime;
+  if (!remaining) return '';
+  return `${remaining.label} ${remaining.value}`;
+});
+
+const remainingClass = computed(() => {
+  const remaining = billAndPlan.value.remainingTime;
+  if (!remaining) return '';
+  if (remaining.type === 'expired') return 'remaining-status--danger';
+  if (remaining.type === 'infinity') return 'remaining-status--success';
+  const days = remaining.value2;
+  if (days <= 7) return 'remaining-status--danger';
+  if (days <= 30) return 'remaining-status--warning';
+  return 'remaining-status--success';
 });
 
 function goDetail() {
@@ -456,6 +505,57 @@ function getLoadColor(val) {
     flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 16px;
+  }
+
+  .billing-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    .billing-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid var(--list-tag-border);
+      background: var(--list-tag-bg);
+      color: var(--list-tag-text);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.2;
+
+      i {
+        font-size: 13px;
+        line-height: 1;
+      }
+
+      &--price {
+        color: var(--accent-warning);
+        border-color: rgba(229, 160, 38, 0.3);
+        background: rgba(229, 160, 38, 0.1);
+      }
+
+      &--remaining.remaining-status--success {
+        color: var(--accent-success);
+        border-color: rgba(var(--accent-success-rgb), 0.3);
+        background: rgba(var(--accent-success-rgb), 0.1);
+      }
+
+      &.remaining-status--warning {
+        color: var(--accent-warning);
+        border-color: rgba(229, 160, 38, 0.35);
+        background: rgba(229, 160, 38, 0.12);
+      }
+
+      &.remaining-status--danger {
+        color: var(--accent-danger);
+        border-color: rgba(var(--accent-danger-rgb), 0.35);
+        background: rgba(var(--accent-danger-rgb), 0.12);
+      }
+    }
   }
 
   .metrics-row {

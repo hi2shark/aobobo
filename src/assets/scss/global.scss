@@ -611,6 +611,50 @@ html, body {
       border-color: var(--accent-danger, #ef4444);
     }
   }
+
+  &--uptime,
+  &--billing,
+  &--remaining {
+    gap: 4px;
+    padding-left: 7px;
+
+    i {
+      font-size: 12px;
+      line-height: 1;
+    }
+  }
+
+  &--uptime {
+    color: var(--duration-color);
+    border-color: rgba(var(--accent-primary-rgb), 0.22);
+    background: rgba(var(--accent-primary-rgb), 0.08);
+  }
+
+  &--billing {
+    color: var(--accent-warning);
+    border-color: rgba(229, 160, 38, 0.3);
+    background: rgba(229, 160, 38, 0.1);
+  }
+
+  &--remaining {
+    &.remaining-status--success {
+      color: var(--accent-success);
+      border-color: rgba(var(--accent-success-rgb), 0.3);
+      background: rgba(var(--accent-success-rgb), 0.1);
+    }
+
+    &.remaining-status--warning {
+      color: var(--accent-warning);
+      border-color: rgba(229, 160, 38, 0.35);
+      background: rgba(229, 160, 38, 0.12);
+    }
+
+    &.remaining-status--danger {
+      color: var(--accent-danger);
+      border-color: rgba(var(--accent-danger-rgb), 0.35);
+      background: rgba(var(--accent-danger-rgb), 0.12);
+    }
+  }
 }
 
 /* ===== Detail Page ===== */

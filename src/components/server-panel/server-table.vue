@@ -56,6 +56,26 @@
             {{ getSpeed(server) }}
           </span>
         </div>
+        <div
+          v-if="getUptime(server) || getBilling(server) || getRemainingTime(server)"
+          class="server-list-item__tags server-list-item__tags--bill"
+        >
+          <span v-if="getUptime(server)" class="meta-tag meta-tag--uptime">
+            <i class="ri-time-line" />
+            <span>在线 {{ getUptime(server) }}</span>
+          </span>
+          <span v-if="getBilling(server)" class="meta-tag meta-tag--billing">
+            <i class="ri-price-tag-3-line" />
+            <span>{{ getBilling(server) }}</span>
+          </span>
+          <span
+            v-if="getRemainingTime(server)"
+            :class="['meta-tag', 'meta-tag--remaining', getRemainingClass(server)]"
+          >
+            <i class="ri-hourglass-line" />
+            <span>{{ getRemainingTime(server) }}</span>
+          </span>
+        </div>
       </div>
     </button>
   </div>
@@ -71,6 +91,8 @@ import {
 import {
   getCycleTransferSummaryByServer,
 } from '@/utils/cycle-transfer';
+import { duration } from '@/utils/date';
+import { getBillAndPlanByServer } from '@/composables/server-bill-and-plan';
 
 const props = defineProps({
   servers: {
@@ -188,6 +210,44 @@ function getSpeed(server) {
   const sIn = calcTransfer(netIn);
   const sOut = calcTransfer(netOut);
   return `↑${sOut.value}${sOut.unit}/s ↓${sIn.value}${sIn.unit}/s`;
+}
+
+function getUptime(server) {
+  const bt = server?.Host?.BootTime;
+  if (!bt) return '';
+  return duration(bt * 1000, Date.now(), true);
+}
+
+function getBillAndPlan(server) {
+  return getBillAndPlanByServer(server);
+}
+
+function getBilling(server) {
+  const { billing } = getBillAndPlan(server);
+  if (!billing) return '';
+  if (billing.isFree) return billing.value;
+  if (billing.value === '按量') return billing.value;
+  if (billing.cycleLabel) {
+    return `${billing.value}/${billing.cycleLabel}`;
+  }
+  return String(billing.value);
+}
+
+function getRemainingTime(server) {
+  const { remainingTime: remaining } = getBillAndPlan(server);
+  if (!remaining) return '';
+  return `${remaining.label} ${remaining.value}`;
+}
+
+function getRemainingClass(server) {
+  const { remainingTime: remaining } = getBillAndPlan(server);
+  if (!remaining) return '';
+  if (remaining.type === 'expired') return 'remaining-status--danger';
+  if (remaining.type === 'infinity') return 'remaining-status--success';
+  const days = remaining.value2;
+  if (days <= 7) return 'remaining-status--danger';
+  if (days <= 30) return 'remaining-status--warning';
+  return 'remaining-status--success';
 }
 </script>
 
