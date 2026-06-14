@@ -1,5 +1,9 @@
 <template>
   <div class="home-view" :class="{ 'sidebar-collapsed': !sidebarOpen }">
+    <div v-if="!store.state.init" class="init-loading-overlay">
+      <icon-loading class="spin init-loading-icon" />
+      <span class="init-loading-text">正在连接哪吒探针...</span>
+    </div>
     <div class="status-bar">
       <div class="status-group">
         <button
@@ -31,11 +35,7 @@
     </div>
 
     <div class="globe-section">
-      <div v-if="!store.state.init" class="empty-state">
-        <icon-loading class="spin empty-icon" />
-        <span>正在连接哪吒探针...</span>
-      </div>
-      <div v-else-if="serverList.length === 0" class="empty-state">
+      <div v-if="serverList.length === 0" class="empty-state">
         <icon-earth class="empty-icon" />
         <span>暂无服务器数据</span>
       </div>
@@ -707,6 +707,31 @@ onUnmounted(() => {
   inset: 0;
   background: var(--page-overlay);
   pointer-events: none;
+}
+
+.init-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--page-bg);
+  color: var(--text-secondary);
+  font-size: 15px;
+  text-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+
+  .init-loading-icon {
+    width: 46px;
+    height: 46px;
+    color: var(--empty-icon-color);
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
 }
 
 .status-bar {
