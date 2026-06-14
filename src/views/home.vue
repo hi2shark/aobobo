@@ -47,6 +47,48 @@
           :locations="serverLocations"
           :theme="resolvedTheme"
         />
+        <div
+          v-if="isWideScreen"
+          class="globe-stats-floating"
+        >
+          <div class="globe-stats-count">
+            共 <strong>{{ serverCount.total }}</strong> 台服务器
+          </div>
+          <div class="globe-stats-row">
+            <div class="globe-stats-item globe-stats-item--in">
+              <span class="stats-label">流量</span>
+              <i class="ri-arrow-down-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netInTransfer.value }}</span>
+                <span class="stats-unit">{{ totalStats.netInTransfer.unit }}</span>
+              </span>
+            </div>
+            <div class="globe-stats-item globe-stats-item--out">
+              <i class="ri-arrow-up-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netOutTransfer.value }}</span>
+                <span class="stats-unit">{{ totalStats.netOutTransfer.unit }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="globe-stats-row">
+            <div class="globe-stats-item globe-stats-item--in">
+              <span class="stats-label">网速</span>
+              <i class="ri-arrow-down-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netInSpeed.value }}</span>
+                <span class="stats-unit">{{ totalStats.netInSpeed.unit }}/s</span>
+              </span>
+            </div>
+            <div class="globe-stats-item globe-stats-item--out">
+              <i class="ri-arrow-up-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netOutSpeed.value }}</span>
+                <span class="stats-unit">{{ totalStats.netOutSpeed.unit }}/s</span>
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
       <button
         type="button"
@@ -198,7 +240,7 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { resolveServerLocation, clusterLocations } from '@/utils/world-map';
-import { getSystemOSLabel } from '@/utils/host';
+import { getSystemOSLabel, calcTransfer } from '@/utils/host';
 import { loadCycleTransferMap } from '@/utils/cycle-transfer';
 import config from '@/config';
 import {
@@ -333,6 +375,26 @@ const serverGroups = computed(() => store.state.serverGroup || []);
 const hasOfflineServer = computed(() => serverList.value.some((s) => s.online !== 1));
 const resolvedTheme = computed(() => store.state.resolvedTheme);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim().toLowerCase());
+
+const totalStats = computed(() => {
+  let netInTransfer = 0;
+  let netOutTransfer = 0;
+  let netInSpeed = 0;
+  let netOutSpeed = 0;
+  serverList.value.forEach((server) => {
+    const state = server.State || {};
+    netInTransfer += state.NetInTransfer || 0;
+    netOutTransfer += state.NetOutTransfer || 0;
+    netInSpeed += state.NetInSpeed || 0;
+    netOutSpeed += state.NetOutSpeed || 0;
+  });
+  return {
+    netInTransfer: calcTransfer(netInTransfer),
+    netOutTransfer: calcTransfer(netOutTransfer),
+    netInSpeed: calcTransfer(netInSpeed),
+    netOutSpeed: calcTransfer(netOutSpeed),
+  };
+});
 
 function getServerSearchText(server) {
   return [
@@ -791,6 +853,94 @@ onUnmounted(() => {
   inset: 0;
   background: var(--globe-stage-vignette);
   pointer-events: none;
+}
+
+.globe-stats-floating {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--panel-floating-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+
+  .globe-stats-count {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+
+    strong {
+      color: var(--text-primary);
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+  }
+
+  .globe-stats-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .globe-stats-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+
+    i {
+      font-size: 12px;
+      color: var(--accent-primary);
+    }
+
+    &--in {
+      i,
+      .stats-value {
+        color: var(--net-speed-in-color);
+      }
+    }
+
+    &--out {
+      i,
+      .stats-value {
+        color: var(--net-speed-out-color);
+      }
+    }
+  }
+
+  .stats-value-group {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 2px;
+    min-width: 62px;
+  }
+
+  .stats-label {
+    color: var(--text-muted);
+  }
+
+  .stats-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+
+  .stats-unit {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
 }
 
 .mobile-drawer-backdrop {
