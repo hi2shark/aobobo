@@ -93,10 +93,12 @@ function setMode(mode) {
     display: none;
   }
 
-  &:hover {
-    color: var(--text-primary);
-    background: var(--bg-hover);
-    transform: translateY(-1px);
+  @media (hover: hover) {
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+      transform: translateY(-1px);
+    }
   }
 
   &.active {

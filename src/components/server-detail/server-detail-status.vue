@@ -178,10 +178,12 @@ function progressStyle(item) {
     border-color var(--transition-fast),
     transform var(--transition-fast);
 
-  &:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-strong);
-    transform: translateY(-1px);
+  @media (hover: hover) {
+    &:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
   }
 }
 

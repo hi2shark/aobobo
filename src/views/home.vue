@@ -821,11 +821,13 @@ onUnmounted(() => {
     font-size: 18px;
   }
 
-  &:hover {
-    color: var(--text-on-accent);
-    background: var(--button-active-bg);
-    border-color: var(--button-active-border);
-    box-shadow: var(--button-active-shadow);
+  @media (hover: hover) {
+    &:hover {
+      color: var(--text-on-accent);
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      box-shadow: var(--button-active-shadow);
+    }
   }
 }
 
@@ -1014,10 +1016,12 @@ onUnmounted(() => {
       transform var(--transition-fast);
     flex: 0 0 auto;
 
-    &:hover:not(:disabled) {
-      background: var(--button-subtle-bg);
-      border-color: var(--button-subtle-border);
-      color: var(--text-primary);
+    @media (hover: hover) {
+      &:hover:not(:disabled) {
+        background: var(--button-subtle-bg);
+        border-color: var(--button-subtle-border);
+        color: var(--text-primary);
+      }
     }
 
     &:disabled {
@@ -1035,12 +1039,14 @@ onUnmounted(() => {
     background: var(--button-subtle-bg);
     font-size: 15px;
 
-    &:hover:not(:disabled) {
-      background: var(--button-active-bg);
-      border-color: var(--button-active-border);
-      box-shadow: var(--button-active-shadow);
-      color: var(--text-on-accent);
-      transform: translateY(-1px);
+    @media (hover: hover) {
+      &:hover:not(:disabled) {
+        background: var(--button-active-bg);
+        border-color: var(--button-active-border);
+        box-shadow: var(--button-active-shadow);
+        color: var(--text-on-accent);
+        transform: translateY(-1px);
+      }
     }
   }
 
@@ -1065,9 +1071,11 @@ onUnmounted(() => {
     justify-content: center;
     gap: 5px;
 
-    &:hover:not(.active) {
-      color: var(--text-primary);
-      background: var(--bg-hover);
+    @media (hover: hover) {
+      &:hover:not(.active) {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+      }
     }
 
     &.active {
@@ -1134,9 +1142,11 @@ onUnmounted(() => {
       border-color var(--transition-fast),
       box-shadow var(--transition-fast);
 
-    &:hover:not(.active) {
-      color: var(--text-primary);
-      background: var(--bg-hover);
+    @media (hover: hover) {
+      &:hover:not(.active) {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+      }
     }
 
     &.active {
@@ -1361,12 +1371,14 @@ onUnmounted(() => {
       font-size: 16px;
     }
 
-    &:hover {
-      color: var(--text-on-accent);
-      background: var(--button-active-bg);
-      border-color: var(--button-active-border);
-      box-shadow: var(--button-active-shadow);
-      transform: translateY(-1px);
+    @media (hover: hover) {
+      &:hover {
+        color: var(--text-on-accent);
+        background: var(--button-active-bg);
+        border-color: var(--button-active-border);
+        box-shadow: var(--button-active-shadow);
+        transform: translateY(-1px);
+      }
     }
   }
 
@@ -1375,6 +1387,7 @@ onUnmounted(() => {
     inset: auto 10px 10px 10px;
     width: auto;
     height: min(72vh, 660px);
+    height: min(72dvh, 660px);
     z-index: 30;
     border-radius: 28px;
     border: 1px solid var(--border-color);
@@ -1400,6 +1413,7 @@ onUnmounted(() => {
 
     &.expanded {
       height: calc(100vh - 20px);
+      height: calc(100dvh - 20px);
     }
 
     .section-title-row {
@@ -1517,9 +1531,11 @@ onUnmounted(() => {
   .server-list-section {
     inset: auto 8px 8px 8px;
     height: min(76vh, 680px);
+    height: min(76dvh, 680px);
 
     &.expanded {
       height: calc(100vh - 16px);
+      height: calc(100dvh - 16px);
     }
 
     .section-title-row {

@@ -425,12 +425,14 @@ function getLoadColor(val) {
     pointer-events: none;
   }
 
-  &:hover {
-    transform: translateY(-2px);
-    border-color: var(--card-hover-border);
-    box-shadow:
-      var(--card-hover-shadow),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-2px);
+      border-color: var(--card-hover-border);
+      box-shadow:
+        var(--card-hover-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
   }
 
   &.offline {

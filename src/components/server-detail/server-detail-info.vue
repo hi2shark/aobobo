@@ -639,9 +639,11 @@ const processCount = computed(() => props.info?.State?.ProcessCount);
     border-color var(--transition-fast),
     transform var(--transition-fast);
 
-  &:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-strong);
+  @media (hover: hover) {
+    &:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
   }
 
   &--full {
@@ -704,9 +706,11 @@ const processCount = computed(() => props.info?.State?.ProcessCount);
     background var(--transition-fast),
     border-color var(--transition-fast);
 
-  &:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-strong);
+  @media (hover: hover) {
+    &:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
   }
 }
 
