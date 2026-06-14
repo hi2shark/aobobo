@@ -298,10 +298,10 @@ export function createSceneBackgroundTexture(theme = 'dark') {
     0,
     canvas.width * 0.5,
     canvas.height * 0.30,
-    canvas.height * 0.72,
+    canvas.height * 0.92,
   );
-  topGlow.addColorStop(0, 'rgba(45, 154, 255, 0.22)');
-  topGlow.addColorStop(0.42, 'rgba(45, 154, 255, 0.08)');
+  topGlow.addColorStop(0, 'rgba(45, 154, 255, 0.32)');
+  topGlow.addColorStop(0.42, 'rgba(45, 154, 255, 0.10)');
   topGlow.addColorStop(1, 'rgba(45, 154, 255, 0)');
   ctx.fillStyle = topGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -312,11 +312,25 @@ export function createSceneBackgroundTexture(theme = 'dark') {
     0,
     canvas.width * 0.5,
     canvas.height * 0.74,
-    canvas.height * 0.55,
+    canvas.height * 0.78,
   );
-  bottomGlow.addColorStop(0, 'rgba(22, 60, 140, 0.14)');
+  bottomGlow.addColorStop(0, 'rgba(22, 60, 140, 0.22)');
   bottomGlow.addColorStop(1, 'rgba(22, 60, 140, 0)');
   ctx.fillStyle = bottomGlow;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const centerGlow = ctx.createRadialGradient(
+    canvas.width * 0.5,
+    canvas.height * 0.50,
+    0,
+    canvas.width * 0.5,
+    canvas.height * 0.50,
+    canvas.height * 0.80,
+  );
+  centerGlow.addColorStop(0, 'rgba(45, 154, 255, 0.05)');
+  centerGlow.addColorStop(0.55, 'rgba(45, 154, 255, 0.02)');
+  centerGlow.addColorStop(1, 'rgba(45, 154, 255, 0)');
+  ctx.fillStyle = centerGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const texture = new THREE.CanvasTexture(canvas);

@@ -11,8 +11,13 @@ const INNER_FRESNEL = {
 /** 外侧辉光：内移并拉长，形成沿球面延伸的轮廓光 */
 const GLOW_LAYERS = [
   { scale: 1.003, wide: 0.035, edge: 0.007 },
-  { scale: 1.012, wide: 0.022, edge: 0.004 },
-  { scale: 1.028, wide: 0.009, edge: 0.0015 },
+  { scale: 1.011, wide: 0.026, edge: 0.0048 },
+  { scale: 1.023, wide: 0.018, edge: 0.003 },
+  { scale: 1.039, wide: 0.011, edge: 0.0016 },
+  { scale: 1.060, wide: 0.0065, edge: 0.0009 },
+  { scale: 1.088, wide: 0.0035, edge: 0.00045 },
+  { scale: 1.120, wide: 0.0018, edge: 0.00022 },
+  { scale: 1.135, wide: 0.0012, edge: 0.00015 },
 ];
 
 const ATMOSPHERE_VERTEX = `
