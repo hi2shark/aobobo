@@ -158,9 +158,7 @@
       </div>
     </div>
 
-    <footer class="home-footer">
-      <p>Powered by 哪吒监控 · Theme By AoBoBo</p>
-    </footer>
+    <app-footer class="app-footer--absolute" />
   </div>
 </template>
 
@@ -189,6 +187,7 @@ import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
+import AppFooter from '@/components/app-footer.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconInbox from '@/components/icons/icon-inbox.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
@@ -564,8 +563,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px 18px;
-  padding: 12px 18px;
+  gap: 10px 14px;
+  padding: 8px 14px;
   position: relative;
   overflow: hidden;
   background: var(--status-bar-bg);
@@ -605,16 +604,16 @@ onUnmounted(() => {
   .status-summary {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    min-height: 40px;
-    padding: 0 16px;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 12px;
     border: 1px solid var(--status-chip-border);
     border-radius: 999px;
     background: var(--status-chip-bg);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       0 8px 16px rgba(15, 23, 42, 0.04);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
     white-space: nowrap;
@@ -961,6 +960,8 @@ onUnmounted(() => {
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1;
     cursor: pointer;
     transition:
       color var(--transition-fast),
@@ -1032,6 +1033,7 @@ onUnmounted(() => {
     background: var(--button-subtle-bg);
     color: var(--text-secondary);
     font-size: 12px;
+    line-height: 1;
     font-weight: 600;
     cursor: pointer;
     transition:
@@ -1057,26 +1059,6 @@ onUnmounted(() => {
 :deep(.server-table-wrap) {
   flex: 1;
   min-height: 0;
-}
-
-.home-footer {
-  min-height: 50px;
-  margin: 0 0 14px;
-  padding: 0 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-  background: var(--footer-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 18px;
-  backdrop-filter: blur(18px) saturate(145%);
-  box-shadow:
-    var(--shadow-sm),
-    inset 0 1px 0 var(--surface-highlight);
 }
 
 .empty-state {
@@ -1232,23 +1214,6 @@ onUnmounted(() => {
     box-shadow: none;
   }
 
-  .home-footer {
-    position: absolute;
-    bottom: 10px;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    background: transparent;
-    border: none;
-    backdrop-filter: none;
-    box-shadow: none;
-    margin: 0;
-    min-height: auto;
-    padding: 8px;
-    font-size: 11px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  }
-
   .mobile-drawer-backdrop {
     display: block;
     position: fixed;
@@ -1334,6 +1299,7 @@ onUnmounted(() => {
     .group-chip {
       min-height: 26px;
       padding: 0 10px;
+      line-height: 1;
     }
   }
 }
@@ -1423,6 +1389,7 @@ onUnmounted(() => {
       padding: 0 6px;
       min-height: 26px;
       font-size: 11px;
+      line-height: 1;
     }
 
     .section-summary {

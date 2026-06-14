@@ -30,6 +30,8 @@ const config = reactive({
     monitorChartType: 'multi',
     monitorChartTypeToggle: true,
     filterGPUKeywords: ['Virtual Display'],
+    nezhaFooterUrl: 'https://nezha.wiki',
+    aoboboFooterUrl: 'https://github.com/hi2shark/aobobo',
     ...runtimeConfig,
   },
 });

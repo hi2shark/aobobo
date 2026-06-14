@@ -30,9 +30,7 @@
         <server-detail-monitor :info="info" class="stack-item stack-item--monitor" />
       </div>
 
-      <footer class="home-footer">
-        <p>Powered by 哪吒监控 · Theme By AoBoBo 3D Globe</p>
-      </footer>
+      <app-footer class="detail-footer" />
     </div>
   </div>
 </template>
@@ -46,6 +44,7 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
+import AppFooter from '@/components/app-footer.vue';
 import ServerDetailHeader from '@/components/server-detail/server-detail-header.vue';
 import ServerDetailStatus from '@/components/server-detail/server-detail-status.vue';
 import ServerDetailCycleTransfer from '@/components/server-detail/server-detail-cycle-transfer.vue';
@@ -216,28 +215,10 @@ watch([dataInit, info], () => {
   overflow: hidden;
 }
 
-.home-footer {
+.detail-footer {
   width: calc(100% - 28px);
-  min-height: 42px;
-  margin: 12px 14px 14px;
+  margin: 12px 14px 6px;
   padding: 0 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--text-secondary);
-  background: var(--footer-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(18px) saturate(145%);
-  box-shadow:
-    var(--shadow-sm),
-    inset 0 1px 0 var(--surface-highlight);
-  position: sticky;
-  bottom: 14px;
-  z-index: 100;
 }
 
 @media screen and (max-width: 768px) {
@@ -270,13 +251,10 @@ watch([dataInit, info], () => {
     border-radius: var(--radius-md);
   }
 
-  .home-footer {
+  .detail-footer {
     width: calc(100% - 24px);
-    min-height: 36px;
-    margin: 8px 12px 12px;
-    border-radius: var(--radius-md);
-    font-size: 11px;
-    bottom: 12px;
+    margin: 8px 12px 6px;
+    padding: 0 12px;
   }
 }
 </style>
