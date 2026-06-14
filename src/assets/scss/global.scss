@@ -542,6 +542,33 @@ html, body {
   i {
     font-size: 13px;
     line-height: 1;
+    color: var(--text-muted);
+  }
+}
+
+.server-list-item__resource {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+
+  .resource-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+
+    i {
+      font-size: 13px;
+      line-height: 1;
+      color: var(--text-muted);
+    }
   }
 }
 
@@ -551,6 +578,65 @@ html, body {
   gap: 5px;
   min-width: 0;
   min-height: 22px;
+
+  &--bill {
+    margin-top: 2px;
+  }
+}
+
+.server-list-item__network {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-stat-border);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+
+  .network-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+
+    i {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    &--conn {
+      color: var(--text-secondary);
+
+      i {
+        color: var(--text-muted);
+      }
+    }
+
+    &--speed {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+
+      .speed-up {
+        color: var(--net-speed-out-color);
+      }
+
+      .speed-down {
+        color: var(--net-speed-in-color);
+      }
+
+      .speed-sep {
+        color: var(--panel-stat-border);
+        font-weight: 400;
+      }
+    }
+  }
 }
 
 .meta-tag {
@@ -614,7 +700,8 @@ html, body {
 
   &--uptime,
   &--billing,
-  &--remaining {
+  &--remaining,
+  &--plan {
     gap: 4px;
     padding-left: 7px;
 
@@ -634,6 +721,13 @@ html, body {
     color: var(--accent-warning);
     border-color: rgba(229, 160, 38, 0.3);
     background: rgba(229, 160, 38, 0.1);
+  }
+
+  &--plan {
+    color: var(--text-secondary);
+    border-color: var(--panel-chip-border);
+    background: var(--panel-chip-bg);
+    font-weight: 500;
   }
 
   &--remaining {

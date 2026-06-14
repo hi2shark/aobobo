@@ -34,6 +34,7 @@ const defaultState = () => ({
   setting: {},
   themeMode: THEME_MODES.AUTO,
   resolvedTheme: 'dark',
+  globeFocus: null,
 });
 
 function isOnline(LastActive, currentTime = Date.now()) {
@@ -101,6 +102,12 @@ const store = createStore({
     },
     SET_RESOLVED_THEME(state, resolvedTheme) {
       state.resolvedTheme = resolvedTheme;
+    },
+    SET_GLOBE_FOCUS(state, focus) {
+      state.globeFocus = focus;
+    },
+    CLEAR_GLOBE_FOCUS(state) {
+      state.globeFocus = null;
     },
   },
   actions: {
@@ -205,6 +212,12 @@ const store = createStore({
           }
         }
       });
+    },
+    focusGlobeOnServer({ commit }, { code, name }) {
+      commit('SET_GLOBE_FOCUS', { code, name });
+    },
+    clearGlobeFocus({ commit }) {
+      commit('CLEAR_GLOBE_FOCUS');
     },
   },
 });

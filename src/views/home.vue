@@ -33,6 +33,7 @@
         </div>
         <globe-earth
           v-else
+          :key="globeKey"
           ref="globeRef"
           :locations="serverLocations"
           :theme="resolvedTheme"
@@ -140,6 +141,7 @@
 import {
   ref,
   computed,
+  onActivated,
   onMounted,
   onUnmounted,
   watch,
@@ -175,6 +177,7 @@ const searchKeyword = ref('');
 const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth > 768);
 const isWideScreen = ref(false);
 const globeRef = ref(null);
+const globeKey = ref(0);
 const cycleTransferMap = ref({});
 const cycleTransferLoading = ref(false);
 let serverHoverTimer = null;
@@ -343,7 +346,7 @@ function handleServerHover(server) {
   }, SERVER_HOVER_FOCUS_DELAY);
 }
 
-function focusLocationFromQuery(focusCode) {
+async function focusLocationFromQuery(focusCode) {
   if (!focusCode || !globeRef.value || serverLocations.value.length === 0) {
     return false;
   }
@@ -355,36 +358,95 @@ function focusLocationFromQuery(focusCode) {
     return false;
   }
 
-  globeRef.value.focusLocation(location);
+  const focusName = route.query.name;
+  let success = false;
+  if (focusName) {
+    success = await globeRef.value.focusLocationWithHighlight(location, String(focusName));
+  } else {
+    success = globeRef.value.focusLocation(location);
+  }
 
-  if (route.query.focus) {
-    const { focus, ...rest } = route.query;
+  if (success && route.query.focus) {
+    const { focus, name, ...rest } = route.query;
     router.replace({ query: rest });
   }
 
-  return true;
+  return success;
 }
 
-function tryFocusFromQuery() {
+let focusingFromQuery = false;
+
+async function tryFocusFromQuery() {
+  if (focusingFromQuery) {
+    return;
+  }
+
   const focusCode = route.query.focus;
   if (!focusCode || !store.state.init || serverList.value.length === 0) {
     return;
   }
 
-  nextTick(() => {
-    if (!focusLocationFromQuery(String(focusCode))) {
-      window.setTimeout(() => {
-        focusLocationFromQuery(String(focusCode));
-      }, 500);
+  focusingFromQuery = true;
+  try {
+    await nextTick();
+    if (!globeRef.value) {
+      return;
     }
-  });
+    await globeRef.value.ready();
+    if (!route.query.focus) {
+      return;
+    }
+    await focusLocationFromQuery(String(focusCode));
+  } finally {
+    focusingFromQuery = false;
+  }
 }
 
 watch(
-  () => [route.query.focus, store.state.init, serverLocations.value.length],
+  () => [route.query.focus, route.query.name, store.state.init, serverLocations.value.length],
   () => {
     tryFocusFromQuery();
   },
+);
+
+async function handleGlobeFocus() {
+  const focus = store.state.globeFocus;
+  if (!focus?.code || !globeRef.value) {
+    return;
+  }
+
+  await globeRef.value.ready();
+
+  if (!store.state.globeFocus || serverLocations.value.length === 0) {
+    return;
+  }
+
+  const location = serverLocations.value.find(
+    (loc) => loc.codes?.includes(focus.code) || loc.code === focus.code,
+  );
+  if (!location) {
+    store.dispatch('clearGlobeFocus');
+    return;
+  }
+
+  const success = await globeRef.value.focusLocationWithHighlight(
+    location,
+    focus.name || location.label,
+  );
+
+  if (success) {
+    store.dispatch('clearGlobeFocus');
+  }
+}
+
+watch(
+  () => store.state.globeFocus,
+  (focus) => {
+    if (focus && globeRef.value) {
+      handleGlobeFocus();
+    }
+  },
+  { deep: true },
 );
 
 watch(
@@ -411,10 +473,22 @@ onMounted(() => {
   updateWideScreen();
   window.addEventListener('resize', updateWideScreen);
   tryFocusFromQuery();
+  if (store.state.globeFocus) {
+    handleGlobeFocus();
+  }
   if (store.state.init && serverList.value.length > 0) {
     refreshCycleTransfer();
     startCycleTransferTimer();
   }
+});
+
+onActivated(() => {
+  globeKey.value += 1;
+  nextTick(() => {
+    if (store.state.globeFocus) {
+      handleGlobeFocus();
+    }
+  });
 });
 
 onUnmounted(() => {

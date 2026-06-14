@@ -26,38 +26,33 @@
             </span>
           </div>
           <span
-            v-if="getPlatformLogoClass(server) || getSpec(server)"
+            v-if="getSpec(server)"
             class="server-list-item__head-spec"
           >
-            <i v-if="getPlatformLogoClass(server)" :class="getPlatformLogoClass(server)" />
-            <span v-if="getSpec(server)">{{ getSpec(server) }}</span>
+            <i class="ri-link" />
+            <span>{{ getSpec(server) }}</span>
           </span>
         </div>
         <div
-          v-if="getCPUCompany(server)
-            || getTraffic(server)
-            || getConnCount(server)
-            || getSpeed(server)"
-          class="server-list-item__tags"
+          v-if="getCPUCompany(server) || getCPUModel(server) || getTraffic(server)"
+          class="server-list-item__resource"
         >
           <span v-if="getCPUCompany(server)" class="meta-tag meta-tag--cpu">
             {{ getCPUCompany(server) }}
           </span>
-          <span
-            v-if="getTraffic(server)"
-            :class="['meta-tag', 'meta-tag--traffic', getTrafficWarningClass(server)]"
-          >
-            {{ getTraffic(server) }}
+          <span v-if="getCPUModel(server)" class="resource-text resource-text--cpu">
+            {{ getCPUModel(server) }}
           </span>
-          <span v-if="getConnCount(server)" class="meta-tag meta-tag--conn">
-            连接 {{ getConnCount(server) }}
-          </span>
-          <span v-if="getSpeed(server)" class="meta-tag meta-tag--speed">
-            {{ getSpeed(server) }}
+          <span v-if="getTraffic(server)" class="resource-text resource-text--traffic">
+            <i class="ri-arrow-up-down-line" />
+            <span>{{ getTraffic(server) }}</span>
           </span>
         </div>
         <div
-          v-if="getUptime(server) || getBilling(server) || getRemainingTime(server)"
+          v-if="getUptime(server)
+            || getBilling(server)
+            || getRemainingTime(server)
+            || getPlanTags(server).length"
           class="server-list-item__tags server-list-item__tags--bill"
         >
           <span v-if="getUptime(server)" class="meta-tag meta-tag--uptime">
@@ -75,6 +70,30 @@
             <i class="ri-hourglass-line" />
             <span>{{ getRemainingTime(server) }}</span>
           </span>
+          <span
+            v-for="tag in getPlanTags(server)"
+            :key="tag"
+            class="meta-tag meta-tag--plan"
+          >
+            {{ tag }}
+          </span>
+        </div>
+        <div
+          v-if="getConnCount(server) || getSpeedUp(server) || getSpeedDown(server)"
+          class="server-list-item__network"
+        >
+          <span v-if="getConnCount(server)" class="network-stat network-stat--conn">
+            <i class="ri-link-m" />
+            <span>连接 {{ getConnCount(server) }}</span>
+          </span>
+          <span
+            v-if="getSpeedUp(server) || getSpeedDown(server)"
+            class="network-stat network-stat--speed"
+          >
+            <span v-if="getSpeedUp(server)" class="speed-up">↑ {{ getSpeedUp(server) }}</span>
+            <span class="speed-sep">|</span>
+            <span v-if="getSpeedDown(server)" class="speed-down">↓ {{ getSpeedDown(server) }}</span>
+          </span>
         </div>
       </div>
     </button>
@@ -86,7 +105,6 @@ import { useRouter } from 'vue-router';
 import {
   calcTransfer,
   getCPUInfo,
-  getPlatformLogoIconClassName,
 } from '@/utils/host';
 import {
   getCycleTransferSummaryByServer,
@@ -121,15 +139,21 @@ function onRowLeave() {
   emit('hover-server', null);
 }
 
-function getPlatformLogoClass(server) {
-  return getPlatformLogoIconClassName(server?.Host?.Platform);
-}
-
 function getCPUCompany(server) {
   const cpu = server?.Host?.CPU?.[0];
   if (!cpu) return '';
   const info = getCPUInfo(cpu);
   return info.company || '';
+}
+
+function getCPUModel(server) {
+  const cpu = server?.Host?.CPU?.[0];
+  if (!cpu) return '';
+  const info = getCPUInfo(cpu);
+  const parts = [];
+  if (info.model) parts.push(info.model);
+  if (info.modelNum) parts.push(info.modelNum);
+  return parts.join(' ');
 }
 
 function getSpec(server) {
@@ -155,12 +179,6 @@ function hasTrafficWarning(server) {
   const summary = getCycleTransferSummary(server);
   if (!summary) return false;
   return ['warning', 'alert', 'over'].includes(summary.statusLevel);
-}
-
-function getTrafficWarningClass(server) {
-  const summary = getCycleTransferSummary(server);
-  if (!summary) return '';
-  return `traffic-status--${summary.statusLevel}`;
 }
 
 function formatTransferValue(value) {
@@ -203,13 +221,18 @@ function getConnCount(server) {
   return `${tcp}/${udp}`;
 }
 
-function getSpeed(server) {
-  const netIn = server.State?.NetInSpeed || 0;
+function getSpeedUp(server) {
   const netOut = server.State?.NetOutSpeed || 0;
-  if (!netIn && !netOut) return '';
-  const sIn = calcTransfer(netIn);
-  const sOut = calcTransfer(netOut);
-  return `↑${sOut.value}${sOut.unit}/s ↓${sIn.value}${sIn.unit}/s`;
+  if (!netOut) return '';
+  const t = calcTransfer(netOut);
+  return `${t.value}${t.unit}/s`;
+}
+
+function getSpeedDown(server) {
+  const netIn = server.State?.NetInSpeed || 0;
+  if (!netIn) return '';
+  const t = calcTransfer(netIn);
+  return `${t.value}${t.unit}/s`;
 }
 
 function getUptime(server) {
@@ -248,6 +271,30 @@ function getRemainingClass(server) {
   if (days <= 7) return 'remaining-status--danger';
   if (days <= 30) return 'remaining-status--warning';
   return 'remaining-status--success';
+}
+
+function getPlanTags(server) {
+  const list = [];
+  const {
+    networkRoute,
+    extra,
+    IPv4,
+    IPv6,
+  } = server?.PublicNote?.planDataMod || {};
+  if (networkRoute) {
+    list.push(...String(networkRoute).split(','));
+  }
+  if (extra) {
+    list.push(...String(extra).split(','));
+  }
+  if (IPv4 === '1' && IPv6 === '1') {
+    list.push('双栈IP');
+  } else if (IPv4 === '1') {
+    list.push('仅IPv4');
+  } else if (IPv6 === '1') {
+    list.push('仅IPv6');
+  }
+  return list;
 }
 </script>
 

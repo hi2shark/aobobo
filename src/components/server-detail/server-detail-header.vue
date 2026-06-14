@@ -90,6 +90,7 @@ import {
   computed,
 } from 'vue';
 import { useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 import * as hostUtils from '@/utils/host';
 import { alias2code, locationCode2Info } from '@/utils/world-map';
 import useServerInfo from '@/composables/server-info';
@@ -103,6 +104,7 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const store = useStore();
 
 const { cpuAndMemAndDisk } = useServerInfo({ props });
 
@@ -143,9 +145,12 @@ function viewOnGlobe() {
   if (!locationCode.value) {
     return;
   }
+  store.dispatch('focusGlobeOnServer', {
+    code: locationCode.value,
+    name: props.info?.Name || '',
+  });
   router.push({
     name: 'Home',
-    query: { focus: locationCode.value },
   });
 }
 </script>

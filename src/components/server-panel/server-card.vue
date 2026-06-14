@@ -45,12 +45,11 @@
           :class="['meta-tag', trafficWarningClass]"
         >{{ trafficLabel }}</span>
       </div>
-      <div class="tags-row">
-        <span v-if="connCount && connCount !== '0|0'" class="meta-tag">连接 {{ connCount }}</span>
-        <span v-if="speedLabel && speedLabel !== '-'" class="meta-tag">{{ speedLabel }}</span>
-      </div>
-
-      <div v-if="billingDisplay || remainingDisplay" class="billing-row">
+      <div v-if="uptime || billingDisplay || remainingDisplay || planTags.length" class="billing-row">
+        <span v-if="uptime" class="billing-tag billing-tag--uptime">
+          <i class="ri-time-line" />
+          <span>在线 {{ uptime }}</span>
+        </span>
         <span v-if="billingDisplay" class="billing-tag billing-tag--price">
           <i class="ri-price-tag-3-line" />
           <span>{{ billingDisplay }}</span>
@@ -61,6 +60,25 @@
         >
           <i class="ri-hourglass-line" />
           <span>{{ remainingDisplay }}</span>
+        </span>
+        <span
+          v-for="tag in planTags"
+          :key="tag"
+          class="billing-tag billing-tag--plan"
+        >
+          {{ tag }}
+        </span>
+      </div>
+
+      <div v-if="connCount && connCount !== '0|0' || speedLabel && speedLabel !== '-'" class="network-row">
+        <span v-if="connCount && connCount !== '0|0'" class="network-stat network-stat--conn">
+          <i class="ri-link-m" />
+          <span>连接 {{ connCount }}</span>
+        </span>
+        <span v-if="speedLabel && speedLabel !== '-'" class="network-stat network-stat--speed">
+          <span class="speed-up">↑ {{ speedUp }}</span>
+          <span class="speed-sep">|</span>
+          <span class="speed-down">↓ {{ speedDown }}</span>
         </span>
       </div>
 
@@ -330,6 +348,30 @@ const remainingClass = computed(() => {
   return 'remaining-status--success';
 });
 
+const planTags = computed(() => {
+  const list = [];
+  const {
+    networkRoute,
+    extra,
+    IPv4,
+    IPv6,
+  } = props.info?.PublicNote?.planDataMod || {};
+  if (networkRoute) {
+    list.push(...String(networkRoute).split(','));
+  }
+  if (extra) {
+    list.push(...String(extra).split(','));
+  }
+  if (IPv4 === '1' && IPv6 === '1') {
+    list.push('双栈IP');
+  } else if (IPv4 === '1') {
+    list.push('仅IPv4');
+  } else if (IPv6 === '1') {
+    list.push('仅IPv6');
+  }
+  return list;
+});
+
 function goDetail() {
   router.push(`/server/${props.info.ID}`);
 }
@@ -532,10 +574,23 @@ function getLoadColor(val) {
         line-height: 1;
       }
 
+      &--uptime {
+        color: var(--duration-color);
+        border-color: rgba(var(--accent-primary-rgb), 0.22);
+        background: rgba(var(--accent-primary-rgb), 0.08);
+      }
+
       &--price {
         color: var(--accent-warning);
         border-color: rgba(229, 160, 38, 0.3);
         background: rgba(229, 160, 38, 0.1);
+      }
+
+      &--plan {
+        color: var(--text-secondary);
+        border-color: var(--panel-chip-border);
+        background: var(--panel-chip-bg);
+        font-weight: 500;
       }
 
       &--remaining.remaining-status--success {
@@ -554,6 +609,58 @@ function getLoadColor(val) {
         color: var(--accent-danger);
         border-color: rgba(var(--accent-danger-rgb), 0.35);
         background: rgba(var(--accent-danger-rgb), 0.12);
+      }
+    }
+  }
+
+  .network-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--panel-stat-border);
+    background: var(--panel-metric-bg);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+
+    .network-stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+
+      i {
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      &--conn {
+        color: var(--text-secondary);
+      }
+
+      &--speed {
+        display: inline-flex;
+        gap: 8px;
+        color: var(--text-secondary);
+
+        .speed-up {
+          color: var(--net-speed-out-color);
+        }
+
+        .speed-down {
+          color: var(--net-speed-in-color);
+        }
+
+        .speed-sep {
+          color: var(--panel-stat-border);
+          font-weight: 400;
+        }
       }
     }
   }

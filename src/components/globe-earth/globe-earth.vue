@@ -82,6 +82,8 @@
 import {
   computed,
   nextTick,
+  onActivated,
+  onDeactivated,
   onMounted,
   onUnmounted,
   reactive,
@@ -632,7 +634,7 @@ function applyAutoRotateState() {
 
 function focusLocation(location) {
   if (!globe || !location) {
-    return;
+    return false;
   }
 
   globe.pointOfView({
@@ -640,6 +642,8 @@ function focusLocation(location) {
     lng: location.lng,
     altitude: isMobile.value ? 1.72 : 1.58,
   }, FOCUS_ANIMATION_DURATION);
+
+  return true;
 }
 
 function clearFocusBubble() {
@@ -692,39 +696,56 @@ function updateFocusBubblePosition() {
 }
 
 function focusLocationWithHighlight(location, serverName) {
-  if (!globe || !location) {
-    return;
-  }
+  return new Promise((resolve) => {
+    if (!globe || !location) {
+      resolve(false);
+      return;
+    }
 
-  clearFocusBubble();
+    clearFocusBubble();
 
-  globe.pointOfView({
-    lat: location.lat,
-    lng: location.lng,
-    altitude: isMobile.value ? 1.72 : 1.58,
-  }, FOCUS_ANIMATION_DURATION);
+    globe.pointOfView({
+      lat: location.lat,
+      lng: location.lng,
+      altitude: isMobile.value ? 1.72 : 1.58,
+    }, FOCUS_ANIMATION_DURATION);
 
-  if (isMobile.value) {
-    return;
-  }
+    if (isMobile.value) {
+      resolve(true);
+      return;
+    }
 
-  const marker = markerData.value.find((m) => m.key === location.key);
-  if (!marker) {
-    return;
-  }
+    const marker = markerData.value.find((m) => m.key === location.key);
+    if (!marker) {
+      resolve(false);
+      return;
+    }
 
-  focusBubbleTimer = window.setTimeout(() => {
-    focusBubbleTimer = null;
-    focusBubbleMarker.value = marker;
-    focusBubbleServerName.value = serverName || marker.label;
+    focusBubbleTimer = window.setTimeout(() => {
+      focusBubbleMarker.value = marker;
+      focusBubbleServerName.value = serverName || marker.label;
 
-    syncMarkerElementState();
-    applyAutoRotateState();
+      syncMarkerElementState();
+      applyAutoRotateState();
 
-    nextTick(() => {
-      updateFocusBubblePosition();
-    });
-  }, FOCUS_ANIMATION_DURATION);
+      let positionAttempts = 0;
+      const maxPositionAttempts = 30;
+
+      const tryUpdatePosition = () => {
+        positionAttempts += 1;
+        updateFocusBubblePosition();
+        if (focusBubbleState.visible) {
+          resolve(true);
+        } else if (positionAttempts >= maxPositionAttempts) {
+          resolve(false);
+        } else {
+          focusBubbleTimer = window.setTimeout(tryUpdatePosition, 100);
+        }
+      };
+
+      nextTick(tryUpdatePosition);
+    }, FOCUS_ANIMATION_DURATION);
+  });
 }
 
 function clearSelection(shouldEmit = true) {
@@ -1265,12 +1286,28 @@ watch(hoveredMarker, () => {
   });
 });
 
+function ready() {
+  return new Promise((resolve) => {
+    if (isReady.value) {
+      resolve();
+      return;
+    }
+    const unwatch = watch(isReady, (value) => {
+      if (value) {
+        unwatch();
+        resolve();
+      }
+    });
+  });
+}
+
 defineExpose({
   focusLocation,
   focusLocationWithHighlight,
   clearFocusBubble,
   resetView,
   clearSelection,
+  ready,
 });
 
 onMounted(() => {
@@ -1282,6 +1319,29 @@ onMounted(() => {
     resizeObserver = new ResizeObserver(() => scheduleHandleResize());
     resizeObserver.observe(globeContainer.value);
   }
+});
+
+onActivated(() => {
+  updateViewportMode();
+
+  nextTick(() => {
+    scheduleHandleResize();
+
+    if (!globeContainer.value) {
+      return;
+    }
+
+    const { clientWidth, clientHeight } = globeContainer.value;
+    if (clientWidth > 0 && clientHeight > 0 && globe) {
+      const currentPov = globe.pointOfView();
+      globe.pointOfView(currentPov, 0);
+    }
+  });
+});
+
+onDeactivated(() => {
+  clearInteractionSettleTimer();
+  clearFocusBubble();
 });
 
 onUnmounted(() => {
