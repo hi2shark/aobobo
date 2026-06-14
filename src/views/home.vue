@@ -75,40 +75,67 @@
             </button>
           </div>
           <div class="section-toolbar">
-            <div class="search-filter-bar">
-              <label class="search-box">
-                <i class="ri-search-line" />
-                <input
-                  v-model="searchKeyword"
-                  type="text"
-                  placeholder="搜索名称 / 地区 / 系统"
+            <div class="toolbar-row toolbar-row--primary">
+              <div class="search-filter-bar">
+                <label class="search-box">
+                  <i class="ri-search-line" />
+                  <input
+                    v-model="searchKeyword"
+                    type="text"
+                    placeholder="搜索名称 / 地区 / 系统"
+                  >
+                  <button
+                    v-if="searchKeyword.trim() !== ''"
+                    type="button"
+                    class="clear-search"
+                    title="清空搜索"
+                    @click="clearSearchKeyword"
+                  >
+                    <i class="ri-close-line" />
+                  </button>
+                </label>
+                <div
+                  v-if="hasOfflineServer"
+                  class="filter-group"
+                  role="group"
+                  aria-label="筛选状态"
                 >
-                <button
-                  v-if="searchKeyword.trim() !== ''"
-                  type="button"
-                  class="clear-search"
-                  title="清空搜索"
-                  @click="clearSearchKeyword"
-                >
-                  <i class="ri-close-line" />
-                </button>
-              </label>
-              <div
-                v-if="hasOfflineServer"
-                class="filter-group"
-                role="group"
-                aria-label="筛选状态"
-              >
-                <button
-                  v-for="option in FILTER_OPTIONS"
-                  :key="option.value || 'all'"
-                  type="button"
-                  :class="['filter-btn', { active: filterOnline === option.value }]"
-                  @click="filterOnline = option.value"
-                >
-                  <span class="filter-label">{{ option.label }}</span>
-                </button>
+                  <button
+                    v-for="option in FILTER_OPTIONS"
+                    :key="option.value || 'all'"
+                    type="button"
+                    :class="['filter-btn', { active: filterOnline === option.value }]"
+                    @click="filterOnline = option.value"
+                  >
+                    <span class="filter-label">{{ option.label }}</span>
+                  </button>
+                </div>
               </div>
+              <server-sort-select
+                v-model="serverSortConfig"
+                :options="serverSortOptionsList"
+              />
+            </div>
+            <div
+              v-if="serverGroups.length > 0"
+              class="group-filter-bar"
+            >
+              <button
+                type="button"
+                :class="['group-chip', { active: selectedGroup === '' }]"
+                @click="selectedGroup = ''"
+              >
+                全部
+              </button>
+              <button
+                v-for="group in serverGroups"
+                :key="group.name"
+                type="button"
+                :class="['group-chip', { active: selectedGroup === group.name }]"
+                @click="selectedGroup = group.name"
+              >
+                {{ group.name }}
+              </button>
             </div>
           </div>
         </div>
@@ -153,8 +180,14 @@ import { resolveServerLocation, clusterLocations } from '@/utils/world-map';
 import { getSystemOSLabel } from '@/utils/host';
 import { loadCycleTransferMap } from '@/utils/cycle-transfer';
 import config from '@/config';
+import {
+  serverSortOptions,
+  serverSortHandler,
+  defaultServerSortConfig,
+} from '@/composables/server-sort';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
+import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconInbox from '@/components/icons/icon-inbox.vue';
@@ -166,6 +199,7 @@ const FILTER_OPTIONS = [
   { label: '在线', value: '1', dot: 'online' },
   { label: '离线', value: '-1', dot: 'offline' },
 ];
+const serverSortOptionsList = serverSortOptions();
 
 const route = useRoute();
 const router = useRouter();
@@ -174,6 +208,8 @@ const WIDE_BREAKPOINT = 1280;
 
 const filterOnline = ref('');
 const searchKeyword = ref('');
+const selectedGroup = ref('');
+const serverSortConfig = ref(defaultServerSortConfig());
 const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth > 768);
 const isWideScreen = ref(false);
 const globeRef = ref(null);
@@ -203,6 +239,7 @@ function clearSearchKeyword() {
 
 const serverList = computed(() => store.state.serverList);
 const serverCount = computed(() => store.state.serverCount);
+const serverGroups = computed(() => store.state.serverGroup || []);
 const hasOfflineServer = computed(() => serverList.value.some((s) => s.online !== 1));
 const resolvedTheme = computed(() => store.state.resolvedTheme);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim().toLowerCase());
@@ -231,15 +268,30 @@ const searchMatchedServers = computed(() => {
 });
 
 const isListFiltered = computed(() => (
-  normalizedSearchKeyword.value !== '' || filterOnline.value !== ''
+  normalizedSearchKeyword.value !== ''
+  || filterOnline.value !== ''
+  || selectedGroup.value !== ''
 ));
+
+function sortServerList(list) {
+  const { prop, order } = serverSortConfig.value;
+  if (prop === 'DisplayIndex' && order === 'desc') {
+    return list;
+  }
+  return [...list].sort((a, b) => serverSortHandler(a, b, prop, order));
+}
 
 const filteredServers = computed(() => {
   let list = searchMatchedServers.value;
   if (filterOnline.value !== '') {
     list = list.filter((s) => String(s.online) === filterOnline.value);
   }
-  return list;
+  if (selectedGroup.value !== '') {
+    const group = serverGroups.value.find((g) => g.name === selectedGroup.value);
+    const groupServerIds = new Set((group?.servers || []).map((id) => String(id)));
+    list = list.filter((s) => groupServerIds.has(String(s.ID)));
+  }
+  return sortServerList(list);
 });
 
 const listResultHint = computed(() => {
@@ -746,6 +798,23 @@ onUnmounted(() => {
 
   .section-toolbar {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    &--primary {
+      .search-filter-bar {
+        flex: 1;
+        min-width: 0;
+      }
+    }
   }
 
   .result-hint-floating {
@@ -821,7 +890,7 @@ onUnmounted(() => {
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    margin: 4px 4px 4px 0;
+    margin: 2px 2px 2px 0;
     padding: 2px;
     border: 1px solid var(--button-subtle-border);
     border-radius: 999px;
@@ -886,8 +955,8 @@ onUnmounted(() => {
 
   .filter-btn {
     min-width: 0;
-    min-height: 28px;
-    padding: 0 8px;
+    min-height: 34px;
+    padding: 0 10px;
     border-radius: 999px;
     border: 1px solid transparent;
     background: transparent;
@@ -940,6 +1009,47 @@ onUnmounted(() => {
       font-size: 11px;
       font-weight: 600;
       white-space: nowrap;
+    }
+  }
+
+  .group-filter-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 0 2px;
+  }
+
+  .group-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--button-subtle-border);
+    background: var(--button-subtle-bg);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+
+    &:hover:not(.active) {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    &.active {
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      box-shadow: var(--button-active-shadow);
+      color: var(--text-on-accent);
     }
   }
 }
@@ -1207,14 +1317,23 @@ onUnmounted(() => {
       padding: 0 3px 0 0;
     }
 
+    .search-box {
+      min-height: 34px;
+    }
+
     .filter-group {
-      margin: 3px 3px 3px 0;
+      margin: 2px 2px 2px 0;
       padding: 2px;
     }
 
     .filter-btn {
       padding: 0 6px;
+      min-height: 30px;
+    }
+
+    .group-chip {
       min-height: 26px;
+      padding: 0 10px;
     }
   }
 }
@@ -1276,13 +1395,34 @@ onUnmounted(() => {
     }
 
     .filter-group {
-      width: 100%;
+      flex: 1 1 auto;
       margin: 0;
-      justify-content: center;
     }
 
     .filter-btn {
       flex: 1 1 0;
+    }
+
+    .toolbar-row--primary {
+      flex-wrap: wrap;
+    }
+
+    .server-sort-select {
+      flex: 0 0 auto;
+    }
+
+    .group-filter-bar {
+      width: 100%;
+      margin-top: 8px;
+      gap: 4px;
+    }
+
+    .group-chip {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0 6px;
+      min-height: 26px;
+      font-size: 11px;
     }
 
     .section-summary {

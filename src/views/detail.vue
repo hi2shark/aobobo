@@ -25,8 +25,8 @@
       <div class="detail-stack">
         <server-detail-header :info="info" class="stack-item stack-item--header" />
         <server-detail-status :info="info" class="stack-item stack-item--status" />
-        <server-detail-info :info="info" class="stack-item stack-item--info" />
         <server-detail-cycle-transfer :info="info" class="stack-item stack-item--cycle" />
+        <server-detail-info :info="info" class="stack-item stack-item--info" />
         <server-detail-monitor :info="info" class="stack-item stack-item--monitor" />
       </div>
 
@@ -147,7 +147,8 @@ watch([dataInit, info], () => {
   .back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 5px;
     min-height: 36px;
     padding: 0 12px;
     border-radius: 999px;
@@ -156,6 +157,7 @@ watch([dataInit, info], () => {
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     transition:
       color var(--transition-fast),
@@ -163,6 +165,14 @@ watch([dataInit, info], () => {
       border-color var(--transition-fast),
       box-shadow var(--transition-fast),
       transform var(--transition-fast);
+
+    i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
+    }
 
     &:hover {
       background: var(--button-active-bg);

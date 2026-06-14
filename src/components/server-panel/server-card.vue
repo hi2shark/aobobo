@@ -321,7 +321,7 @@ const connCount = computed(() => {
 });
 
 const billingDisplay = computed(() => {
-  const billing = billAndPlan.value.billing;
+  const { billing } = billAndPlan.value;
   if (!billing) return '';
   if (billing.isFree) return billing.value;
   if (billing.value === '按量') return billing.value;

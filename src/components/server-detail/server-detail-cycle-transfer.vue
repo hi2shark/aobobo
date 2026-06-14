@@ -41,7 +41,10 @@
         </div>
 
         <div class="cycle-transfer-meta">
-          <span class="meta-item">周期 {{ item.periodStart }} - {{ item.periodEnd }}</span>
+          <span
+            class="meta-item"
+            :title="item.periodTitle"
+          >周期 {{ item.periodText }}</span>
           <span class="meta-item">下次 {{ item.nextCheckDisplay }}</span>
         </div>
 
@@ -89,12 +92,33 @@ import {
   onUnmounted,
   ref,
 } from 'vue';
+import dayjs from 'dayjs';
 import config from '@/config';
 import DetailPanel from '@/components/server-detail/detail-panel.vue';
 import {
   getCycleTransferStatusLabel,
   loadCycleTransferByServer,
 } from '@/utils/cycle-transfer';
+
+function formatPeriod(start, end) {
+  const startDate = dayjs(start, 'YYYY.MM.DD HH:mm:ss');
+  const endDate = dayjs(end, 'YYYY.MM.DD HH:mm:ss');
+
+  if (!startDate.isValid() || !endDate.isValid()) {
+    return {
+      text: `${start} - ${end}`,
+      title: `${start} - ${end}`,
+    };
+  }
+
+  const crossYear = startDate.year() !== endDate.year();
+  const dateFormat = crossYear ? 'YYYY.MM.DD' : 'MM.DD';
+
+  return {
+    text: `${startDate.format(dateFormat)} - ${endDate.format(dateFormat)}`,
+    title: `${startDate.format('YYYY.MM.DD HH:mm:ss')} - ${endDate.format('YYYY.MM.DD HH:mm:ss')}`,
+  };
+}
 
 const props = defineProps({
   info: {
@@ -120,16 +144,21 @@ const showCard = computed(() => {
   return cycleTransferList.value.length > 0;
 });
 
-const cycleTransferViewList = computed(() => cycleTransferList.value.map((item) => ({
-  ...item,
-  statusLabel: getCycleTransferStatusLabel(item.statusLevel),
-  showProgress: Number.isFinite(item.remainingPercent),
-  progressWidth: Number.isFinite(item.remainingPercent)
-    ? Math.max(Math.min(item.remainingPercent, 100), 0)
-    : 0,
-  remainingPercentText: Number.isFinite(item.remainingPercent) ? `${item.remainingPercent.toFixed(2)}%` : '-',
-  showMin: item.minDisplay && item.minDisplay !== '0B' && item.minDisplay !== '-',
-})));
+const cycleTransferViewList = computed(() => cycleTransferList.value.map((item) => {
+  const period = formatPeriod(item.periodStart, item.periodEnd);
+  return {
+    ...item,
+    periodText: period.text,
+    periodTitle: period.title,
+    statusLabel: getCycleTransferStatusLabel(item.statusLevel),
+    showProgress: Number.isFinite(item.remainingPercent),
+    progressWidth: Number.isFinite(item.remainingPercent)
+      ? Math.max(Math.min(item.remainingPercent, 100), 0)
+      : 0,
+    remainingPercentText: Number.isFinite(item.remainingPercent) ? `${item.remainingPercent.toFixed(2)}%` : '-',
+    showMin: item.minDisplay && item.minDisplay !== '0B' && item.minDisplay !== '-',
+  };
+}));
 
 async function loadCycleTransfer() {
   if (config.nazhua.hideDetailCycleTransfer || !props.info?.ID) {

@@ -29,7 +29,7 @@
             v-if="getSpec(server)"
             class="server-list-item__head-spec"
           >
-            <i class="ri-link" />
+            <i :class="getPlatformLogoClass(server)" />
             <span>{{ getSpec(server) }}</span>
           </span>
         </div>
@@ -105,6 +105,7 @@ import { useRouter } from 'vue-router';
 import {
   calcTransfer,
   getCPUInfo,
+  getPlatformLogoIconClassName,
 } from '@/utils/host';
 import {
   getCycleTransferSummaryByServer,
@@ -154,6 +155,10 @@ function getCPUModel(server) {
   if (info.model) parts.push(info.model);
   if (info.modelNum) parts.push(info.modelNum);
   return parts.join(' ');
+}
+
+function getPlatformLogoClass(server) {
+  return getPlatformLogoIconClassName(server?.Host?.Platform);
 }
 
 function getSpec(server) {
