@@ -434,6 +434,18 @@ html, body {
   background-clip: padding-box;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    background: transparent;
+  }
+}
+
 /* ===== Server List Item (shared) ===== */
 .server-list-item {
   position: relative;

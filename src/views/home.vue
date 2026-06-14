@@ -18,8 +18,7 @@
           </span>
           <template v-if="serverCount.offline > 0">
             <span class="status-summary__sep" aria-hidden="true">·</span>
-            <span class="status-summary__item">
-              <span class="status-dot offline" />
+            <span class="status-summary__item status-summary__item--offline">
               {{ serverCount.offline }} 离线
             </span>
           </template>
@@ -727,6 +726,12 @@ onUnmounted(() => {
     gap: 6px;
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+
+    &--offline {
+      gap: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
   }
 
   .status-summary__sep {

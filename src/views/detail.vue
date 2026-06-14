@@ -81,6 +81,7 @@ watch([dataInit, info], () => {
   position: relative;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   padding: 0;
   overflow: hidden;
   background: var(--page-bg);
@@ -247,6 +248,7 @@ watch([dataInit, info], () => {
     gap: 8px;
     width: calc(100% - 24px);
     margin: 0 12px;
+    padding-bottom: 24px;
   }
 
   .stack-item {
@@ -255,7 +257,7 @@ watch([dataInit, info], () => {
 
   .detail-footer {
     width: calc(100% - 24px);
-    margin: 8px 12px 6px;
+    margin: 8px 12px 24px;
     padding: 0 12px;
   }
 }
