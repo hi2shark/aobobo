@@ -48,11 +48,11 @@ const THEME_COLORS = {
     land: BASE_LAND_COLORS.light,
   },
   dark: {
-    oceanBase: '#03080f',
-    oceanCenter: '#051018',
-    oceanMid: '#071420',
-    oceanEdge: '#091c2c',
-    oceanLimb: '#0b2234',
+    oceanBase: '#061221',
+    oceanCenter: '#071829',
+    oceanMid: '#092035',
+    oceanEdge: '#0b2843',
+    oceanLimb: '#0d304f',
     land: brighten(BASE_LAND_COLORS.dark, LAND_BRIGHTEN_PERCENT),
   },
 };

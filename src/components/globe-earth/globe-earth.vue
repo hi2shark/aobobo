@@ -258,7 +258,7 @@ function getThemePalette(theme) {
   }
 
   return {
-    ocean: '#03080f',
+    ocean: '#061221',
     oceanEmissive: '#000000',
     oceanSpecular: '#1a2d40',
     land: '#b6c3d5',
