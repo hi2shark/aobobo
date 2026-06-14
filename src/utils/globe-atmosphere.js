@@ -9,7 +9,13 @@ const INNER_FRESNEL = {
 };
 
 /** 外侧辉光：内移并拉长，形成沿球面延伸的轮廓光 */
-const GLOW_LAYERS = [
+export const GLOW_LAYERS_LIGHT = [
+  { scale: 1.003, wide: 0.035, edge: 0.007 },
+  { scale: 1.012, wide: 0.022, edge: 0.004 },
+  { scale: 1.028, wide: 0.009, edge: 0.0015 },
+];
+
+const GLOW_LAYERS_DARK = [
   { scale: 1.003, wide: 0.035, edge: 0.007 },
   { scale: 1.011, wide: 0.026, edge: 0.0048 },
   { scale: 1.023, wide: 0.018, edge: 0.003 },
@@ -110,12 +116,16 @@ function updateAtmosphereColor(group, color) {
 }
 
 export function createRimAtmosphereGroup(color, options = {}) {
-  const { innerStrengthScale = 1, glowIntensityScale = 1 } = options;
+  const {
+    innerStrengthScale = 1,
+    glowIntensityScale = 1,
+    layers = GLOW_LAYERS_DARK,
+  } = options;
   const group = new THREE.Group();
   group.name = 'globe-rim-atmosphere';
 
   group.add(createInnerFresnelLayer(color, innerStrengthScale));
-  GLOW_LAYERS.forEach((layer) => {
+  layers.forEach((layer) => {
     group.add(createGlowLayer(color, layer, glowIntensityScale));
   });
 

@@ -99,6 +99,7 @@ import {
   createRimAtmosphereGroup,
   disposeRimAtmosphereGroup,
   updateRimAtmosphereGroup,
+  GLOW_LAYERS_LIGHT,
 } from '@/utils/globe-atmosphere';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
@@ -305,7 +306,7 @@ function syncRimAtmosphere(palette) {
 
   const isLight = props.theme === 'light';
   const rimOptions = isLight
-    ? { innerStrengthScale: 0.32, glowIntensityScale: 0.32 }
+    ? { innerStrengthScale: 0.32, glowIntensityScale: 0.32, layers: GLOW_LAYERS_LIGHT }
     : { innerStrengthScale: 1.18, glowIntensityScale: 1.12 };
 
   if (!rimAtmosphereGroup) {
