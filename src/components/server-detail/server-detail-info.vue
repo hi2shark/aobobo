@@ -779,17 +779,25 @@ const processCount = computed(() => props.info?.State?.ProcessCount);
   }
 }
 
-@media screen and (max-width: 640px) {
+@media screen and (max-width: 768px) {
   .server-detail-info {
-    padding: 14px 16px;
+    padding: 12px 14px;
   }
 
   .info-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .info-cell {
+    gap: 6px;
     padding: 10px 12px;
+  }
+
+  .info-chip {
+    height: 22px;
+    padding: 0 6px;
+    font-size: 11px;
   }
 }
 </style>

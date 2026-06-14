@@ -125,13 +125,14 @@ function progressStyle(item) {
     align-items: center;
     gap: 6px;
     margin: 0;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
+    letter-spacing: -0.01em;
     color: var(--text-primary);
 
     i {
       color: var(--accent-primary);
-      font-size: 16px;
+      font-size: 18px;
     }
   }
 }
@@ -251,14 +252,24 @@ function progressStyle(item) {
   min-width: 2px;
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 768px) {
   .server-detail-status {
-    padding: 14px 16px;
+    padding: 12px 14px;
     --real-time-value-font-size: 20px;
   }
 
   .resource-grid {
     grid-template-columns: 1fr;
+
+    &.resource-count--1,
+    &.resource-count--2,
+    &.resource-count--3 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .resource-card {
+    padding: 14px 16px;
   }
 
   .resource-card:last-child:nth-child(odd) {

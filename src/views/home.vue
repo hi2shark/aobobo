@@ -2,6 +2,16 @@
   <div class="home-view">
     <div class="status-bar">
       <div class="status-group">
+        <button
+          v-if="!isWideScreen"
+          type="button"
+          class="mobile-menu-btn"
+          aria-label="展开服务器列表"
+          title="展开服务器列表"
+          @click="toggleSidebar"
+        >
+          <i class="ri-server-line" />
+        </button>
         <div class="status-summary" aria-label="服务器统计">
           <span class="status-summary__total">
             <strong>{{ serverCount.total }}</strong>台
@@ -58,9 +68,23 @@
         <i class="ri-server-line" />
       </button>
 
-      <div class="server-list-section" :class="{ collapsed: !sidebarOpen }">
+      <div
+        ref="panelRef"
+        class="server-list-section"
+        :class="{ collapsed: !sidebarOpen, expanded: panelExpanded && sidebarOpen }"
+      >
         <div class="tech-frame" aria-hidden="true" />
         <div class="section-header">
+          <div
+            v-if="!isWideScreen"
+            class="drawer-drag-handle"
+            @touchstart.passive="onDragStart"
+            @touchmove.passive="onDragMove"
+            @touchend="onDragEnd"
+            @touchcancel="onDragEnd"
+          >
+            <span class="drawer-drag-handle__bar" />
+          </div>
           <div
             v-if="!isWideScreen"
             class="section-title-row"
@@ -215,6 +239,10 @@ const globeRef = ref(null);
 const globeKey = ref(0);
 const cycleTransferMap = ref({});
 const cycleTransferLoading = ref(false);
+const panelRef = ref(null);
+const panelExpanded = ref(false);
+const dragState = ref(null);
+const DRAG_THRESHOLD = 60;
 let serverHoverTimer = null;
 let cycleTransferTimer = null;
 
@@ -222,6 +250,7 @@ function updateWideScreen() {
   isWideScreen.value = window.innerWidth >= WIDE_BREAKPOINT;
   if (isWideScreen.value) {
     sidebarOpen.value = true;
+    panelExpanded.value = false;
   }
 }
 
@@ -230,6 +259,69 @@ function toggleSidebar() {
     return;
   }
   sidebarOpen.value = !sidebarOpen.value;
+  if (!sidebarOpen.value) {
+    panelExpanded.value = false;
+  }
+}
+
+function onDragStart(e) {
+  if (isWideScreen.value || !e.touches || e.touches.length === 0) {
+    return;
+  }
+  const touch = e.touches[0];
+  dragState.value = {
+    startY: touch.clientY,
+    startTime: Date.now(),
+    startMode: panelExpanded.value ? 'expanded' : 'peek',
+  };
+  panelRef.value?.classList.add('is-dragging');
+}
+
+function onDragMove(e) {
+  if (!dragState.value || !e.touches || e.touches.length === 0) {
+    return;
+  }
+  const touch = e.touches[0];
+  const deltaY = touch.clientY - dragState.value.startY;
+  dragState.value.deltaY = deltaY;
+
+  const panel = panelRef.value;
+  if (!panel) {
+    return;
+  }
+
+  // Only close direction (pull down) is visually followed; push up switches
+  // to expanded on release.
+  if (dragState.value.startMode === 'peek' || dragState.value.startMode === 'expanded') {
+    const y = Math.max(0, deltaY);
+    panel.style.transform = `translateY(${y}px)`;
+  }
+}
+
+function onDragEnd() {
+  if (!dragState.value) {
+    return;
+  }
+  const { deltaY, startMode } = dragState.value;
+  const panel = panelRef.value;
+  panel?.classList.remove('is-dragging');
+  if (panel) {
+    panel.style.transform = '';
+  }
+
+  if (startMode === 'peek') {
+    if (deltaY > DRAG_THRESHOLD) {
+      sidebarOpen.value = false;
+      panelExpanded.value = false;
+    } else if (deltaY < -DRAG_THRESHOLD) {
+      panelExpanded.value = true;
+    }
+  } else if (startMode === 'expanded') {
+    if (deltaY > DRAG_THRESHOLD) {
+      panelExpanded.value = false;
+    }
+  }
+  dragState.value = null;
 }
 
 function clearSearchKeyword() {
@@ -1056,6 +1148,11 @@ onUnmounted(() => {
   }
 }
 
+.drawer-drag-handle,
+.mobile-menu-btn {
+  display: none;
+}
+
 :deep(.server-table-wrap) {
   flex: 1;
   min-height: 0;
@@ -1237,11 +1334,47 @@ onUnmounted(() => {
     }
   }
 
+  .sidebar-expand-handle {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--button-subtle-border);
+    border-radius: 10px;
+    background: var(--button-subtle-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast),
+      transform var(--transition-fast);
+
+    i {
+      font-size: 16px;
+    }
+
+    &:hover {
+      color: var(--text-on-accent);
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      box-shadow: var(--button-active-shadow);
+      transform: translateY(-1px);
+    }
+  }
+
   .server-list-section {
     position: fixed;
     inset: auto 10px 10px 10px;
     width: auto;
-    max-height: min(68vh, 620px);
+    height: min(72vh, 660px);
     z-index: 30;
     border-radius: 28px;
     border: 1px solid var(--border-color);
@@ -1257,8 +1390,44 @@ onUnmounted(() => {
     pointer-events: auto;
     transition:
       transform var(--transition-normal),
+      height var(--transition-normal),
       opacity var(--transition-normal),
       visibility var(--transition-normal);
+
+    &.is-dragging {
+      transition: none;
+    }
+
+    &.expanded {
+      height: calc(100vh - 20px);
+    }
+
+    .section-title-row {
+      display: none;
+    }
+
+    .drawer-drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 30px;
+      margin: -14px -14px 6px;
+      cursor: grab;
+      touch-action: none;
+
+      &:active {
+        cursor: grabbing;
+      }
+
+      &__bar {
+        width: 52px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--text-secondary);
+        opacity: 0.55;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      }
+    }
 
     &.collapsed {
       display: flex;
@@ -1302,6 +1471,10 @@ onUnmounted(() => {
       line-height: 1;
     }
   }
+
+  :deep(.server-table-wrap) {
+    padding-bottom: 24px;
+  }
 }
 
 @media screen and (max-width: 420px) {
@@ -1343,7 +1516,11 @@ onUnmounted(() => {
 
   .server-list-section {
     inset: auto 8px 8px 8px;
-    max-height: min(72vh, 640px);
+    height: min(76vh, 680px);
+
+    &.expanded {
+      height: calc(100vh - 16px);
+    }
 
     .section-title-row {
       align-items: stretch;

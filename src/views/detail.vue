@@ -245,6 +245,8 @@ watch([dataInit, info], () => {
 
   .detail-stack {
     gap: 8px;
+    width: calc(100% - 24px);
+    margin: 0 12px;
   }
 
   .stack-item {

@@ -658,8 +658,10 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
 
     .time-range-label {
+      flex: 0 0 auto;
       color: var(--text-secondary);
       font-size: 12px;
       font-weight: 500;
@@ -668,20 +670,30 @@ onUnmounted(() => {
     .time-range-options {
       display: flex;
       align-items: center;
+      flex-wrap: nowrap;
       gap: 3px;
       padding: 3px;
       background: var(--panel-search-bg);
       border: 1px solid var(--panel-search-border);
       border-radius: 999px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
 
       .time-range-item {
-        min-width: 46px;
+        flex: 0 0 auto;
+        min-width: 40px;
         height: 24px;
         line-height: 24px;
-        padding: 0 10px;
-        font-size: 12px;
+        padding: 0 6px;
+        font-size: 11px;
         font-weight: 600;
         text-align: center;
+        white-space: nowrap;
         cursor: pointer;
         color: var(--text-secondary);
         border-radius: 999px;

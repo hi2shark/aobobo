@@ -351,7 +351,7 @@ function viewOnGlobe() {
   }
 }
 
-@media screen and (max-width: 640px) {
+@media screen and (max-width: 768px) {
   .server-detail-header {
     flex-direction: column;
     align-items: flex-start;

@@ -220,9 +220,9 @@ onUnmounted(() => {
   .module-title {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     font-family: var(--font-sans);
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--text-primary);
@@ -247,9 +247,9 @@ onUnmounted(() => {
 
   .cycle-transfer-item {
     padding: 12px 14px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--surface-subtle);
+    border: 1px solid var(--panel-stat-border);
+    border-radius: var(--radius-md);
+    background: var(--panel-metric-bg);
 
     &.status--fine {
       border-color: rgba(39, 201, 117, 0.28);

@@ -123,6 +123,11 @@ function setMode(mode) {
     i {
       font-size: 13px;
     }
+
+    &:hover,
+    &.active {
+      transform: none;
+    }
   }
 }
 </style>
