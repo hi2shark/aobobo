@@ -404,6 +404,17 @@ html, body {
   color: #f8fbff;
 }
 
+/* ===== Mobile Touch Optimizations ===== */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: none) {
+  * {
+    cursor: default !important;
+  }
+}
+
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 8px;

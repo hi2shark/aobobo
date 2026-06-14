@@ -586,10 +586,6 @@ function syncMarkerElementState() {
     }
     element.classList.toggle('is-hovered', hoveredMarkerKey.value === key);
     element.classList.toggle('is-selected', selectedMarker.value?.key === key);
-    element.classList.toggle(
-      'is-focus-highlighted',
-      focusBubbleMarker.value?.key === key && !marker?.isLarge,
-    );
     element.setAttribute('aria-pressed', selectedMarker.value?.key === key ? 'true' : 'false');
   });
 }
@@ -1594,14 +1590,6 @@ onUnmounted(() => {
 :deep(.globe-marker.is-offline .marker-dot),
 :deep(.globe-marker.is-offline .marker-cluster--large) {
   opacity: 0.58;
-}
-
-:deep(.globe-marker.is-focus-highlighted .marker-dot) {
-  background: #ffffff;
-  opacity: 1;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--marker-core-color) 30%, transparent),
-    0 0 8px 3px color-mix(in srgb, var(--marker-core-color) 70%, transparent);
 }
 
 .globe-earth.theme-dark {
