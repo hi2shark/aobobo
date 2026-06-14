@@ -1,0 +1,75 @@
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+  listen 80;
+  server_name ${DOMAIN};
+  client_max_body_size 1024m;
+
+  location /ws {
+    proxy_pass ${NEZHA}ws;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+
+  # 兼容哪吒 v1
+  location /api/v1/ws/server {
+    proxy_pass ${NEZHA}api/v1/ws/server;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+
+  location /api {
+    proxy_pass ${NEZHA}api;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /static/ {
+    proxy_pass ${NEZHA}static/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /nezha/ {
+    proxy_pass ${NEZHA};
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location = /config.js {
+    root /home/wwwroot/html;
+    add_header Cache-Control "no-cache, must-revalidate";
+  }
+
+  location = /style.css {
+    root /home/wwwroot/html;
+    add_header Cache-Control "no-cache, must-revalidate";
+  }
+
+  location /assets/ {
+    root /home/wwwroot/html;
+    try_files $uri =404;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+    root /home/wwwroot/html;
+  }
+}

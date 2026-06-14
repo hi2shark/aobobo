@@ -3,6 +3,9 @@ import { loadProfile as loadNezhaV1Profile } from '@/utils/load-nezha-v1-config'
 
 const defaultNezhaVersion = import.meta.env.VITE_NEZHA_VERSION;
 
+// 优先读取 $$aoboboConfig，同时兼容 nazhua-front 的 $$nazhuaConfig
+const runtimeConfig = window.$$aoboboConfig || window.$$nazhuaConfig || {};
+
 const config = reactive({
   init: false,
   nazhua: {
@@ -27,7 +30,7 @@ const config = reactive({
     monitorChartType: 'multi',
     monitorChartTypeToggle: true,
     filterGPUKeywords: ['Virtual Display'],
-    ...(window.$$nazhuaConfig || {}),
+    ...runtimeConfig,
   },
 });
 
@@ -35,12 +38,16 @@ if (config.nazhua.nezhaVersion) {
   config.init = true;
 }
 
-export function mergeNazhuaConfig(customConfig) {
+export function mergeAoboboConfig(customConfig) {
   Object.keys(customConfig).forEach((key) => {
     config.nazhua[key] = customConfig[key];
   });
 }
-window.$mergeNazhuaConfig = mergeNazhuaConfig;
+
+// 保留 nazhua 的命名作为兼容别名
+export const mergeNazhuaConfig = mergeAoboboConfig;
+window.$mergeAoboboConfig = mergeAoboboConfig;
+window.$mergeNazhuaConfig = mergeAoboboConfig;
 
 export default config;
 

@@ -1,0 +1,16 @@
+services:
+  aobobo:
+    image: aobobo:latest
+    container_name: aobobo
+    restart: unless-stopped
+    environment:
+      # - DOMAIN=_ # 监听的域名，默认为 _（监听所有）
+      - NEZHA=http://nezha-dashboard/
+    # volumes:
+      # - ./favicon.svg:/home/wwwroot/html/favicon.svg:ro # 自定义站点图标
+      # - ./config.js:/home/wwwroot/html/config.js:ro # 自定义运行时配置
+      # - ./style.css:/home/wwwroot/html/style.css:ro # 自定义样式文件
+    expose:
+      - 80
+    # ports:
+    #   - 80:80

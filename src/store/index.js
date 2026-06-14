@@ -165,7 +165,8 @@ const store = createStore({
         loadNezhaV1Setting().then((res) => {
           if (res) {
             commit('SET_SETTING', res);
-            if (!window.$$nazhuaConfig?.title) {
+            // 仅在未通过运行时配置指定标题时，才使用后端的 site_name
+            if (!(window.$$aoboboConfig?.title ?? window.$$nazhuaConfig?.title)) {
               config.nazhua.title = res.config?.site_name || res.site_name;
               if (route?.name === 'Home' || !route) {
                 document.title = config.nazhua.title;
