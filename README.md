@@ -2,11 +2,6 @@
 
 AoBoBo 是一个为 [哪吒监控](https://nezha.wiki/) 设计的纯前端 3D 可视化主题，基于 **Vue 3 + Vite + globe.gl** 构建，在全球 3D 地球上直观展示各地 VPS 的实时运行状态。
 
-<div>
-  <img src="./.github/images/aobobo-main.webp" style="max-height: 500px;" alt="AoBoBo 桌面版"/>
-  <img src="./.github/images/aobobo-mobile.webp" style="max-height: 500px;" alt="AoBoBo 移动版"/>
-</div>
-
 ## 特性
 
 - **3D 地球可视化** — 使用 globe.gl 渲染真实地球，VPS 位置以脉冲光点标注。
@@ -149,7 +144,9 @@ src/
 
 ## 公开备注
 
-哪吒探针的公开备注（PublicNote）可用于自定义节点位置等信息。例如在公开备注中写入：
+哪吒探针的公开备注（PublicNote）可用于自定义节点位置等信息。
+
+### 通过位置代码定位
 
 ```json
 {
@@ -160,3 +157,34 @@ src/
 ```
 
 即可让该节点定位到东京。
+
+### 通过手动坐标定位
+
+如果内置码表没有你要的位置，可以直接指定经纬度：
+
+```json
+{
+  "customData": {
+    "latlng": "35.6762,139.6503"
+  }
+}
+```
+
+或分别指定 `lat` 和 `lng`：
+
+```json
+{
+  "customData": {
+    "lat": 35.6762,
+    "lng": 139.6503,
+    "locationLabel": "东京"
+  }
+}
+```
+
+`latlng` 支持以下格式：
+
+- 字符串：`"35.6762,139.6503"`
+- 数组：`[35.6762, 139.6503]`
+
+如果同时提供了 `location`，手动坐标会优先生效，并复用 `location` 对应的名称/国家信息；如提供了 `locationLabel`，则优先显示该标签。

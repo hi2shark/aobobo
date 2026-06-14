@@ -149,7 +149,7 @@ import {
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import { alias2code, locationCode2Info, clusterLocations } from '@/utils/world-map';
+import { resolveServerLocation, clusterLocations } from '@/utils/world-map';
 import { getSystemOSLabel } from '@/utils/host';
 import { loadCycleTransferMap } from '@/utils/cycle-transfer';
 import config from '@/config';
@@ -252,37 +252,26 @@ const listResultHint = computed(() => {
 const serverLocations = computed(() => {
   const locationMap = {};
   serverList.value.forEach((server) => {
-    let aliasCode;
-    let locationCode;
-    if (server?.PublicNote?.customData?.location) {
-      aliasCode = server.PublicNote.customData.location;
-      locationCode = server.PublicNote.customData.location;
-    } else if (server?.Host?.CountryCode) {
-      aliasCode = server.Host.CountryCode.toUpperCase();
+    const loc = resolveServerLocation(server);
+    if (!loc) return;
+    if (!locationMap[loc.code]) {
+      locationMap[loc.code] = { ...loc, servers: [] };
     }
-    const code = alias2code(aliasCode) || locationCode;
-    if (!code) return;
-    if (!locationMap[code]) {
-      locationMap[code] = [];
-    }
-    locationMap[code].push(server);
+    locationMap[loc.code].servers.push(server);
   });
 
-  const locations = [];
-  Object.entries(locationMap).forEach(([code, servers]) => {
-    const info = locationCode2Info(code);
-    if (info && Number.isFinite(info.lat) && Number.isFinite(info.lng)) {
-      const onlineServers = servers.filter((s) => s.online === 1);
-      locations.push({
-        key: code,
-        lat: info.lat,
-        lng: info.lng,
-        code,
-        label: `${info.name}, ${info.country}`,
-        servers,
-        hasOnline: onlineServers.length > 0,
-      });
-    }
+  const locations = Object.values(locationMap).map((loc) => {
+    const onlineServers = loc.servers.filter((s) => s.online === 1);
+    return {
+      key: loc.code,
+      lat: loc.lat,
+      lng: loc.lng,
+      code: loc.code,
+      codes: [loc.code],
+      label: loc.country ? `${loc.name}, ${loc.country}` : loc.name,
+      servers: loc.servers,
+      hasOnline: onlineServers.length > 0,
+    };
   });
   return clusterLocations(locations);
 });
@@ -332,14 +321,12 @@ function handleServerHover(server) {
   serverHoverTimer = window.setTimeout(() => {
     serverHoverTimer = null;
 
-    const aliasCode = server?.PublicNote?.customData?.location
-      || server?.Host?.CountryCode?.toUpperCase();
-    const code = alias2code(aliasCode) || aliasCode;
-    if (!code) {
+    const loc = resolveServerLocation(server);
+    if (!loc) {
       return;
     }
 
-    const location = serverLocations.value.find((loc) => loc.codes?.includes(code));
+    const location = serverLocations.value.find((l) => l.codes?.includes(loc.code));
     if (location) {
       globeRef.value.focusLocationWithHighlight(location, server.Name);
     }

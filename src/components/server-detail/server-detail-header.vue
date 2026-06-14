@@ -92,7 +92,7 @@ import {
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import * as hostUtils from '@/utils/host';
-import { alias2code, locationCode2Info } from '@/utils/world-map';
+import { resolveServerLocation } from '@/utils/world-map';
 import useServerInfo from '@/composables/server-info';
 import ServerFlag from '@/components/server-flag.vue';
 
@@ -117,28 +117,19 @@ const systemOSLabel = computed(() => {
   return '';
 });
 
-const locationCode = computed(() => {
-  let aliasCode;
-  let code;
-  if (props.info?.PublicNote?.customData?.location) {
-    aliasCode = props.info.PublicNote.customData.location;
-    code = props.info.PublicNote.customData.location;
-  } else if (props.info?.Host?.CountryCode) {
-    aliasCode = props.info.Host.CountryCode.toUpperCase();
-  }
-  return alias2code(aliasCode) || code || '';
-});
+const resolvedLocation = computed(() => resolveServerLocation(props.info));
+
+const locationCode = computed(() => resolvedLocation.value?.code || '');
 
 const regionLabel = computed(() => {
-  const code = locationCode.value;
-  if (!code) {
+  const loc = resolvedLocation.value;
+  if (!loc) {
     return '';
   }
-  const locInfo = locationCode2Info(code);
-  if (locInfo?.name) {
-    return locInfo.name;
+  if (loc.source === 'manual') {
+    return loc.name || '自定义位置';
   }
-  return code;
+  return loc.name || loc.code;
 });
 
 function viewOnGlobe() {

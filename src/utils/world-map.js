@@ -27,6 +27,93 @@ export const count2size = (count) => {
   return 8;
 };
 
+function parseLatLng(value) {
+  if (Array.isArray(value) && value.length >= 2) {
+    const lat = Number(value[0]);
+    const lng = Number(value[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng };
+    }
+  }
+  if (typeof value === 'string') {
+    const parts = value.split(/[,，\s]+/).filter(Boolean);
+    if (parts.length >= 2) {
+      const lat = Number(parts[0]);
+      const lng = Number(parts[1]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * 解析单台服务器的位置信息
+ * 优先级：
+ * 1. customData.latlng 或 customData.lat + customData.lng（手动坐标）
+ * 2. customData.location（位置代码）
+ * 3. Host.CountryCode（国家代码）
+ */
+export function resolveServerLocation(server) {
+  const customData = server?.PublicNote?.customData || {};
+
+  // 手动坐标
+  let manualLatLng = null;
+  if (customData.latlng !== undefined) {
+    manualLatLng = parseLatLng(customData.latlng);
+  } else if (
+    customData.lat !== undefined
+    && customData.lng !== undefined
+  ) {
+    const lat = Number(customData.lat);
+    const lng = Number(customData.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      manualLatLng = { lat, lng };
+    }
+  }
+
+  if (manualLatLng) {
+    const aliasCode = customData.location || '';
+    const code = alias2code(aliasCode) || aliasCode || `${manualLatLng.lat},${manualLatLng.lng}`;
+    const mapInfo = aliasCode ? locationCode2Info(code) : null;
+    return {
+      code,
+      aliasCode,
+      lat: manualLatLng.lat,
+      lng: manualLatLng.lng,
+      name: customData.locationLabel || mapInfo?.name || aliasCode || '自定义位置',
+      country: mapInfo?.country || '',
+      source: 'manual',
+    };
+  }
+
+  // 位置代码 / 国家代码
+  let aliasCode;
+  if (customData.location) {
+    aliasCode = customData.location;
+  } else if (server?.Host?.CountryCode) {
+    aliasCode = server.Host.CountryCode.toUpperCase();
+  }
+  if (!aliasCode) {
+    return null;
+  }
+  const code = alias2code(aliasCode) || aliasCode;
+  const mapInfo = locationCode2Info(code);
+  if (!mapInfo || !Number.isFinite(mapInfo.lat) || !Number.isFinite(mapInfo.lng)) {
+    return null;
+  }
+  return {
+    code,
+    aliasCode,
+    lat: mapInfo.lat,
+    lng: mapInfo.lng,
+    name: mapInfo.name,
+    country: mapInfo.country,
+    source: 'code',
+  };
+}
+
 export function findIntersectingGroups(coordinates) {
   const groups = {};
   coordinates.forEach((coordinate, index) => {
