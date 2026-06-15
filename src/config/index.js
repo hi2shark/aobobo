@@ -34,8 +34,6 @@ const config = reactive({
     exchangeRateApiBase: 'https://api.frankfurter.dev/v2',
     exchangeRateCacheHours: 24,
     filterGPUKeywords: ['Virtual Display'],
-    nezhaFooterUrl: 'https://nezha.wiki',
-    aoboboFooterUrl: 'https://github.com/hi2shark/aobobo',
     ...runtimeConfig,
   },
 });

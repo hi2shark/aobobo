@@ -58,11 +58,9 @@ const props = defineProps({
 });
 
 const resolvedNezhaUrl = computed(() => props.nezhaUrl
-  || config.nazhua.nezhaFooterUrl
   || 'https://nezha.wiki');
 
 const resolvedAoboboUrl = computed(() => props.aoboboUrl
-  || config.nazhua.aoboboFooterUrl
   || 'https://github.com/hi2shark/aobobo');
 
 const resolvedVersion = computed(() => {

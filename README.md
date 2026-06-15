@@ -82,7 +82,7 @@ window.$$aoboboConfig = {
 
 > 兼容提示：AoBoBo 同时支持 `window.$$nazhuaConfig`，如果你之前使用过 nazhua-front 的配置文件，可以直接挂载复用。
 
-完整可配置项见 [`public/config.js`](./public/config.js)。
+完整配置项说明见 [`docs/config.md`](./docs/config.md)，示例模板见 [`public/config.js`](./public/config.js)。
 
 ## 数据来源
 
