@@ -118,7 +118,7 @@
 
       <div class="info-cell">
         <div class="info-cell-label">
-          <i class="ri-ubuntu-line" />
+          <i :class="systemOSIcon" />
           <span>系统</span>
         </div>
         <div class="info-cell-content">
@@ -564,6 +564,13 @@ const systemOSLabel = computed(() => {
     return hostUtils.getSystemOSLabel(props.info.Host.Platform);
   }
   return '';
+});
+
+const systemOSIcon = computed(() => {
+  if (props?.info?.Host?.Platform) {
+    return hostUtils.getPlatformLogoIconClassName(props.info.Host.Platform);
+  }
+  return 'ri-server-line';
 });
 
 const bootTime = computed(() => {

@@ -18,12 +18,11 @@
         </button>
         <div class="status-summary" aria-label="服务器统计">
           <span class="status-summary__total">
-            <strong>{{ serverCount.total }}</strong>台
+            共<strong>{{ serverCount.total }}</strong>台服务器
           </span>
           <template v-if="serverCount.offline > 0">
-            <span class="status-summary__sep" aria-hidden="true">·</span>
             <span class="status-summary__item status-summary__item--offline">
-              {{ serverCount.offline }} 离线
+              有{{ serverCount.offline }}台离线
             </span>
           </template>
         </div>
@@ -158,22 +157,12 @@
                   <i class="ri-close-line" />
                 </button>
               </label>
-              <div
+              <server-status-filter
                 v-if="hasOfflineServer"
-                class="filter-group"
-                role="group"
+                v-model="filterOnline"
+                :options="FILTER_OPTIONS"
                 aria-label="筛选状态"
-              >
-                <button
-                  v-for="option in FILTER_OPTIONS"
-                  :key="option.value || 'all'"
-                  type="button"
-                  :class="['filter-btn', { active: filterOnline === option.value }]"
-                  @click="filterOnline = option.value"
-                >
-                  <span class="filter-label">{{ option.label }}</span>
-                </button>
-              </div>
+              />
             </div>
             <server-sort-select
               v-model="serverSortConfig"
@@ -249,6 +238,7 @@ import {
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
+import ServerStatusFilter from '@/components/server-list/server-status-filter.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
 import AppFooter from '@/components/app-footer.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
@@ -779,16 +769,16 @@ onUnmounted(() => {
 
   .status-summary {
     display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
     min-height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--status-chip-border);
-    border-radius: 999px;
-    background: var(--status-chip-bg);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 8px 16px rgba(15, 23, 42, 0.04);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
@@ -815,15 +805,9 @@ onUnmounted(() => {
     &--offline {
       gap: 0;
       font-size: 11px;
+      line-height: 1.3;
       color: var(--text-muted);
     }
-  }
-
-  .status-summary__sep {
-    color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1;
-    user-select: none;
   }
 
   .status-dot {
@@ -1099,7 +1083,6 @@ onUnmounted(() => {
     border: 1px solid var(--panel-search-border);
     border-radius: 15px;
     background: var(--panel-search-bg);
-    overflow: hidden;
     transition:
       border-color var(--transition-fast),
       background var(--transition-fast),
@@ -1147,21 +1130,6 @@ onUnmounted(() => {
         color: var(--panel-search-placeholder);
       }
     }
-  }
-
-  .filter-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    margin: 2px 2px 2px 0;
-    padding: 2px;
-    border: 1px solid var(--button-subtle-border);
-    border-radius: 999px;
-    background: var(--button-subtle-bg);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 4px 10px rgba(15, 23, 42, 0.03);
-    flex: 0 0 auto;
   }
 
   .clear-search,
@@ -1217,69 +1185,6 @@ onUnmounted(() => {
         color: var(--text-on-accent);
         transform: translateY(-1px);
       }
-    }
-  }
-
-  .filter-btn {
-    min-width: 0;
-    min-height: 34px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
-    transition:
-      color var(--transition-fast),
-      background var(--transition-fast),
-      border-color var(--transition-fast),
-      box-shadow var(--transition-fast);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-
-    @media (hover: hover) {
-      &:hover:not(.active) {
-        color: var(--text-primary);
-        background: var(--bg-hover);
-      }
-    }
-
-    &.active {
-      background: var(--button-active-bg);
-      border-color: var(--button-active-border);
-      box-shadow: var(--button-active-shadow);
-      color: var(--text-on-accent);
-    }
-
-    &.active .status-dot {
-      box-shadow: none;
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex: 0 0 auto;
-
-      &.online {
-        background: var(--accent-success);
-        box-shadow: var(--status-online-glow);
-      }
-
-      &.offline {
-        background: var(--accent-danger);
-        box-shadow: var(--status-offline-glow);
-      }
-    }
-
-    .filter-label {
-      font-size: 11px;
-      font-weight: 600;
-      white-space: nowrap;
     }
   }
 
@@ -1465,13 +1370,9 @@ onUnmounted(() => {
 
     .status-summary {
       min-height: 32px;
-      padding: 0 12px;
-      gap: 8px;
+      padding: 0;
+      gap: 1px;
       font-size: 12px;
-    }
-
-    .status-summary__sep {
-      font-size: 11px;
     }
   }
 
@@ -1654,16 +1555,6 @@ onUnmounted(() => {
       min-height: 34px;
     }
 
-    .filter-group {
-      margin: 2px 2px 2px 0;
-      padding: 2px;
-    }
-
-    .filter-btn {
-      padding: 0 6px;
-      min-height: 30px;
-    }
-
     .group-chip {
       min-height: 26px;
       padding: 0 10px;
@@ -1704,12 +1595,8 @@ onUnmounted(() => {
 
     .status-summary {
       min-height: 30px;
-      padding: 0 10px;
-      gap: 6px;
-    }
-
-    .status-summary__sep {
-      display: none;
+      padding: 0;
+      gap: 1px;
     }
   }
 
@@ -1728,31 +1615,17 @@ onUnmounted(() => {
     }
 
     .search-filter-bar {
-      flex-wrap: wrap;
-      padding: 4px;
+      padding: 0 3px 0 0;
       gap: 4px;
     }
 
     .search-box {
-      width: 100%;
+      min-width: 0;
       padding: 0 8px 0 10px;
     }
 
-    .filter-group {
-      flex: 1 1 auto;
-      margin: 0;
-    }
-
-    .filter-btn {
-      flex: 1 1 0;
-    }
-
     .toolbar-row--primary {
-      flex-wrap: wrap;
-    }
-
-    .server-sort-select {
-      flex: 0 0 auto;
+      flex-wrap: nowrap;
     }
 
     .group-filter-bar {

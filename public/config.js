@@ -4,9 +4,6 @@ window.$$aoboboConfig = {
   // title: 'AoBoBo', // 网站标题
   // nezhaVersion: 'v1', // 哪吒版本：v0 | v1；不填则自动探测
 
-  // 服务器详情页状态展示类型：progress | text
-  // detailServerStatusType: 'progress',
-
   // 监控图表类型：single | multi
   // monitorChartType: 'multi',
   // monitorChartTypeToggle: true, // 是否允许切换监控图表类型

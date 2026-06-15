@@ -123,15 +123,7 @@ const resolvedVersion = computed(() => {
 }
 
 .app-footer__version {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.05em 0.5em;
-  font-size: 10px;
-  color: var(--text-muted);
-  background: var(--surface-tag-bg, rgba(128, 128, 128, 0.12));
-  border: 1px solid var(--border-color-soft, var(--border-color));
-  border-radius: var(--radius-sm, 4px);
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
 .app-footer--absolute {

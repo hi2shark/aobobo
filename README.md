@@ -73,7 +73,6 @@ docker build -t aobobo:latest .
 window.$$aoboboConfig = {
   title: 'AoBoBo',              // 网站标题
   nezhaVersion: 'v1',           // 强制指定哪吒版本：v0 | v1；不填则自动探测
-  detailServerStatusType: 'progress', // 详情页状态展示：progress | text
   monitorChartType: 'multi',    // 监控图表类型：single | multi
   monitorChartTypeToggle: true, // 是否允许切换监控图表类型
   monitorRefreshTime: 30,       // 监控刷新间隔（秒），0 为不刷新

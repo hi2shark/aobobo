@@ -59,7 +59,7 @@
             v-if="systemOSLabel"
             class="meta-tag meta-tag--os"
           >
-            <i class="ri-ubuntu-line" />
+            <i :class="systemOSIcon" />
             {{ systemOSLabel }}
           </span>
           <span
@@ -115,6 +115,13 @@ const systemOSLabel = computed(() => {
     return hostUtils.getSystemOSLabel(props.info.Host.Platform);
   }
   return '';
+});
+
+const systemOSIcon = computed(() => {
+  if (props.info?.Host?.Platform) {
+    return hostUtils.getPlatformLogoIconClassName(props.info.Host.Platform);
+  }
+  return 'ri-server-line';
 });
 
 const resolvedLocation = computed(() => resolveServerLocation(props.info));

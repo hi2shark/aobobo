@@ -114,30 +114,6 @@ export function resolveServerLocation(server) {
   };
 }
 
-export function findIntersectingGroups(coordinates) {
-  const groups = {};
-  coordinates.forEach((coordinate, index) => {
-    const intersects = [];
-    const n = -2;
-    coordinates.forEach((otherCoordinate, otherIndex) => {
-      if (index !== otherIndex) {
-        if (
-          coordinate.topLeft.top - otherCoordinate.bottomRight.top < n
-          && coordinate.topLeft.left - otherCoordinate.bottomRight.left < n
-          && coordinate.bottomRight.top - otherCoordinate.topLeft.top > -n
-          && coordinate.bottomRight.left - otherCoordinate.topLeft.left > -n
-        ) {
-          intersects.push(otherCoordinate);
-        }
-      }
-    });
-    if (intersects.length > 0) {
-      groups[coordinate.key] = intersects;
-    }
-  });
-  return groups;
-}
-
 function toRad(deg) {
   return (deg * Math.PI) / 180;
 }

@@ -387,6 +387,7 @@ const markerData = computed(() => {
       altitude: 0,
       markerColor: hasOnline ? palette.markerOnline : palette.markerOffline,
       markerColorSoft: hasOnline ? palette.markerOnlineSoft : palette.markerOfflineSoft,
+      markerOfflineColor: palette.markerOffline,
     };
   });
 });
@@ -1001,14 +1002,20 @@ function createMarkerElement(marker) {
   } else if (marker.totalCount > 1) {
     const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
     const dots = Array.from({ length: marker.totalCount }, (_, index) => {
+      const server = marker.servers[index];
+      const isOffline = !server || server.online !== 1;
+      const offlineClass = isOffline ? ' is-offline' : '';
       const angle = (Math.PI * 2 * index) / marker.totalCount - (Math.PI / 2);
       const x = Math.round(Math.cos(angle) * radius * 100) / 100;
       const y = Math.round(Math.sin(angle) * radius * 100) / 100;
-      return `<span class="marker-dot" style="transform: translate(${x}px, ${y}px)"></span>`;
+      return `<span class="marker-dot${offlineClass}" style="transform: translate(${x}px, ${y}px)"></span>`;
     }).join('');
     badgeHTML = `<span class="marker-dots" aria-hidden="true">${dots}</span>`;
   } else {
-    badgeHTML = '<span class="marker-dot marker-dot--single" aria-hidden="true"></span>';
+    const server = marker.servers[0];
+    const isOffline = !server || server.online !== 1;
+    const offlineClass = isOffline ? ' is-offline' : '';
+    badgeHTML = `<span class="marker-dot marker-dot--single${offlineClass}" aria-hidden="true"></span>`;
   }
 
   element.innerHTML = `
@@ -1024,6 +1031,7 @@ function createMarkerElement(marker) {
   element.style.setProperty('--marker-core-color', marker.markerColor);
   element.style.setProperty('--marker-shell-color', marker.markerColorSoft);
   element.style.setProperty('--marker-shadow-color', marker.markerColorSoft);
+  element.style.setProperty('--marker-offline-color', marker.markerOfflineColor);
 
   element.addEventListener('pointerenter', () => setHoveredMarker(marker.key));
   element.addEventListener('pointerleave', () => clearHoveredMarker(marker.key));
@@ -1649,9 +1657,13 @@ onUnmounted(() => {
   animation: marker-pulse 2.4s ease-out infinite;
 }
 
-:deep(.globe-marker.is-offline .marker-dot),
 :deep(.globe-marker.is-offline .marker-cluster--large) {
   opacity: 0.58;
+}
+
+:deep(.marker-dot.is-offline) {
+  background: var(--marker-offline-color);
+  opacity: 0.65;
 }
 
 .globe-earth.theme-dark {
