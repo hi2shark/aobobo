@@ -366,91 +366,33 @@ onUnmounted(() => {
 
 @media screen and (max-width: 1023px) {
   .current-time-widget {
-    top: 68px;
+    top: 66px;
     left: 14px;
-    width: min(var(--current-time-panel-width, 218px), 218px);
+    width: min(var(--current-time-panel-width, 210px), 210px);
     max-width: calc(100vw - 28px);
-    border-radius: 18px;
+    border-radius: 16px;
   }
 
   .current-time-content {
-    gap: 8px;
-    padding: 10px 12px 11px;
+    gap: 6px;
+    padding: 8px 11px 9px;
   }
 
   .current-time__indicator {
-    width: 14px;
-    height: 14px;
-    border-radius: 7px;
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
   }
 
   .current-time__indicator-core {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   .current-time__header,
   .current-time__main,
   .current-time__meta {
-    gap: 10px;
-  }
-
-  .current-time__clock {
-    font-size: 30px;
-  }
-
-  .current-time__seconds-block {
-    width: 46px;
-    min-width: 46px;
-    padding: 5px;
-    border-radius: 14px;
-  }
-
-  .current-time__seconds-block::after {
-    inset: 3px;
-    border-radius: 11px;
-  }
-
-  .current-time__seconds-value {
-    font-size: 17px;
-  }
-
-  .current-time__second-track {
-    height: 3px;
-  }
-
-  .current-time__meta-value {
-    font-size: 11px;
-  }
-
-  .current-time__eyebrow,
-  .current-time__header-meta,
-  .current-time__seconds-label,
-  .current-time__meta-label {
-    font-size: 9px;
-  }
-}
-
-@media screen and (max-width: 420px) {
-  .current-time-widget {
-    top: 64px;
-    left: 12px;
-    width: min(var(--current-time-panel-width, 198px), 198px);
-    max-width: calc(100vw - 24px);
-    border-radius: 16px;
-  }
-
-  .current-time-content {
-    gap: 7px;
-    padding: 8px 10px 9px;
-  }
-
-  .current-time__header {
     gap: 8px;
-  }
-
-  .current-time__header-meta {
-    display: none;
   }
 
   .current-time__clock {
@@ -460,12 +402,13 @@ onUnmounted(() => {
   .current-time__seconds-block {
     width: 40px;
     min-width: 40px;
-    gap: 2px;
     padding: 4px;
     border-radius: 12px;
+    gap: 2px;
   }
 
   .current-time__seconds-block::after {
+    inset: 3px;
     border-radius: 9px;
   }
 
@@ -473,8 +416,12 @@ onUnmounted(() => {
     font-size: 15px;
   }
 
-  .current-time__meta {
-    gap: 7px;
+  .current-time__second-track {
+    height: 2px;
+  }
+
+  .current-time__meta-item {
+    gap: 2px;
   }
 
   .current-time__meta-value {
@@ -482,9 +429,76 @@ onUnmounted(() => {
   }
 
   .current-time__eyebrow,
+  .current-time__header-meta,
   .current-time__seconds-label,
   .current-time__meta-label {
+    font-size: 8px;
+  }
+}
+
+@media screen and (max-width: 420px) {
+  .current-time-widget {
+    top: 62px;
+    left: 12px;
+    width: min(var(--current-time-panel-width, 186px), 186px);
+    max-width: calc(100vw - 24px);
+    border-radius: 14px;
+  }
+
+  .current-time-content {
+    gap: 5px;
+    padding: 6px 9px 7px;
+  }
+
+  .current-time__header {
+    gap: 6px;
+  }
+
+  .current-time__header-meta {
+    display: none;
+  }
+
+  .current-time__clock {
+    font-size: 22px;
+  }
+
+  .current-time__seconds-block {
+    width: 34px;
+    min-width: 34px;
+    gap: 1px;
+    padding: 3px;
+    border-radius: 10px;
+  }
+
+  .current-time__seconds-block::after {
+    inset: 2px;
+    border-radius: 8px;
+  }
+
+  .current-time__seconds-value {
+    font-size: 13px;
+  }
+
+  .current-time__second-track {
+    height: 2px;
+  }
+
+  .current-time__meta {
+    gap: 5px;
+  }
+
+  .current-time__meta-item {
+    gap: 1px;
+  }
+
+  .current-time__meta-value {
     font-size: 9px;
+  }
+
+  .current-time__eyebrow,
+  .current-time__seconds-label,
+  .current-time__meta-label {
+    font-size: 8px;
   }
 }
 </style>
