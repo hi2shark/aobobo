@@ -177,6 +177,9 @@ export function clusterLocations(locations, thresholdKm = 250) {
       code: a.code,
       codes: [...a.codes, ...b.codes],
       label: [a.label, b.label].filter(Boolean).join(' / '),
+      name: a.name || b.name || '',
+      country: a.country === b.country ? a.country : (a.country || b.country || ''),
+      aliasCode: a.aliasCode || b.aliasCode || '',
       servers: [...a.servers, ...b.servers],
       hasOnline: onlineServers.length > 0,
     };

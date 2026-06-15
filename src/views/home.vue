@@ -34,7 +34,7 @@
     </div>
 
     <div class="globe-section">
-      <current-time />
+      <current-time :panel-width="currentTimePanelWidth" />
       <div v-if="serverList.length === 0" class="empty-state">
         <icon-earth class="empty-icon" />
         <span>暂无服务器数据</span>
@@ -48,7 +48,7 @@
         :cycle-transfer-map="cycleTransferMap"
       />
       <div
-        v-if="isWideScreen"
+        ref="globeStatsFloatingRef"
         class="globe-stats-floating"
       >
         <div class="globe-stats-count">
@@ -221,6 +221,7 @@ import {
   ref,
   computed,
   onActivated,
+  onDeactivated,
   onMounted,
   onUnmounted,
   watch,
@@ -271,12 +272,15 @@ const globeRef = ref(null);
 const globeKey = ref(0);
 const cycleTransferMap = ref({});
 const cycleTransferLoading = ref(false);
+const globeStatsFloatingRef = ref(null);
+const currentTimePanelWidth = ref(undefined);
 const panelRef = ref(null);
 const panelExpanded = ref(false);
 const dragState = ref(null);
 const DRAG_THRESHOLD = 60;
 let serverHoverTimer = null;
 let cycleTransferTimer = null;
+let globeStatsResizeObserver = null;
 
 function updateWideScreen() {
   isWideScreen.value = window.innerWidth >= WIDE_BREAKPOINT;
@@ -358,6 +362,36 @@ function onDragEnd() {
 
 function clearSearchKeyword() {
   searchKeyword.value = '';
+}
+
+function syncCurrentTimePanelWidth() {
+  const width = globeStatsFloatingRef.value?.getBoundingClientRect?.().width || 0;
+  currentTimePanelWidth.value = width > 0 ? Math.round(width) : undefined;
+}
+
+function stopCurrentTimeWidthObserver() {
+  if (globeStatsResizeObserver) {
+    globeStatsResizeObserver.disconnect();
+    globeStatsResizeObserver = null;
+  }
+}
+
+async function setupCurrentTimeWidthSync() {
+  stopCurrentTimeWidthObserver();
+
+  await nextTick();
+
+  if (!globeStatsFloatingRef.value) {
+    currentTimePanelWidth.value = undefined;
+    return;
+  }
+
+  syncCurrentTimePanelWidth();
+
+  if (typeof ResizeObserver !== 'undefined') {
+    globeStatsResizeObserver = new ResizeObserver(() => syncCurrentTimePanelWidth());
+    globeStatsResizeObserver.observe(globeStatsFloatingRef.value);
+  }
 }
 
 const serverList = computed(() => store.state.serverList);
@@ -463,6 +497,9 @@ const serverLocations = computed(() => {
       lng: loc.lng,
       code: loc.code,
       codes: [loc.code],
+      aliasCode: loc.aliasCode || '',
+      name: loc.name || '',
+      country: loc.country || '',
       label: loc.country ? `${loc.name}, ${loc.country}` : loc.name,
       servers: loc.servers,
       hasOnline: onlineServers.length > 0,
@@ -651,9 +688,33 @@ watch(
   },
 );
 
+watch(
+  isWideScreen,
+  () => {
+    setupCurrentTimeWidthSync();
+  },
+);
+
+watch(
+  [resolvedTheme, serverCount, totalStats],
+  async () => {
+    await nextTick();
+    syncCurrentTimePanelWidth();
+  },
+  { deep: true },
+);
+
+function handleWindowResize() {
+  updateWideScreen();
+  if (typeof ResizeObserver === 'undefined') {
+    nextTick(() => syncCurrentTimePanelWidth());
+  }
+}
+
 onMounted(() => {
   updateWideScreen();
-  window.addEventListener('resize', updateWideScreen);
+  window.addEventListener('resize', handleWindowResize);
+  setupCurrentTimeWidthSync();
   tryFocusFromQuery();
   if (store.state.globeFocus) {
     handleGlobeFocus();
@@ -667,16 +728,22 @@ onMounted(() => {
 onActivated(() => {
   globeKey.value += 1;
   nextTick(() => {
+    setupCurrentTimeWidthSync();
     if (store.state.globeFocus) {
       handleGlobeFocus();
     }
   });
 });
 
+onDeactivated(() => {
+  stopCurrentTimeWidthObserver();
+});
+
 onUnmounted(() => {
-  window.removeEventListener('resize', updateWideScreen);
+  window.removeEventListener('resize', handleWindowResize);
   clearServerHoverTimer();
   stopCycleTransferTimer();
+  stopCurrentTimeWidthObserver();
 });
 </script>
 
@@ -1386,6 +1453,28 @@ onUnmounted(() => {
     box-shadow: none;
   }
 
+  .globe-stats-floating {
+    left: 14px;
+    bottom: 42px;
+    gap: 7px;
+    padding: 11px 13px 12px;
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+    font-size: 11px;
+
+    .globe-stats-row {
+      gap: 10px;
+    }
+
+    .stats-value-group {
+      min-width: 56px;
+    }
+
+    .stats-unit {
+      font-size: 10px;
+    }
+  }
+
   .mobile-drawer-backdrop {
     display: block;
     position: fixed;
@@ -1649,6 +1738,20 @@ onUnmounted(() => {
     .section-summary {
       width: 100%;
       justify-content: center;
+    }
+  }
+
+  .globe-stats-floating {
+    left: 12px;
+    bottom: 38px;
+    padding: 10px 12px 11px;
+
+    .globe-stats-row {
+      gap: 8px;
+    }
+
+    .stats-value-group {
+      min-width: 52px;
     }
   }
 }

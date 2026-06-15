@@ -5,6 +5,7 @@
         <h3>{{ location.label }}</h3>
         <div class="popup-stats">
           <span class="stat-chip total">{{ location.totalCount }}台</span>
+          <span v-if="localTime" class="stat-chip stat-chip--time">当地 {{ localTime }}</span>
         </div>
       </div>
       <button type="button" class="close-btn" aria-label="关闭位置弹窗" @click="$emit('close')">
@@ -75,6 +76,10 @@ const props = defineProps({
   location: {
     type: Object,
     required: true,
+  },
+  localTime: {
+    type: String,
+    default: '',
   },
   mobile: {
     type: Boolean,
@@ -268,6 +273,12 @@ function getUptime(server) {
 
   &.offline {
     color: var(--badge-offline-text);
+  }
+
+  &.stat-chip--time {
+    color: var(--accent-primary);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
 }
 

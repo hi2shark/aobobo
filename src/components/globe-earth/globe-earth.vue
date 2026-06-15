@@ -24,6 +24,9 @@
     >
       <div class="tooltip-title">{{ hoveredMarker.label }}</div>
       <div class="tooltip-meta">{{ hoveredMarker.totalCount }} 台服务器</div>
+      <div v-if="hoveredMarkerLocalTime" class="tooltip-time">
+        当地时间 {{ hoveredMarkerLocalTime }}
+      </div>
     </div>
 
     <div
@@ -58,6 +61,7 @@
       >
         <location-popup
           :location="selectedMarker"
+          :local-time="selectedMarkerLocalTime"
           :mobile="isMobile"
           :placement="popupState.placement"
           :cycle-transfer-map="cycleTransferMap"
@@ -102,6 +106,7 @@ import {
   updateRimAtmosphereGroup,
   GLOW_LAYERS_LIGHT,
 } from '@/utils/globe-atmosphere';
+import { formatLocationLocalTime } from '@/utils/location-time';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
@@ -173,6 +178,7 @@ const focusBubbleServerName = ref('');
 const isPopupHovered = ref(false);
 const isUserInteracting = ref(false);
 const isMarkerAnimationSuspended = ref(false);
+const currentLocationTime = ref(Date.now());
 
 const popupState = reactive({
   left: 0,
@@ -207,6 +213,7 @@ let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
 let focusBubbleTimer = null;
+let localTimeInterval = null;
 const GLOBE_TEXTURE_VERSION = 25;
 const BLOOM_CONFIG = {
   strength: 0.28,
@@ -376,6 +383,9 @@ const markerData = computed(() => {
     return {
       key: location.key || location.code || `${location.lat}-${location.lng}-${index}`,
       code: location.code,
+      codes: location.codes || (location.code ? [location.code] : []),
+      aliasCode: location.aliasCode || '',
+      country: location.country || '',
       lat: location.lat,
       lng: location.lng,
       label: location.label,
@@ -448,6 +458,16 @@ const hoveredMarker = computed(() => {
   return markerData.value.find((marker) => marker.key === hoveredMarkerKey.value) || null;
 });
 
+const hoveredMarkerLocalTime = computed(() => formatLocationLocalTime(
+  hoveredMarker.value,
+  currentLocationTime.value,
+));
+
+const selectedMarkerLocalTime = computed(() => formatLocationLocalTime(
+  selectedMarker.value,
+  currentLocationTime.value,
+));
+
 const tooltipInlineStyle = computed(() => ({
   left: `${tooltipState.left}px`,
   top: `${tooltipState.top}px`,
@@ -457,6 +477,23 @@ const focusBubbleInlineStyle = computed(() => ({
   left: `${focusBubbleState.left}px`,
   top: `${focusBubbleState.top}px`,
 }));
+
+function startLocalTimeTicker() {
+  if (localTimeInterval) {
+    window.clearInterval(localTimeInterval);
+  }
+  currentLocationTime.value = Date.now();
+  localTimeInterval = window.setInterval(() => {
+    currentLocationTime.value = Date.now();
+  }, 1000);
+}
+
+function stopLocalTimeTicker() {
+  if (localTimeInterval) {
+    window.clearInterval(localTimeInterval);
+    localTimeInterval = null;
+  }
+}
 
 function configureRenderer() {
   const renderer = globe?.renderer?.();
@@ -1326,6 +1363,7 @@ defineExpose({
 
 onMounted(() => {
   updateViewportMode();
+  startLocalTimeTicker();
   initGlobe();
   window.addEventListener('resize', handleResize);
 
@@ -1337,6 +1375,7 @@ onMounted(() => {
 
 onActivated(() => {
   updateViewportMode();
+  startLocalTimeTicker();
 
   nextTick(() => {
     scheduleHandleResize();
@@ -1354,12 +1393,14 @@ onActivated(() => {
 });
 
 onDeactivated(() => {
+  stopLocalTimeTicker();
   clearInteractionSettleTimer();
   clearFocusBubble();
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  stopLocalTimeTicker();
 
   if (pendingResizeRaf) {
     cancelAnimationFrame(pendingResizeRaf);
@@ -1570,6 +1611,14 @@ onUnmounted(() => {
   .tooltip-meta {
     font-size: 12px;
     color: var(--text-secondary);
+  }
+
+  .tooltip-time {
+    margin-top: 4px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-primary);
   }
 }
 
