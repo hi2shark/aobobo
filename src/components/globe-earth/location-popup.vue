@@ -217,6 +217,7 @@ function getUptime(server) {
     max-height: min(60dvh, 480px);
     border-radius: 24px 24px 0 0;
     padding: 18px 16px 16px;
+    gap: 12px;
   }
 }
 
@@ -249,6 +250,80 @@ function getUptime(server) {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+.location-popup.mobile {
+  .popup-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .title-group {
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+
+    h3 {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 16px;
+      line-height: 1.3;
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
+
+  .popup-stats {
+    flex: 1 1 100%;
+    gap: 5px;
+  }
+
+  .stat-chip {
+    min-height: 22px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .close-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    margin-top: -2px;
+
+    i {
+      font-size: 16px;
+    }
+  }
+
+  .server-list {
+    gap: 5px;
+  }
+
+  :deep(.server-list-item) {
+    padding: 9px 11px;
+    border-radius: 12px;
+  }
+
+  :deep(.server-list-item__name) {
+    font-size: 13px;
+  }
+
+  :deep(.server-list-item__head-spec) {
+    font-size: 10px;
+  }
+
+  :deep(.meta-tag) {
+    min-height: 19px;
+    padding: 0 6px;
+    font-size: 10px;
+    border-radius: 5px;
+  }
+
+  :deep(.server-list-item__tags) {
+    gap: 4px;
+  }
 }
 
 .stat-chip {
@@ -345,6 +420,78 @@ function getUptime(server) {
     width: 100%;
     max-height: min(60vh, 500px);
     max-height: min(60dvh, 500px);
+  }
+
+  .popup-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .title-group {
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+
+    h3 {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 16px;
+      line-height: 1.3;
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
+
+  .popup-stats {
+    flex: 1 1 100%;
+    gap: 5px;
+  }
+
+  .stat-chip {
+    min-height: 22px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .close-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    margin-top: -2px;
+
+    i {
+      font-size: 16px;
+    }
+  }
+
+  .server-list {
+    gap: 5px;
+  }
+
+  :deep(.server-list-item) {
+    padding: 9px 11px;
+    border-radius: 12px;
+  }
+
+  :deep(.server-list-item__name) {
+    font-size: 13px;
+  }
+
+  :deep(.server-list-item__head-spec) {
+    font-size: 10px;
+  }
+
+  :deep(.meta-tag) {
+    min-height: 19px;
+    padding: 0 6px;
+    font-size: 10px;
+    border-radius: 5px;
+  }
+
+  :deep(.server-list-item__tags) {
+    gap: 4px;
   }
 }
 </style>
