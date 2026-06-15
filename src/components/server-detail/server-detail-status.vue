@@ -18,24 +18,26 @@
           class="resource-card"
           :class="'resource-card--' + item.type"
         >
-          <div class="resource-card-head">
-            <div class="resource-icon">
-              <i :class="resourceIcon(item.type)" />
-            </div>
-            <div class="resource-value">
-              <span class="resource-percent">{{ item.valPercent }}</span>
-              <span class="resource-label">{{ item.label }}</span>
-            </div>
+          <div class="resource-icon">
+            <i :class="resourceIcon(item.type)" />
           </div>
-          <div class="resource-capacity">
-            <span class="resource-used">{{ item.valText }}</span>
-            <span class="resource-total">/ {{ item.content?.default }}</span>
-          </div>
-          <div class="resource-progress">
-            <div
-              class="resource-progress-bar"
-              :style="progressStyle(item)"
-            />
+          <div class="resource-body">
+            <div class="resource-main">
+              <div class="resource-value">
+                <span class="resource-percent">{{ item.valPercent }}</span>
+                <span class="resource-label">{{ item.label }}</span>
+              </div>
+              <div class="resource-capacity">
+                <span class="resource-used">{{ item.valText }}</span>
+                <span class="resource-total">/ {{ item.content?.default }}</span>
+              </div>
+            </div>
+            <div class="resource-progress">
+              <div
+                class="resource-progress-bar"
+                :style="progressStyle(item)"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -101,38 +103,43 @@ function progressStyle(item) {
 .server-detail-status {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 16px 18px;
+  gap: 14px;
+  padding: 14px 18px;
 
-  --real-time-value-font-size: 24px;
-  --real-time-text-font-size: 12px;
+  --real-time-value-font-size: 22px;
+  --real-time-text-font-size: 11px;
   --real-time-label-font-size: 11px;
 
   .status-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 
     &:not(:first-child) {
-      padding-top: 14px;
+      padding-top: 12px;
       border-top: 1px solid var(--border-color);
     }
 
   }
 
   .section-title {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: -0.01em;
+    line-height: 1;
     color: var(--text-primary);
 
     i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       color: var(--accent-primary);
-      font-size: 18px;
+      font-size: 16px;
+      line-height: 1;
     }
   }
 }
@@ -158,18 +165,14 @@ function progressStyle(item) {
 @media screen and (max-width: 900px) {
   .resource-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-
-    &.resource-count--3 {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
   }
 }
 
 .resource-card {
   display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 12px 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-md);
   background: var(--panel-metric-bg);
   border: 1px solid var(--panel-stat-border);
@@ -187,31 +190,42 @@ function progressStyle(item) {
   }
 }
 
-.resource-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .resource-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: rgba(var(--accent-primary-rgb), 0.12);
   color: var(--accent-primary);
-  font-size: 17px;
+  font-size: 15px;
+}
+
+.resource-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.resource-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .resource-value {
   display: flex;
-  flex-direction: column;
-  line-height: 1.15;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
 
   .resource-percent {
-    font-size: 19px;
+    font-size: 16px;
     font-weight: 700;
     font-family: var(--font-mono);
     color: var(--text-primary);
@@ -226,9 +240,10 @@ function progressStyle(item) {
 .resource-capacity {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  font-size: 11px;
+  gap: 3px;
+  font-size: 10px;
   color: var(--text-secondary);
+  white-space: nowrap;
 
   .resource-used {
     font-weight: 600;
@@ -241,7 +256,7 @@ function progressStyle(item) {
 }
 
 .resource-progress {
-  height: 5px;
+  height: 4px;
   border-radius: 999px;
   background: var(--progress-track);
   overflow: hidden;
@@ -256,11 +271,31 @@ function progressStyle(item) {
 
 @media screen and (max-width: 768px) {
   .server-detail-status {
-    padding: 12px 14px;
-    --real-time-value-font-size: 20px;
+    padding: 10px 12px;
+    gap: 10px;
+    --real-time-value-font-size: 16px;
+    --real-time-text-font-size: 10px;
+    --real-time-label-font-size: 10px;
+
+    .status-section {
+      gap: 6px;
+
+      &:not(:first-child) {
+        padding-top: 10px;
+      }
+    }
+
+    .section-title {
+      font-size: 13px;
+
+      i {
+        font-size: 15px;
+      }
+    }
   }
 
   .resource-grid {
+    gap: 8px;
     grid-template-columns: 1fr;
 
     &.resource-count--1,
@@ -271,7 +306,37 @@ function progressStyle(item) {
   }
 
   .resource-card {
-    padding: 14px 16px;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .resource-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+
+  .resource-body {
+    gap: 5px;
+  }
+
+  .resource-value {
+    .resource-percent {
+      font-size: 15px;
+    }
+
+    .resource-label {
+      font-size: 10px;
+    }
+  }
+
+  .resource-capacity {
+    font-size: 9px;
+  }
+
+  .resource-progress {
+    height: 3px;
   }
 
   .resource-card:last-child:nth-child(odd) {

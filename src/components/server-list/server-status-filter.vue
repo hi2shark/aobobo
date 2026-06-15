@@ -138,7 +138,13 @@ onUnmounted(() => {
     0 4px 10px rgba(15, 23, 42, 0.03);
 
   i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
     font-size: 14px;
+    line-height: 1;
     color: var(--text-muted);
     transition: transform var(--transition-fast);
   }
@@ -157,6 +163,7 @@ onUnmounted(() => {
 
 .status-filter-label {
   white-space: nowrap;
+  line-height: 1;
 }
 
 .status-filter-dropdown {
@@ -179,7 +186,7 @@ onUnmounted(() => {
 }
 
 .status-filter-option {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 7px;
   min-height: 32px;
@@ -190,6 +197,7 @@ onUnmounted(() => {
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
   text-align: left;
   cursor: pointer;
   transition:

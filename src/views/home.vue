@@ -1258,7 +1258,13 @@ onUnmounted(() => {
     color: var(--panel-search-icon);
 
     i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
       font-size: 16px;
+      line-height: 1;
       flex: 0 0 auto;
     }
 

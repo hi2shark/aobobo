@@ -207,46 +207,46 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .server-detail-cycle-transfer {
-  padding: 14px 18px;
+  padding: 12px 18px;
 
   .module-head-group {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .module-title {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     font-family: var(--font-sans);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--text-primary);
 
     i {
       color: var(--accent-primary);
-      font-size: 18px;
+      font-size: 16px;
     }
   }
 
   .refresh-tip {
     color: var(--text-muted);
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.5;
   }
 
   .cycle-transfer-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .cycle-transfer-item {
-    padding: 12px 14px;
+    padding: 10px 12px;
     border: 1px solid var(--panel-stat-border);
     border-radius: var(--radius-md);
     background: var(--panel-metric-bg);
@@ -280,7 +280,7 @@ onUnmounted(() => {
 
   .cycle-transfer-meta,
   .cycle-transfer-stats {
-    margin-top: 8px;
+    margin-top: 6px;
   }
 
   .rule-title-group {
@@ -293,14 +293,14 @@ onUnmounted(() => {
 
   .rule-name {
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.4;
   }
 
   .rule-status {
-    padding: 2px 8px;
-    font-size: 12px;
-    line-height: 18px;
+    padding: 2px 7px;
+    font-size: 11px;
+    line-height: 16px;
     border-radius: 999px;
     border: 1px solid transparent;
   }
@@ -308,16 +308,16 @@ onUnmounted(() => {
   .meta-item,
   .stats-item {
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.5;
   }
 
   .progress-group {
-    margin-top: 10px;
+    margin-top: 8px;
   }
 
   .progress-track {
-    height: 10px;
+    height: 6px;
     overflow: hidden;
     background: var(--progress-track);
     border-radius: 999px;
@@ -330,9 +330,9 @@ onUnmounted(() => {
   }
 
   .progress-text {
-    margin-top: 6px;
+    margin-top: 4px;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 11px;
     text-align: right;
   }
 
@@ -385,12 +385,12 @@ onUnmounted(() => {
   }
 
   @media screen and (max-width: 768px) {
-  .server-detail-cycle-transfer {
-    padding: 12px 14px;
+    .server-detail-cycle-transfer {
+      padding: 10px 14px;
+    }
   }
-}
 
-.status--neutral {
+  .status--neutral {
     &.rule-status {
       color: var(--text-muted);
       border-color: var(--border-color);

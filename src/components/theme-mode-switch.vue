@@ -135,6 +135,7 @@ function cycleMode() {
   align-items: center;
   justify-content: center;
   padding: 0;
+  line-height: 1;
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
@@ -150,7 +151,13 @@ function cycleMode() {
     transform var(--transition-fast);
 
   i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
     font-size: 14px;
+    line-height: 1;
   }
 
   span {
@@ -170,7 +177,6 @@ function cycleMode() {
     background: var(--button-active-bg);
     border-color: var(--button-active-border);
     box-shadow: var(--button-active-shadow);
-    transform: translateY(-1px);
   }
 
   .theme-mode-switch--compact & {

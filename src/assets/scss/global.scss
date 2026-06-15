@@ -553,6 +553,11 @@ html, body {
   font-variant-numeric: tabular-nums;
 
   i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
     font-size: 13px;
     line-height: 1;
     color: var(--text-muted);
@@ -578,6 +583,11 @@ html, body {
     font-variant-numeric: tabular-nums;
 
     i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
       font-size: 13px;
       line-height: 1;
       color: var(--text-muted);
@@ -618,6 +628,11 @@ html, body {
     font-variant-numeric: tabular-nums;
 
     i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
       font-size: 14px;
       line-height: 1;
     }
@@ -681,6 +696,11 @@ html, body {
     padding-left: 7px;
 
     i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
       font-size: 13px;
       line-height: 1;
     }
@@ -719,6 +739,11 @@ html, body {
     padding-left: 7px;
 
     i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
       font-size: 12px;
       line-height: 1;
     }

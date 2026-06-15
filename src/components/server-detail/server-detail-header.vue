@@ -158,24 +158,24 @@ function viewOnGlobe() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: 12px;
+  padding: 12px 18px;
   transition: 0.3s;
 
   .server-identity {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     min-width: 0;
   }
 
   .server-flag-box {
-    --flag-size: 56px;
+    --flag-size: 48px;
     position: relative;
     flex: 0 0 auto;
     width: calc(var(--flag-size) * 1.33333333);
     height: var(--flag-size);
-    border-radius: 14px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-sm);
@@ -197,7 +197,7 @@ function viewOnGlobe() {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .server-name-row {
@@ -209,7 +209,7 @@ function viewOnGlobe() {
 
   .server-name {
     line-height: 1.2;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text-primary);
@@ -218,21 +218,21 @@ function viewOnGlobe() {
   .server-status-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 26px;
-    padding: 0 10px;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px;
     border-radius: 999px;
     border: 1px solid var(--panel-chip-border);
     background: var(--panel-chip-bg);
-    font-size: 12px;
+    font-size: 11px;
     font-family: var(--font-mono);
     font-weight: 600;
     color: var(--panel-chip-text);
     white-space: nowrap;
 
     .status-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
 
       &.online {
@@ -250,16 +250,17 @@ function viewOnGlobe() {
   .globe-focus-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
-    height: 36px;
-    padding: 0 14px;
+    height: 32px;
+    padding: 0 12px;
     border-radius: 999px;
     border: 1px solid var(--button-subtle-border);
     background: var(--button-subtle-bg);
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
+    line-height: 1;
     cursor: pointer;
     transition:
       color var(--transition-fast),
@@ -277,33 +278,41 @@ function viewOnGlobe() {
     }
 
     i {
-      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    span {
+      line-height: 1;
     }
   }
 
   .slogan-content {
     color: var(--text-secondary);
-    line-height: 1.4;
-    font-size: 13px;
+    line-height: 1.35;
+    font-size: 12px;
   }
 
   .cpu-model-info {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
-    line-height: 1.4;
+    gap: 5px;
+    line-height: 1.35;
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 12px;
 
     .cpu-company {
-      height: 22px;
-      line-height: 22px;
-      padding: 0 6px;
-      border-radius: 5px;
+      height: 20px;
+      line-height: 20px;
+      padding: 0 5px;
+      border-radius: 4px;
       color: #111;
       background: #e0fcff;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
 
       &--intel {
@@ -341,18 +350,23 @@ function viewOnGlobe() {
   .meta-tag {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    height: 24px;
-    padding: 0 8px;
-    border-radius: 6px;
-    font-size: 12px;
+    gap: 3px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 5px;
+    font-size: 11px;
     font-weight: 500;
+    line-height: 1;
     color: var(--text-secondary);
     background: var(--panel-stat-bg);
     border: 1px solid var(--panel-stat-border);
 
     i {
-      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      line-height: 1;
       color: var(--accent-primary);
     }
   }
@@ -362,22 +376,30 @@ function viewOnGlobe() {
   .server-detail-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: 6px;
+    padding: 8px 14px;
+
+    .server-identity {
+      gap: 10px;
+    }
 
     .server-flag-box {
-      --flag-size: 48px;
-      border-radius: 10px;
+      --flag-size: 38px;
+      border-radius: 8px;
+    }
+
+    .server-name-and-meta {
+      gap: 3px;
     }
 
     .server-name {
-      font-size: 17px;
+      font-size: 15px;
     }
 
     .globe-focus-btn {
       width: 100%;
       justify-content: center;
-      height: 34px;
+      height: 28px;
       font-size: 12px;
     }
   }

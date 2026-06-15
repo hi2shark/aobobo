@@ -175,6 +175,10 @@ watch([dataInit, info], () => {
       line-height: 1;
     }
 
+    span {
+      line-height: 1;
+    }
+
     &:hover {
       background: var(--button-active-bg);
       border-color: var(--button-active-border);
@@ -199,7 +203,7 @@ watch([dataInit, info], () => {
 .detail-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: calc(100% - 28px);
   max-width: 1100px;
   margin: 0 auto;
@@ -264,7 +268,7 @@ watch([dataInit, info], () => {
   }
 
   .detail-stack {
-    gap: 8px;
+    gap: 6px;
     width: calc(100% - 24px);
     margin: 0 12px;
     padding-bottom: 24px;

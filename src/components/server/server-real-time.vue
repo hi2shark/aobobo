@@ -85,8 +85,8 @@ const {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
-    padding: 10px 12px;
+    gap: 3px;
+    padding: 8px 10px;
     border-radius: var(--radius-md);
     background: var(--panel-stat-bg);
     border: 1px solid var(--panel-stat-border);
@@ -238,6 +238,25 @@ const {
 @media screen and (max-width: 900px) {
   .server-real-time-group {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .server-real-time-group {
+    gap: 6px;
+
+    --real-time-value-font-size: 16px;
+    --real-time-text-font-size: 10px;
+    --real-time-label-font-size: 10px;
+
+    .server-real-time-item {
+      padding: 6px 8px;
+      gap: 2px;
+    }
+
+    .item-content-sub-group {
+      gap: 2px;
+    }
   }
 }
 </style>

@@ -3,6 +3,8 @@
  * 参考 nazhua-front 实现
  */
 
+import { getCPUInfo } from '@/utils/host';
+
 export const serverSortOptions = () => [
   { label: '排序值', value: 'DisplayIndex' },
   { label: '主机名称', value: 'Name' },
@@ -80,8 +82,18 @@ function getServerSortValue(server, sortby, currentTime) {
     }
     case 'CPU': {
       const cpu = server?.Host?.CPU;
-      if (Array.isArray(cpu) || typeof cpu === 'string') {
-        return cpu.length;
+      if (Array.isArray(cpu)) {
+        const totalCores = cpu.reduce((sum, item) => {
+          const info = getCPUInfo(item);
+          const coreCount = parseInt(info.core, 10);
+          return sum + (Number.isNaN(coreCount) ? 0 : coreCount);
+        }, 0);
+        return totalCores || null;
+      }
+      if (typeof cpu === 'string') {
+        const info = getCPUInfo(cpu);
+        const coreCount = parseInt(info.core, 10);
+        return Number.isNaN(coreCount) ? null : coreCount;
       }
       return getNumberValue(cpu);
     }
