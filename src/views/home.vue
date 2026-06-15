@@ -254,6 +254,7 @@ import { useStore } from 'vuex';
 import { resolveServerLocation, clusterLocations } from '@/utils/world-map';
 import { getSystemOSLabel, calcTransfer, getCPUInfo } from '@/utils/host';
 import { loadCycleTransferMap, getCycleTransferSummaryByServer } from '@/utils/cycle-transfer';
+import billingUtils from '@/utils/billing';
 import {
   formatCurrencyValue,
   getCurrencySymbol,
@@ -564,45 +565,6 @@ function parseTrafficVolumeToBytes(valueStr) {
   return value * (BYTE_UNITS[unit] || 1);
 }
 
-function getCycleMonths(cycle) {
-  if (cycle === null || cycle === undefined || cycle === '') {
-    return 1;
-  }
-  // 兼容以数字表示的周期月数（如 1/3/6/12）
-  if (typeof cycle === 'number' && Number.isFinite(cycle) && cycle > 0) {
-    return cycle;
-  }
-  const cycleStr = String(cycle).trim();
-  const cycleNum = Number(cycleStr);
-  if (String(cycleNum) === cycleStr && Number.isFinite(cycleNum) && cycleNum > 0) {
-    return cycleNum;
-  }
-  switch (cycleStr.toLowerCase()) {
-    case '年':
-    case 'y':
-    case 'yr':
-    case 'year':
-    case 'annual':
-      return 12;
-    case '季':
-    case 'quarterly':
-      return 3;
-    case '半':
-    case '半年':
-    case 'h':
-    case 'half':
-    case 'semi-annually':
-      return 6;
-    case '月':
-    case 'm':
-    case 'mo':
-    case 'month':
-    case 'monthly':
-    default:
-      return 1;
-  }
-}
-
 function formatCost(value, currency = costTargetCurrency.value) {
   if (!Number.isFinite(value)) {
     return { display: '-', value: 0, currency: '' };
@@ -701,6 +663,30 @@ async function refreshCostExchangeRates() {
   }
 }
 
+function getCostCycleMonths(cycle) {
+  if (cycle === null || cycle === undefined || cycle === '') {
+    return 12;
+  }
+  const cycleStr = String(cycle).trim();
+  if (!cycleStr) {
+    return 12;
+  }
+  const oneTimeMarks = [
+    '一次性',
+    '一次性付费',
+    '一次性付款',
+    '一次性购买',
+    '买断',
+    'onetime',
+    'one-time',
+    'one time',
+  ];
+  if (oneTimeMarks.includes(cycleStr.toLowerCase())) {
+    return 12;
+  }
+  return billingUtils.getCycleMonths(cycleStr);
+}
+
 const detailStats = computed(() => {
   let totalCores = 0;
   let totalMem = 0;
@@ -779,7 +765,7 @@ const detailStats = computed(() => {
         const rate = getExchangeRateForCurrency(parsed.currency);
         sourceCurrencies.add(parsed.currency);
         if (rate !== null) {
-          const months = getCycleMonths(billing.cycle);
+          const months = getCostCycleMonths(billing.cycle);
           monthlyCost += (parsed.value * rate) / months;
           convertedCurrencies.add(parsed.currency);
           hasCostData = true;

@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import config from '@/config';
 import validate from '@/utils/validate';
 import * as dateUtils from '@/utils/date';
+import billing from '@/utils/billing';
 
 /**
  * 根据服务器信息计算账单和套餐数据
@@ -28,14 +29,15 @@ export function getBillAndPlanByServer(info) {
     // 套餐资费
     let cycleLabel;
     if (validate.isSet(billingDataMod?.cycle)) {
-      switch (billingDataMod.cycle.toLowerCase()) {
+      const cycleStr = String(billingDataMod.cycle).trim();
+      months = billing.getCycleMonths(cycleStr);
+      switch (cycleStr.toLowerCase()) {
         case '月':
         case 'm':
         case 'mo':
         case 'month':
         case 'monthly':
           cycleLabel = '月';
-          months = 1;
           break;
         case '年':
         case 'y':
@@ -43,12 +45,10 @@ export function getBillAndPlanByServer(info) {
         case 'year':
         case 'annual':
           cycleLabel = '年';
-          months = 12;
           break;
         case '季':
         case 'quarterly':
           cycleLabel = '季';
-          months = 3;
           break;
         case '半':
         case '半年':
@@ -56,10 +56,9 @@ export function getBillAndPlanByServer(info) {
         case 'half':
         case 'semi-annually':
           cycleLabel = '半年';
-          months = 6;
           break;
         default:
-          cycleLabel = billingDataMod.cycle;
+          cycleLabel = cycleStr;
           break;
       }
     }
