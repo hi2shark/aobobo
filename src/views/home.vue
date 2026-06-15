@@ -56,6 +56,15 @@
             <i class="ri-server-line" />
           </span>
           <span class="stats-count-text">共 <strong>{{ serverCount.total }}</strong> 台服务器</span>
+          <button
+            type="button"
+            class="stats-more-btn"
+            aria-label="查看更多统计"
+            title="查看更多统计"
+            @click.stop="openStatsModal"
+          >
+            更多
+          </button>
         </div>
         <div class="globe-stats-row">
           <span class="stats-label">流量</span>
@@ -219,6 +228,12 @@
       </div>
     </div>
 
+    <stats-detail-modal
+      :visible="statsModalVisible"
+      :display="detailStats"
+      @close="closeStatsModal"
+    />
+
     <app-footer class="app-footer--absolute" />
   </div>
 </template>
@@ -237,8 +252,15 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { resolveServerLocation, clusterLocations } from '@/utils/world-map';
-import { getSystemOSLabel, calcTransfer } from '@/utils/host';
-import { loadCycleTransferMap } from '@/utils/cycle-transfer';
+import { getSystemOSLabel, calcTransfer, getCPUInfo } from '@/utils/host';
+import { loadCycleTransferMap, getCycleTransferSummaryByServer } from '@/utils/cycle-transfer';
+import {
+  formatCurrencyValue,
+  getCurrencySymbol,
+  loadExchangeRatesForCurrencies,
+  normalizeCurrencyCode,
+  parseBillingCostAmount,
+} from '@/utils/exchange-rate';
 import config from '@/config';
 import {
   serverSortOptions,
@@ -255,6 +277,7 @@ import AppFooter from '@/components/app-footer.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconInbox from '@/components/icons/icon-inbox.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
+import StatsDetailModal from '@/components/stats-detail-modal.vue';
 
 const SERVER_HOVER_FOCUS_DELAY = 3000;
 const FILTER_OPTIONS = [
@@ -279,6 +302,19 @@ const globeRef = ref(null);
 const globeKey = ref(0);
 const cycleTransferMap = ref({});
 const cycleTransferLoading = ref(false);
+const exchangeRateState = ref({
+  targetCurrency: 'CNY',
+  rates: {},
+  loading: false,
+  missingCurrencies: [],
+  staleCurrencies: [],
+  fetchedCurrencies: [],
+  cachedCurrencies: [],
+  updatedAt: 0,
+  disabled: false,
+  error: '',
+});
+const statsModalVisible = ref(false);
 const globeStatsFloatingRef = ref(null);
 const currentTimePanelWidth = ref(undefined);
 const panelRef = ref(null);
@@ -288,6 +324,7 @@ const DRAG_THRESHOLD = 60;
 let serverHoverTimer = null;
 let cycleTransferTimer = null;
 let globeStatsResizeObserver = null;
+let exchangeRateRequestId = 0;
 
 function updateWideScreen() {
   isWideScreen.value = window.innerWidth >= WIDE_BREAKPOINT;
@@ -371,6 +408,14 @@ function clearSearchKeyword() {
   searchKeyword.value = '';
 }
 
+function openStatsModal() {
+  statsModalVisible.value = true;
+}
+
+function closeStatsModal() {
+  statsModalVisible.value = false;
+}
+
 function syncCurrentTimePanelWidth() {
   const width = globeStatsFloatingRef.value?.getBoundingClientRect?.().width || 0;
   currentTimePanelWidth.value = width > 0 ? Math.round(width) : undefined;
@@ -425,6 +470,383 @@ const totalStats = computed(() => {
     netOutTransfer: calcTransfer(netOutTransfer),
     netInSpeed: calcTransfer(netInSpeed),
     netOutSpeed: calcTransfer(netOutSpeed),
+  };
+});
+
+const costTargetCurrency = computed(() => normalizeCurrencyCode(
+  config.nazhua.statsCostCurrency || 'CNY',
+  'CNY',
+));
+
+function getBillingCostEntries() {
+  const targetCurrency = costTargetCurrency.value;
+  return serverList.value
+    .map((server) => {
+      const billing = server?.PublicNote?.billingDataMod;
+      if (!billing || billing.amount === undefined || billing.amount === null || billing.amount === '') {
+        return null;
+      }
+      return {
+        parsed: parseBillingCostAmount(billing.amount, targetCurrency),
+      };
+    })
+    .filter(Boolean);
+}
+
+function getRequiredCostCurrencies() {
+  const targetCurrency = costTargetCurrency.value;
+  const currencies = new Set();
+  getBillingCostEntries().forEach(({ parsed }) => {
+    if (parsed.type === 'fixed' && parsed.value > 0 && parsed.currency !== targetCurrency) {
+      currencies.add(parsed.currency);
+    }
+  });
+  return [...currencies].sort();
+}
+
+const costExchangeSignature = computed(() => JSON.stringify({
+  targetCurrency: costTargetCurrency.value,
+  currencies: getRequiredCostCurrencies(),
+  enabled: config.nazhua.exchangeRateEnabled !== false,
+  apiBase: config.nazhua.exchangeRateApiBase || '',
+  cacheHours: Number(config.nazhua.exchangeRateCacheHours) || 24,
+}));
+
+const BYTE_UNITS = {
+  '': 1,
+  K: 1024,
+  M: 1024 ** 2,
+  G: 1024 ** 3,
+  T: 1024 ** 4,
+  P: 1024 ** 5,
+  E: 1024 ** 6,
+};
+
+function parseDisplayBytes(display) {
+  if (!display || display === '-') {
+    return null;
+  }
+  const str = String(display).replace(/\s+/g, '').toUpperCase();
+  const match = str.match(/^([0-9.]+)([KMGTPE]?)(I?B?)$/);
+  if (!match) {
+    return null;
+  }
+  const value = parseFloat(match[1]);
+  if (Number.isNaN(value) || value <= 0) {
+    return null;
+  }
+  const unit = match[2];
+  return value * (BYTE_UNITS[unit] || 1);
+}
+
+function parseTrafficVolumeToBytes(valueStr) {
+  if (!valueStr) {
+    return null;
+  }
+  const str = String(valueStr).replace(/\s+/g, '').toUpperCase();
+  if (str.includes('BPS') || str.includes('/S')) {
+    return null;
+  }
+  const match = str.match(/^([0-9.]+)([KMGTPE]?)(I?B?)$/);
+  if (!match) {
+    return null;
+  }
+  const value = parseFloat(match[1]);
+  if (Number.isNaN(value) || value <= 0) {
+    return null;
+  }
+  const unit = match[2];
+  return value * (BYTE_UNITS[unit] || 1);
+}
+
+function getCycleMonths(cycle) {
+  if (cycle === null || cycle === undefined || cycle === '') {
+    return 1;
+  }
+  // 兼容以数字表示的周期月数（如 1/3/6/12）
+  if (typeof cycle === 'number' && Number.isFinite(cycle) && cycle > 0) {
+    return cycle;
+  }
+  const cycleStr = String(cycle).trim();
+  const cycleNum = Number(cycleStr);
+  if (String(cycleNum) === cycleStr && Number.isFinite(cycleNum) && cycleNum > 0) {
+    return cycleNum;
+  }
+  switch (cycleStr.toLowerCase()) {
+    case '年':
+    case 'y':
+    case 'yr':
+    case 'year':
+    case 'annual':
+      return 12;
+    case '季':
+    case 'quarterly':
+      return 3;
+    case '半':
+    case '半年':
+    case 'h':
+    case 'half':
+    case 'semi-annually':
+      return 6;
+    case '月':
+    case 'm':
+    case 'mo':
+    case 'month':
+    case 'monthly':
+    default:
+      return 1;
+  }
+}
+
+function formatCost(value, currency = costTargetCurrency.value) {
+  if (!Number.isFinite(value)) {
+    return { display: '-', value: 0, currency: '' };
+  }
+  const num = Number(value.toFixed(2));
+  return { display: formatCurrencyValue(num, currency), value: num, currency };
+}
+
+function formatExchangeRateTime(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  return `${month}-${day} ${hour}:${minute}`;
+}
+
+function getExchangeRateForCurrency(currency) {
+  const targetCurrency = costTargetCurrency.value;
+  if (currency === targetCurrency) {
+    return 1;
+  }
+  const rate = Number(exchangeRateState.value.rates?.[currency]?.rate);
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
+
+function buildCostRateStatus({
+  hasExternalCurrency,
+  ignoredCount,
+  unconvertedCount,
+}) {
+  const state = exchangeRateState.value;
+  if (state.disabled && hasExternalCurrency) {
+    return '汇率已关闭';
+  }
+  if (state.loading) {
+    return '汇率更新中';
+  }
+  if (unconvertedCount > 0) {
+    return '部分未换算';
+  }
+  if (state.staleCurrencies?.length > 0) {
+    return '使用缓存汇率';
+  }
+  if (hasExternalCurrency) {
+    return state.updatedAt ? '汇率已更新' : '汇率已缓存';
+  }
+  if (ignoredCount > 0) {
+    return '含未计入项';
+  }
+  return '无需汇率';
+}
+
+async function refreshCostExchangeRates() {
+  exchangeRateRequestId += 1;
+  const requestId = exchangeRateRequestId;
+  const targetCurrency = costTargetCurrency.value;
+  const currencies = getRequiredCostCurrencies();
+  const enabled = config.nazhua.exchangeRateEnabled !== false;
+
+  exchangeRateState.value = {
+    ...exchangeRateState.value,
+    targetCurrency,
+    loading: enabled && currencies.length > 0,
+    disabled: !enabled,
+    error: '',
+  };
+
+  try {
+    const result = await loadExchangeRatesForCurrencies(currencies, targetCurrency, {
+      enabled,
+      apiBase: config.nazhua.exchangeRateApiBase,
+      cacheHours: config.nazhua.exchangeRateCacheHours,
+    });
+    if (requestId === exchangeRateRequestId) {
+      exchangeRateState.value = {
+        ...result,
+        loading: false,
+      };
+    }
+  } catch (error) {
+    if (requestId === exchangeRateRequestId) {
+      exchangeRateState.value = {
+        ...exchangeRateState.value,
+        targetCurrency,
+        loading: false,
+        error: error?.message || '汇率更新失败',
+      };
+    }
+  }
+}
+
+const detailStats = computed(() => {
+  let totalCores = 0;
+  let totalMem = 0;
+  let totalDisk = 0;
+  let netInTransfer = 0;
+  let netOutTransfer = 0;
+  let remainingTrafficBytes = 0;
+  let hasRemainingTrafficData = false;
+  let monthlyCost = 0;
+  let hasCostData = false;
+  let freeCostCount = 0;
+  let ignoredCostCount = 0;
+  let invalidCostCount = 0;
+  let unconvertedCostCount = 0;
+  const sourceCurrencies = new Set();
+  const convertedCurrencies = new Set();
+  const cpuBrandCoresMap = {};
+  const targetCurrency = costTargetCurrency.value;
+
+  serverList.value.forEach((server) => {
+    const host = server.Host || {};
+    const state = server.State || {};
+    const publicNote = server.PublicNote || {};
+
+    const cpuText = host.CPU?.[0] || '';
+    const cpuInfo = getCPUInfo(cpuText);
+    const coreMatch = cpuText.match(/(\d+)\s*(Virtual|Physical|Physics)\s*Core/i);
+    const cores = coreMatch ? parseInt(coreMatch[1], 10) || 0 : 0;
+    totalCores += cores;
+    if (cores > 0) {
+      const brand = cpuInfo.company || '其他';
+      cpuBrandCoresMap[brand] = (cpuBrandCoresMap[brand] || 0) + cores;
+    }
+
+    totalMem += host.MemTotal || 0;
+    totalDisk += host.DiskTotal || 0;
+
+    netInTransfer += state.NetInTransfer || 0;
+    netOutTransfer += state.NetOutTransfer || 0;
+
+    const cycleSummary = getCycleTransferSummaryByServer(cycleTransferMap.value, server);
+    if (cycleSummary && cycleSummary.remainingDisplay !== '-') {
+      const bytes = parseDisplayBytes(cycleSummary.remainingDisplay);
+      if (bytes !== null) {
+        remainingTrafficBytes += bytes;
+        hasRemainingTrafficData = true;
+      }
+    } else if (publicNote.planDataMod?.trafficVol) {
+      const { planDataMod } = publicNote;
+      const maxBytes = parseTrafficVolumeToBytes(planDataMod.trafficVol);
+      if (maxBytes) {
+        const { trafficType } = planDataMod;
+        let used = 0;
+        if (trafficType === '1') {
+          used = state.NetOutTransfer || 0;
+        } else if (trafficType === '3') {
+          used = Math.max(state.NetOutTransfer || 0, state.NetInTransfer || 0);
+        } else {
+          used = (state.NetOutTransfer || 0) + (state.NetInTransfer || 0);
+        }
+        remainingTrafficBytes += Math.max(maxBytes - used, 0);
+        hasRemainingTrafficData = true;
+      }
+    }
+
+    const billing = publicNote.billingDataMod;
+    if (billing?.amount !== undefined && billing?.amount !== null && billing?.amount !== '') {
+      const parsed = parseBillingCostAmount(billing.amount, targetCurrency);
+      if (parsed.type === 'free') {
+        freeCostCount += 1;
+        hasCostData = true;
+        sourceCurrencies.add(targetCurrency);
+      } else if (parsed.type === 'metered') {
+        ignoredCostCount += 1;
+      } else if (parsed.type === 'fixed') {
+        const rate = getExchangeRateForCurrency(parsed.currency);
+        sourceCurrencies.add(parsed.currency);
+        if (rate !== null) {
+          const months = getCycleMonths(billing.cycle);
+          monthlyCost += (parsed.value * rate) / months;
+          convertedCurrencies.add(parsed.currency);
+          hasCostData = true;
+        } else {
+          unconvertedCostCount += 1;
+        }
+      } else if (parsed.type === 'invalid') {
+        invalidCostCount += 1;
+      }
+    }
+  });
+
+  const serverIdSet = new Set(serverList.value.map((s) => String(s.ID)));
+  const groupCounts = serverGroups.value.map((group) => {
+    const count = (group.servers || []).filter((id) => serverIdSet.has(String(id))).length;
+    return { name: group.name, count };
+  }).filter((g) => g.count > 0);
+
+  const cpuBrandCores = Object.entries(cpuBrandCoresMap)
+    .map(([brand, cores]) => ({ brand, cores }))
+    .sort((a, b) => b.cores - a.cores);
+  const ignoredCount = ignoredCostCount + invalidCostCount;
+  const hasExternalCurrency = [...sourceCurrencies].some((currency) => currency !== targetCurrency);
+  const exchangeRateStatus = buildCostRateStatus({
+    hasExternalCurrency,
+    ignoredCount,
+    unconvertedCount: unconvertedCostCount,
+  });
+
+  return {
+    totalServers: serverCount.value.total || 0,
+    onlineServers: serverCount.value.online || 0,
+    offlineServers: serverCount.value.offline || 0,
+    groupCounts,
+    totalCores,
+    cpuBrandCores,
+    totalMemory: calcTransfer(totalMem),
+    totalDisk: calcTransfer(totalDisk),
+    netInTransfer: calcTransfer(netInTransfer),
+    netOutTransfer: calcTransfer(netOutTransfer),
+    totalTransfer: calcTransfer(netInTransfer + netOutTransfer),
+    remainingTraffic: {
+      ...calcTransfer(remainingTrafficBytes),
+      hasData: hasRemainingTrafficData,
+    },
+    monthlyCost: formatCost(monthlyCost, targetCurrency),
+    yearlyCost: formatCost(monthlyCost * 12, targetCurrency),
+    hasCostData,
+    costSummary: {
+      targetCurrency,
+      targetSymbol: getCurrencySymbol(targetCurrency),
+      sourceCurrencies: [...sourceCurrencies].sort(),
+      convertedCurrencies: [...convertedCurrencies].sort(),
+      freeCount: freeCostCount,
+      ignoredCount,
+      meteredCount: ignoredCostCount,
+      invalidCount: invalidCostCount,
+      unconvertedCount: unconvertedCostCount,
+      exchangeRate: {
+        enabled: config.nazhua.exchangeRateEnabled !== false,
+        loading: exchangeRateState.value.loading,
+        disabled: exchangeRateState.value.disabled,
+        statusText: exchangeRateStatus,
+        updatedAt: exchangeRateState.value.updatedAt,
+        updatedAtText: formatExchangeRateTime(exchangeRateState.value.updatedAt),
+        missingCurrencies: exchangeRateState.value.missingCurrencies || [],
+        staleCurrencies: exchangeRateState.value.staleCurrencies || [],
+        fetchedCurrencies: exchangeRateState.value.fetchedCurrencies || [],
+        cachedCurrencies: exchangeRateState.value.cachedCurrencies || [],
+        error: exchangeRateState.value.error,
+      },
+    },
   };
 });
 
@@ -693,6 +1115,14 @@ watch(
       startCycleTransferTimer();
     }
   },
+);
+
+watch(
+  costExchangeSignature,
+  () => {
+    refreshCostExchangeRates();
+  },
+  { immediate: true },
 );
 
 watch(
@@ -1011,6 +1441,37 @@ onUnmounted(() => {
     min-width: 0;
     font-weight: 600;
     color: var(--text-secondary);
+  }
+
+  .stats-more-btn {
+    position: relative;
+    z-index: 2;
+    margin-left: auto;
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid var(--button-subtle-border);
+    background: var(--button-subtle-bg);
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast),
+      transform var(--transition-fast);
+
+    &:hover {
+      color: var(--text-on-accent);
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      box-shadow: var(--button-active-shadow);
+      transform: translateY(-1px);
+    }
   }
 
   .globe-stats-row {

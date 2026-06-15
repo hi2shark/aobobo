@@ -11,6 +11,12 @@ window.$$aoboboConfig = {
   // 监控刷新间隔（秒），0 为不刷新
   // monitorRefreshTime: 30,
 
+  // 资源统计弹窗成本换算
+  // statsCostCurrency: 'CNY',
+  // exchangeRateEnabled: true,
+  // exchangeRateApiBase: 'https://api.frankfurter.dev/v2',
+  // exchangeRateCacheHours: 24,
+
   // 是否隐藏详情页周期流量卡片
   // hideDetailCycleTransfer: false,
   // 详情页周期流量刷新间隔（秒）
