@@ -52,40 +52,47 @@
         class="globe-stats-floating"
       >
         <div class="globe-stats-count">
-          共 <strong>{{ serverCount.total }}</strong> 台服务器
+          <span class="stats-count-icon" aria-hidden="true">
+            <i class="ri-server-line" />
+          </span>
+          <span class="stats-count-text">共 <strong>{{ serverCount.total }}</strong> 台服务器</span>
         </div>
         <div class="globe-stats-row">
-          <div class="globe-stats-item globe-stats-item--in">
-            <span class="stats-label">流量</span>
-            <i class="ri-arrow-down-line" />
-            <span class="stats-value-group">
-              <span class="stats-value">{{ totalStats.netInTransfer.value }}</span>
-              <span class="stats-unit">{{ totalStats.netInTransfer.unit }}</span>
-            </span>
-          </div>
-          <div class="globe-stats-item globe-stats-item--out">
-            <i class="ri-arrow-up-line" />
-            <span class="stats-value-group">
-              <span class="stats-value">{{ totalStats.netOutTransfer.value }}</span>
-              <span class="stats-unit">{{ totalStats.netOutTransfer.unit }}</span>
-            </span>
+          <span class="stats-label">流量</span>
+          <div class="stats-pair">
+            <div class="globe-stats-item globe-stats-item--in">
+              <i class="ri-arrow-down-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netInTransfer.value }}</span>
+                <span class="stats-unit">{{ totalStats.netInTransfer.unit }}</span>
+              </span>
+            </div>
+            <div class="globe-stats-item globe-stats-item--out">
+              <i class="ri-arrow-up-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netOutTransfer.value }}</span>
+                <span class="stats-unit">{{ totalStats.netOutTransfer.unit }}</span>
+              </span>
+            </div>
           </div>
         </div>
         <div class="globe-stats-row">
-          <div class="globe-stats-item globe-stats-item--in">
-            <span class="stats-label">网速</span>
-            <i class="ri-arrow-down-line" />
-            <span class="stats-value-group">
-              <span class="stats-value">{{ totalStats.netInSpeed.value }}</span>
-              <span class="stats-unit">{{ totalStats.netInSpeed.unit }}/s</span>
-            </span>
-          </div>
-          <div class="globe-stats-item globe-stats-item--out">
-            <i class="ri-arrow-up-line" />
-            <span class="stats-value-group">
-              <span class="stats-value">{{ totalStats.netOutSpeed.value }}</span>
-              <span class="stats-unit">{{ totalStats.netOutSpeed.unit }}/s</span>
-            </span>
+          <span class="stats-label">网速</span>
+          <div class="stats-pair">
+            <div class="globe-stats-item globe-stats-item--in">
+              <i class="ri-arrow-down-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netInSpeed.value }}</span>
+                <span class="stats-unit">{{ totalStats.netInSpeed.unit }}/s</span>
+              </span>
+            </div>
+            <div class="globe-stats-item globe-stats-item--out">
+              <i class="ri-arrow-up-line" />
+              <span class="stats-value-group">
+                <span class="stats-value">{{ totalStats.netOutSpeed.value }}</span>
+                <span class="stats-unit">{{ totalStats.netOutSpeed.unit }}/s</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -930,23 +937,50 @@ onUnmounted(() => {
   left: 18px;
   bottom: 18px;
   z-index: 10;
+  width: 236px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
+  gap: 9px;
+  padding: 13px 14px;
+  overflow: hidden;
+  border-radius: 22px;
   border: 1px solid var(--border-color);
-  background: var(--panel-floating-bg);
+  background:
+    linear-gradient(145deg, rgba(var(--accent-primary-rgb), 0.08), transparent 42%),
+    var(--panel-floating-bg);
   backdrop-filter: blur(18px) saturate(150%);
-  box-shadow: var(--shadow-md);
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 var(--surface-highlight);
   font-size: 12px;
   color: var(--text-secondary);
   pointer-events: none;
 
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 42%),
+      linear-gradient(90deg, rgba(var(--accent-primary-rgb), 0.09), transparent 60%);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0 18px auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(var(--accent-primary-rgb), 0.42), transparent);
+    pointer-events: none;
+  }
+
   .globe-stats-count {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     white-space: nowrap;
 
     strong {
@@ -956,21 +990,58 @@ onUnmounted(() => {
     }
   }
 
+  .stats-count-icon {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    border: 1px solid rgba(var(--accent-primary-rgb), 0.16);
+    background: rgba(var(--accent-primary-rgb), 0.09);
+    color: var(--accent-primary);
+
+    i {
+      font-size: 12px;
+      line-height: 1;
+    }
+  }
+
+  .stats-count-text {
+    min-width: 0;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
   .globe-stats-row {
-    display: flex;
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
     align-items: center;
-    flex-wrap: nowrap;
-    gap: 12px;
+    gap: 9px;
+    min-height: 20px;
+  }
+
+  .stats-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
   }
 
   .globe-stats-item {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
+    justify-content: flex-end;
     gap: 4px;
+    min-width: 0;
     white-space: nowrap;
 
     i {
       font-size: 12px;
+      line-height: 1;
       color: var(--accent-primary);
     }
 
@@ -993,23 +1064,28 @@ onUnmounted(() => {
     display: inline-flex;
     align-items: baseline;
     justify-content: flex-end;
-    gap: 2px;
-    min-width: 62px;
+    gap: 1px;
+    min-width: 0;
   }
 
   .stats-label {
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-muted);
   }
 
   .stats-value {
     color: var(--text-primary);
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     font-family: var(--font-mono);
+    line-height: 1;
   }
 
   .stats-unit {
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 10.5px;
+    line-height: 1;
   }
 }
 
@@ -1456,22 +1532,62 @@ onUnmounted(() => {
   .globe-stats-floating {
     left: 14px;
     bottom: 42px;
+    width: 218px;
     gap: 7px;
-    padding: 11px 13px 12px;
+    padding: 10px 12px 11px;
     border-radius: 18px;
     box-shadow: var(--shadow-sm);
-    font-size: 11px;
 
-    .globe-stats-row {
-      gap: 10px;
+    .globe-stats-count {
+      gap: 6px;
     }
 
-    .stats-value-group {
-      min-width: 56px;
+    .stats-count-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 7px;
+
+      i {
+        font-size: 11px;
+      }
+    }
+
+    .stats-count-text {
+      font-size: 11px;
+
+      strong {
+        font-size: 13px;
+      }
+    }
+
+    .globe-stats-row {
+      grid-template-columns: 32px minmax(0, 1fr);
+      gap: 8px;
+      min-height: 18px;
+    }
+
+    .stats-pair {
+      gap: 8px;
+    }
+
+    .globe-stats-item {
+      gap: 3px;
+
+      i {
+        font-size: 11px;
+      }
+    }
+
+    .stats-label {
+      font-size: 10px;
+    }
+
+    .stats-value {
+      font-size: 11px;
     }
 
     .stats-unit {
-      font-size: 10px;
+      font-size: 9.5px;
     }
   }
 
@@ -1744,14 +1860,48 @@ onUnmounted(() => {
   .globe-stats-floating {
     left: 12px;
     bottom: 38px;
-    padding: 10px 12px 11px;
+    width: 198px;
+    gap: 6px;
+    padding: 8px 10px 9px;
+    border-radius: 16px;
 
-    .globe-stats-row {
-      gap: 8px;
+    .stats-count-icon {
+      width: 15px;
+      height: 15px;
     }
 
-    .stats-value-group {
-      min-width: 52px;
+    .stats-count-text {
+      font-size: 10px;
+
+      strong {
+        font-size: 12px;
+      }
+    }
+
+    .globe-stats-row {
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: 7px;
+      min-height: 17px;
+    }
+
+    .stats-pair {
+      gap: 6px;
+    }
+
+    .globe-stats-item {
+      gap: 2px;
+    }
+
+    .stats-label {
+      font-size: 9px;
+    }
+
+    .stats-value {
+      font-size: 10px;
+    }
+
+    .stats-unit {
+      font-size: 9px;
     }
   }
 }
