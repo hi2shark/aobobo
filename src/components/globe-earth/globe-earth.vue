@@ -228,6 +228,9 @@ let sceneBackgroundTexture = null;
 let resizeObserver = null;
 let pendingResizeRaf = null;
 let fitAltitude = INITIAL_POINT_OF_VIEW.altitude;
+let visibilityHandler = null;
+let contextLostHandler = null;
+let contextRestoredHandler = null;
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -1189,6 +1192,102 @@ function scheduleHandleResize() {
   });
 }
 
+function handleVisibilityChange() {
+  if (!globe) {
+    return;
+  }
+
+  if (document.hidden) {
+    globe.pauseAnimation?.();
+    return;
+  }
+
+  nextTick(() => {
+    globe.resumeAnimation?.();
+    scheduleHandleResize();
+    applyThemeToGlobe();
+    updateLayers();
+  });
+}
+
+function handleContextLost(event) {
+  event.preventDefault();
+  if (globe) {
+    globe.pauseAnimation?.();
+  }
+}
+
+function handleContextRestored() {
+  if (!globe) {
+    return;
+  }
+
+  // WebGL context 恢复后，旧的 GPU 纹理已失效，需要重新生成
+  Object.keys(globeTextureCache).forEach((key) => {
+    globeTextureCache[key] = null;
+  });
+
+  nextTick(() => {
+    configureRenderer();
+    applyThemeToGlobe();
+    updateLayers();
+    configureBloom();
+    configureSceneAndLights();
+    syncRimAtmosphere(getThemePalette(props.theme));
+    syncSceneBackground();
+    scheduleHandleResize();
+    globe.resumeAnimation?.();
+  });
+}
+
+function attachRendererLifecycleListeners() {
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler);
+  }
+  visibilityHandler = handleVisibilityChange;
+  document.addEventListener('visibilitychange', visibilityHandler);
+
+  const renderer = globe?.renderer?.();
+  const canvas = renderer?.domElement;
+  if (!canvas) {
+    return;
+  }
+
+  if (contextLostHandler) {
+    canvas.removeEventListener('webglcontextlost', contextLostHandler);
+  }
+  if (contextRestoredHandler) {
+    canvas.removeEventListener('webglcontextrestored', contextRestoredHandler);
+  }
+
+  contextLostHandler = handleContextLost;
+  contextRestoredHandler = handleContextRestored;
+  canvas.addEventListener('webglcontextlost', contextLostHandler);
+  canvas.addEventListener('webglcontextrestored', contextRestoredHandler);
+}
+
+function detachRendererLifecycleListeners() {
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
+
+  const renderer = globe?.renderer?.();
+  const canvas = renderer?.domElement;
+  if (!canvas) {
+    return;
+  }
+
+  if (contextLostHandler) {
+    canvas.removeEventListener('webglcontextlost', contextLostHandler);
+    contextLostHandler = null;
+  }
+  if (contextRestoredHandler) {
+    canvas.removeEventListener('webglcontextrestored', contextRestoredHandler);
+    contextRestoredHandler = null;
+  }
+}
+
 function initGlobe() {
   if (!globeContainer.value) {
     return;
@@ -1251,6 +1350,7 @@ function initGlobe() {
     applyThemeToGlobe();
     updateLayers();
     configureControls();
+    attachRendererLifecycleListeners();
 
     isReady.value = true;
   } catch (error) {
@@ -1388,6 +1488,8 @@ onActivated(() => {
     if (clientWidth > 0 && clientHeight > 0 && globe) {
       const currentPov = globe.pointOfView();
       globe.pointOfView(currentPov, 0);
+      applyThemeToGlobe();
+      updateLayers();
     }
   });
 });
@@ -1401,6 +1503,7 @@ onDeactivated(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   stopLocalTimeTicker();
+  detachRendererLifecycleListeners();
 
   if (pendingResizeRaf) {
     cancelAnimationFrame(pendingResizeRaf);
