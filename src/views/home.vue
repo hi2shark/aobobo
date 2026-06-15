@@ -34,6 +34,7 @@
     </div>
 
     <div class="globe-section">
+      <current-time />
       <div v-if="serverList.length === 0" class="empty-state">
         <icon-earth class="empty-icon" />
         <span>暂无服务器数据</span>
@@ -236,6 +237,7 @@ import {
   serverSortHandler,
   defaultServerSortConfig,
 } from '@/composables/server-sort';
+import CurrentTime from '@/components/current-time.vue';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
