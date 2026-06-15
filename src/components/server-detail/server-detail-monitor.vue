@@ -225,8 +225,12 @@ const localData = {
   refreshData: window.localStorage.getItem('aobobo_monitor_refresh_data'),
   chartType: window.localStorage.getItem('aobobo_monitor_chart_type'),
 };
-localData.peakShaving = validate.isSet(localData.peakShaving) ? localData.peakShaving === 'true' : false;
-localData.refreshData = validate.isSet(localData.refreshData) ? localData.refreshData === 'true' : true;
+localData.peakShaving = validate.isSet(localData.peakShaving)
+  ? localData.peakShaving === 'true'
+  : false;
+localData.refreshData = validate.isSet(localData.refreshData)
+  ? localData.refreshData === 'true'
+  : true;
 
 const peakShaving = ref(localData.peakShaving);
 const refreshData = ref(localData.refreshData);
@@ -506,31 +510,51 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .server-detail-monitor {
-  --line-chart-size: 300px;
-  padding: 14px 18px;
+  --line-chart-size: 306px;
+  --monitor-chart-stage-bg:
+    linear-gradient(180deg, var(--panel-metric-bg), rgba(var(--accent-primary-rgb), 0.025)),
+    var(--panel-metric-bg);
+
+  padding: 16px 18px 18px;
 
   &.chart-type--single {
-    --line-chart-size: 240px;
+    --line-chart-size: 236px;
+  }
+
+  :deep(.line-box) {
+    overflow: hidden;
+    padding: 8px 10px 2px;
+    border: 1px solid var(--panel-stat-border);
+    border-radius: var(--radius-md);
+    background: var(--monitor-chart-stage-bg);
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast);
   }
 
   .monitor-cate-item {
-    --cate-item-height: 28px;
-    --cate-item-font-size: 13px;
+    --cate-item-height: 30px;
+    --cate-item-font-size: 12px;
     --cate-color: var(--text-primary);
 
     display: flex;
     align-items: center;
     gap: 6px;
     height: var(--cate-item-height);
-    padding: 0 10px;
+    max-width: 100%;
+    padding: 0 11px;
     font-size: var(--cate-item-font-size);
+    line-height: 1;
     border-radius: 999px;
     cursor: pointer;
     background: var(--panel-chip-bg);
     border: 1px solid var(--panel-chip-border);
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
     transition:
       background var(--transition-fast),
-      border-color var(--transition-fast);
+      border-color var(--transition-fast),
+      opacity var(--transition-fast);
 
     @media screen and (max-width: 768px) {
       cursor: default;
@@ -544,14 +568,20 @@ onUnmounted(() => {
     .cate-legend {
       width: 7px;
       height: 7px;
+      flex: 0 0 auto;
       border-radius: 50%;
       background: var(--cate-color);
+      box-shadow: 0 0 0 3px var(--surface-subtle);
     }
 
     .cate-name {
+      min-width: 0;
       line-height: var(--cate-item-height);
       color: var(--text-primary);
-      font-weight: 500;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .cate-avg-ms {
@@ -559,6 +589,7 @@ onUnmounted(() => {
       color: var(--text-secondary);
       font-family: var(--font-mono);
       font-size: 12px;
+      font-variant-numeric: tabular-nums;
     }
 
     .cate-over-rate {
@@ -566,11 +597,12 @@ onUnmounted(() => {
       color: var(--accent-warning);
       font-family: var(--font-mono);
       font-size: 12px;
+      font-variant-numeric: tabular-nums;
     }
 
     &.disabled {
-      filter: grayscale(1) brightness(0.8);
-      opacity: 0.5;
+      filter: grayscale(0.85);
+      opacity: 0.46;
     }
   }
 }
@@ -581,7 +613,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 
   .module-title {
     display: flex;
@@ -605,44 +637,64 @@ onUnmounted(() => {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 14px;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
   }
 
   .control-switch {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
+    min-height: 30px;
+    padding: 0 9px;
+    border: 1px solid var(--panel-chip-border);
+    border-radius: 999px;
+    background: var(--panel-chip-bg);
+    box-shadow: inset 0 1px 0 var(--surface-highlight);
     cursor: pointer;
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast);
 
     @media screen and (max-width: 1024px) {
       cursor: default;
     }
 
+    &:hover {
+      background: var(--bg-hover);
+      border-color: var(--button-subtle-hover-border);
+    }
+
     .switch-box {
       position: relative;
-      width: 32px;
-      height: 18px;
+      width: 30px;
+      height: 16px;
       background: var(--progress-track);
+      border: 1px solid var(--panel-stat-border);
       border-radius: 999px;
-      transition: background-color 0.3s;
+      transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast);
 
       .switch-dot {
         position: absolute;
-        top: 2px;
+        top: 1px;
         left: 2px;
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
         background: var(--text-on-accent);
         border-radius: 50%;
-        transition: left 0.3s;
+        box-shadow: 0 2px 5px rgba(2, 7, 19, 0.24);
+        transition: left var(--transition-fast);
       }
 
       &.active {
-        background-color: var(--accent-success);
+        background-color: rgba(var(--accent-success-rgb), 0.86);
+        border-color: rgba(var(--accent-success-rgb), 0.26);
 
         .switch-dot {
           left: 16px;
-          box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
         }
       }
     }
@@ -658,7 +710,9 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-height: 30px;
     min-width: 0;
+    padding-left: 4px;
 
     .time-range-label {
       flex: 0 0 auto;
@@ -673,9 +727,11 @@ onUnmounted(() => {
       flex-wrap: nowrap;
       gap: 3px;
       padding: 3px;
-      background: var(--panel-search-bg);
-      border: 1px solid var(--panel-search-border);
+      max-width: min(100%, 520px);
+      background: var(--panel-chip-bg);
+      border: 1px solid var(--panel-chip-border);
       border-radius: 999px;
+      box-shadow: inset 0 1px 0 var(--surface-highlight);
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
@@ -686,10 +742,10 @@ onUnmounted(() => {
 
       .time-range-item {
         flex: 0 0 auto;
-        min-width: 40px;
+        min-width: 42px;
         height: 24px;
         line-height: 24px;
-        padding: 0 6px;
+        padding: 0 8px;
         font-size: 11px;
         font-weight: 600;
         text-align: center;
@@ -714,7 +770,7 @@ onUnmounted(() => {
           color: var(--text-on-accent);
           background: var(--button-active-bg);
           border-color: var(--button-active-border);
-          box-shadow: var(--button-active-shadow);
+          box-shadow: 0 8px 18px rgba(var(--accent-primary-rgb), 0.18);
         }
       }
     }
@@ -722,20 +778,20 @@ onUnmounted(() => {
 }
 
 .monitor-cate-group {
-  margin: 10px 0 14px;
+  margin: 8px 0 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
 }
 
 .monitor-chart-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 0;
+  gap: 12px;
 
   .monitor-chart-item {
-    width: 50%;
-    height: calc(var(--line-chart-size) + 28px);
+    width: calc((100% - 12px) / 2);
+    min-width: 0;
   }
 
   @media screen and (max-width: 768px) {
@@ -748,6 +804,8 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 0;
+    margin-bottom: 8px;
   }
 
   &.monitor-chart-len--1 {
@@ -759,14 +817,39 @@ onUnmounted(() => {
 
 @media screen and (max-width: 768px) {
   .server-detail-monitor {
+    --line-chart-size: 260px;
     padding: 12px 14px;
+
+    &.chart-type--single {
+      --line-chart-size: 230px;
+    }
+
+    :deep(.line-box) {
+      padding: 6px 6px 0;
+      border-radius: 12px;
+    }
   }
 
   .module-head-group {
     .right-box {
       width: 100%;
       justify-content: flex-start;
+      gap: 7px;
     }
+  }
+
+  .module-head-group .control-switch {
+    min-height: 28px;
+    padding: 0 8px;
+  }
+
+  .module-head-group .time-range-group {
+    width: 100%;
+    padding-left: 0;
+  }
+
+  .module-head-group .time-range-group .time-range-options {
+    flex: 1;
   }
 
   .time-range-group .time-range-options .time-range-item {

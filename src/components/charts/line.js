@@ -16,6 +16,33 @@ use([
   DataZoomComponent,
 ]);
 
+function alphaColor(color, alpha, fallback) {
+  if (!color) return fallback;
+  const normalizedAlpha = Math.max(0, Math.min(alpha, 1));
+  const hexMatch = color.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+
+  if (hexMatch) {
+    let hex = hexMatch[1];
+    if (hex.length === 3) {
+      hex = hex.split('').map((s) => s + s).join('');
+    }
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${normalizedAlpha})`;
+  }
+
+  const rgbMatch = color.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const channels = rgbMatch[1].split(',').slice(0, 3).map((s) => s.trim());
+    if (channels.length === 3) {
+      return `rgba(${channels.join(', ')}, ${normalizedAlpha})`;
+    }
+  }
+
+  return fallback;
+}
+
 export default (options) => {
   const {
     dateList,
@@ -32,48 +59,57 @@ export default (options) => {
     textMuted = isDark ? '#6f7c92' : '#8290a5',
     borderColor = isDark ? 'rgba(146,169,204,0.18)' : 'rgba(154,169,191,0.28)',
     accentPrimary = isDark ? '#4e90ff' : '#4383ff',
+    panelBg = isDark ? 'rgba(255,255,255,0.028)' : 'rgba(245,249,255,0.92)',
+    surfaceSubtle = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(154,169,191,0.08)',
+    progressTrack = isDark ? 'rgba(154,170,190,0.16)' : 'rgba(161,177,202,0.18)',
   } = themeColors;
 
   const tooltipBg = isDark
-    ? 'rgba(11, 19, 31, 0.92)'
-    : 'rgba(255, 255, 255, 0.96)';
+    ? 'rgba(8, 15, 24, 0.92)'
+    : 'rgba(255, 255, 255, 0.94)';
   const tooltipBorder = isDark
-    ? 'rgba(146, 169, 204, 0.2)'
-    : 'rgba(161, 177, 202, 0.35)';
+    ? 'rgba(128, 148, 168, 0.2)'
+    : 'rgba(161, 177, 202, 0.26)';
   const tooltipText = textPrimary;
   const tooltipTime = accentPrimary;
   const gridLine = isDark
-    ? 'rgba(255, 255, 255, 0.08)'
-    : 'rgba(0, 0, 0, 0.06)';
-  const dataZoomBg = isDark
-    ? 'rgba(255, 255, 255, 0.05)'
-    : 'rgba(142, 161, 190, 0.12)';
-  const dataZoomFiller = isDark
-    ? 'rgba(255, 255, 255, 0.12)'
-    : 'rgba(67, 131, 255, 0.18)';
-  const dataZoomHandle = isDark
-    ? 'rgba(255, 255, 255, 0.35)'
-    : 'rgba(67, 131, 255, 0.6)';
+    ? 'rgba(255, 255, 255, 0.055)'
+    : 'rgba(67, 88, 120, 0.085)';
+  const axisLine = isDark
+    ? 'rgba(146, 169, 204, 0.12)'
+    : 'rgba(154, 169, 191, 0.2)';
+  const dataZoomBg = progressTrack;
+  const dataZoomFiller = alphaColor(accentPrimary, isDark ? 0.16 : 0.13, surfaceSubtle);
+  const dataZoomHandle = alphaColor(accentPrimary, isDark ? 0.78 : 0.64, accentPrimary);
+  const dataShadow = alphaColor(accentPrimary, isDark ? 0.18 : 0.14, surfaceSubtle);
+  const tooltipShadow = isDark
+    ? '0 22px 48px rgba(2, 7, 19, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.04)'
+    : '0 24px 48px rgba(160, 177, 203, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78)';
 
   const option = {
     darkMode: isDark,
     backgroundColor: 'transparent',
+    animationDuration: 360,
+    animationEasing: 'cubicOut',
     tooltip: {
       trigger: 'axis',
       axisPointer: {
         type: 'line',
         lineStyle: {
-          color: accentPrimary,
+          color: alphaColor(accentPrimary, isDark ? 0.82 : 0.74, accentPrimary),
           type: 'dashed',
           width: 1,
         },
       },
       formatter: (params) => {
         const time = dayjs(parseInt(params[0].axisValue, 10)).format('YYYY.MM.DD HH:mm');
-        const itemStyle = 'display:flex;align-items:center;gap:6px;margin:3px 0;';
-        const labelStyle = `color:${textSecondary};`;
+        const itemStyle = 'display:flex;align-items:center;gap:7px;margin:4px 0;line-height:1.35;';
+        const labelStyle = `color:${textSecondary};max-width:180px;`
+          + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
         const valueStyle = `font-weight:600;color:${textPrimary};`;
-        let res = `<p style='margin:0 0 6px;font-weight:700;color:${tooltipTime};'>${time}</p>`;
+        const timeStyle = 'margin:0 0 8px;font-family:var(--font-mono);'
+          + `font-size:12px;font-weight:700;color:${tooltipTime};`;
+        let res = `<p style='${timeStyle}'>${time}</p>`;
         if (params.length < 10) {
           params.forEach((i) => {
             res += i.value[1]
@@ -109,8 +145,8 @@ export default (options) => {
       backgroundColor: tooltipBg,
       borderColor: tooltipBorder,
       borderWidth: 1,
-      padding: [10, 14],
-      borderRadius: 10,
+      padding: [11, 13],
+      borderRadius: 12,
       textStyle: {
         color: tooltipText,
         fontSize: 13,
@@ -118,14 +154,14 @@ export default (options) => {
       extraCssText: `
         backdrop-filter: blur(12px) saturate(160%);
         -webkit-backdrop-filter: blur(12px) saturate(160%);
-        box-shadow: 0 18px 38px rgba(2, 6, 23, 0.28);
+        box-shadow: ${tooltipShadow};
       `,
     },
     grid: {
-      top: 10,
-      left: 5,
-      right: 5,
-      bottom: 50,
+      top: 12,
+      left: 6,
+      right: 10,
+      bottom: 52,
       containLabel: true,
     },
     dataZoom: [{
@@ -133,38 +169,44 @@ export default (options) => {
       type: 'slider',
       xAxisIndex: [0],
       filterMode: 'filter',
-      height: 18,
-      bottom: 10,
-      borderColor: 'transparent',
+      height: 16,
+      bottom: 12,
+      borderColor,
+      borderRadius: 8,
       backgroundColor: dataZoomBg,
       fillerColor: dataZoomFiller,
+      showDetail: false,
+      brushSelect: false,
+      showDataShadow: true,
+      handleSize: '70%',
       handleStyle: {
         color: dataZoomHandle,
         borderColor: dataZoomHandle,
         borderWidth: 1,
-        shadowBlur: 4,
-        shadowColor: 'rgba(0, 0, 0, 0.2)',
+        shadowBlur: 8,
+        shadowColor: alphaColor(accentPrimary, isDark ? 0.24 : 0.16, 'rgba(0, 0, 0, 0.16)'),
       },
       moveHandleStyle: {
         color: dataZoomHandle,
       },
       selectedDataBackground: {
         lineStyle: {
-          color: accentPrimary,
+          color: dataShadow,
+          width: 1,
         },
         areaStyle: {
-          color: accentPrimary,
-          opacity: 0.2,
+          color: dataShadow,
+          opacity: 0.16,
         },
       },
       dataBackground: {
         lineStyle: {
           color: textMuted,
-          opacity: 0.5,
+          opacity: 0.28,
         },
         areaStyle: {
-          color: textMuted,
-          opacity: 0.1,
+          color: surfaceSubtle,
+          opacity: 0.22,
         },
       },
       emphasis: {
@@ -178,6 +220,7 @@ export default (options) => {
       splitLine: {
         lineStyle: {
           color: gridLine,
+          type: 'dashed',
         },
       },
       axisLine: {
@@ -189,6 +232,7 @@ export default (options) => {
       axisLabel: {
         color: textSecondary,
         fontSize: 11,
+        fontFamily: 'var(--font-mono)',
       },
     },
     xAxis: {
@@ -196,7 +240,7 @@ export default (options) => {
       data: dateList,
       axisLine: {
         lineStyle: {
-          color: borderColor,
+          color: axisLine,
         },
       },
       axisTick: {
@@ -208,6 +252,7 @@ export default (options) => {
           fontSize: 11,
         },
         color: textSecondary,
+        fontFamily: 'var(--font-mono)',
       },
       splitLine: {
         show: false,
@@ -220,13 +265,26 @@ export default (options) => {
       connectNulls,
       legendHoverLink: false,
       symbol: 'none',
+      sampling: 'lttb',
       lineStyle: {
-        width: 2,
+        width: 1.8,
+        shadowBlur: 4,
+        shadowColor: alphaColor(i.itemStyle?.color || i.lineStyle?.color, 0.12, 'transparent'),
         ...(i.lineStyle || {}),
       },
       areaStyle: {
-        opacity: 0.12,
-        color: i.itemStyle?.color || i.lineStyle?.color || accentPrimary,
+        opacity: 1,
+        color: alphaColor(
+          i.itemStyle?.color || i.lineStyle?.color || accentPrimary,
+          isDark ? 0.1 : 0.08,
+          panelBg,
+        ),
+      },
+      emphasis: {
+        focus: 'series',
+        lineStyle: {
+          width: 2.4,
+        },
       },
     })),
   };

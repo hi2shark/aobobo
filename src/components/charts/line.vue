@@ -61,9 +61,23 @@ const themeColors = computed(() => {
     textPrimary: getCssVar('--text-primary', isDark ? '#f4f8ff' : '#1c2840'),
     textSecondary: getCssVar('--text-secondary', isDark ? '#a2b0c5' : '#5a6b84'),
     textMuted: getCssVar('--text-muted', isDark ? '#6f7c92' : '#8290a5'),
-    borderColor: getCssVar('--border-color', isDark ? 'rgba(146,169,204,0.18)' : 'rgba(154,169,191,0.28)'),
+    borderColor: getCssVar(
+      '--border-color',
+      isDark ? 'rgba(146,169,204,0.18)' : 'rgba(154,169,191,0.28)',
+    ),
     accentPrimary: getCssVar('--accent-primary', isDark ? '#4e90ff' : '#4383ff'),
-    panelBg: getCssVar('--panel-metric-bg', isDark ? 'rgba(255,255,255,0.028)' : 'rgba(245,249,255,0.92)'),
+    panelBg: getCssVar(
+      '--panel-metric-bg',
+      isDark ? 'rgba(255,255,255,0.028)' : 'rgba(245,249,255,0.92)',
+    ),
+    surfaceSubtle: getCssVar(
+      '--surface-subtle',
+      isDark ? 'rgba(255,255,255,0.03)' : 'rgba(154,169,191,0.08)',
+    ),
+    progressTrack: getCssVar(
+      '--progress-track',
+      isDark ? 'rgba(154,170,190,0.16)' : 'rgba(161,177,202,0.18)',
+    ),
   };
 });
 
@@ -106,5 +120,11 @@ onUnmounted(() => {
 .line-box {
   width: 100%;
   height: var(--line-chart-size, 300px);
+  min-height: 220px;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
 }
 </style>
