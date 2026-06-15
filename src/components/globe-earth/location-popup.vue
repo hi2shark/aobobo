@@ -233,8 +233,9 @@ function getUptime(server) {
 .title-group {
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 
   h3 {
     flex: 0 0 auto;
@@ -262,11 +263,11 @@ function getUptime(server) {
     flex: 1 1 auto;
     min-width: 0;
     align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 6px 8px;
+    flex-direction: column;
+    gap: 6px;
 
     h3 {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       min-width: 0;
       font-size: 16px;
       line-height: 1.3;
@@ -276,14 +277,13 @@ function getUptime(server) {
   }
 
   .popup-stats {
-    flex: 1 1 100%;
     gap: 5px;
   }
 
   .stat-chip {
-    min-height: 22px;
-    padding: 0 8px;
-    font-size: 11px;
+    min-height: 20px;
+    padding: 0 7px;
+    font-size: 10px;
   }
 
   .close-btn {
@@ -329,12 +329,12 @@ function getUptime(server) {
 .stat-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 26px;
-  padding: 0 10px;
+  min-height: 22px;
+  padding: 0 8px;
   border-radius: 999px;
   border: 1px solid var(--globe-popup-chip-border);
   background: var(--globe-popup-chip-bg);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--globe-popup-muted);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
@@ -431,11 +431,11 @@ function getUptime(server) {
     flex: 1 1 auto;
     min-width: 0;
     align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 6px 8px;
+    flex-direction: column;
+    gap: 6px;
 
     h3 {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       min-width: 0;
       font-size: 16px;
       line-height: 1.3;
@@ -445,14 +445,13 @@ function getUptime(server) {
   }
 
   .popup-stats {
-    flex: 1 1 100%;
     gap: 5px;
   }
 
   .stat-chip {
-    min-height: 22px;
-    padding: 0 8px;
-    font-size: 11px;
+    min-height: 20px;
+    padding: 0 7px;
+    font-size: 10px;
   }
 
   .close-btn {
