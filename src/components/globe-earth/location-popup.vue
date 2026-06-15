@@ -5,8 +5,6 @@
         <h3>{{ location.label }}</h3>
         <div class="popup-stats">
           <span class="stat-chip total">{{ location.totalCount }}台</span>
-          <span v-if="location.offlineCount > 0" class="stat-chip online">在线 {{ location.onlineCount }}</span>
-          <span v-if="location.offlineCount > 0" class="stat-chip offline">离线 {{ location.offlineCount }}</span>
         </div>
       </div>
       <button type="button" class="close-btn" aria-label="关闭位置弹窗" @click="$emit('close')">
@@ -67,10 +65,13 @@ import {
   getCPUInfo,
   getPlatformLogoIconClassName,
 } from '@/utils/host';
+import {
+  getCycleTransferSummaryByServer,
+} from '@/utils/cycle-transfer';
 
 defineEmits(['close']);
 
-defineProps({
+const props = defineProps({
   location: {
     type: Object,
     required: true,
@@ -82,6 +83,10 @@ defineProps({
   placement: {
     type: String,
     default: 'top',
+  },
+  cycleTransferMap: {
+    type: Object,
+    default: () => ({}),
   },
 });
 
@@ -108,7 +113,16 @@ function formatTransferValue(value) {
   return `${t.value}${t.unit}`;
 }
 
+function getCycleTransferSummary(server) {
+  return getCycleTransferSummaryByServer(props.cycleTransferMap, server);
+}
+
 function getTraffic(server) {
+  const summary = getCycleTransferSummary(server);
+  if (summary) {
+    return `剩余 ${summary.remainingDisplay}`;
+  }
+
   const trafficType = server?.PublicNote?.planDataMod?.trafficType;
   const netIn = server.State?.NetInTransfer || 0;
   const netOut = server.State?.NetOutTransfer || 0;

@@ -180,12 +180,6 @@ function getCycleTransferSummary(server) {
   return getCycleTransferSummaryByServer(props.cycleTransferMap, server);
 }
 
-function hasTrafficWarning(server) {
-  const summary = getCycleTransferSummary(server);
-  if (!summary) return false;
-  return ['warning', 'alert', 'over'].includes(summary.statusLevel);
-}
-
 function formatTransferValue(value) {
   if (!value) return '0';
   const t = calcTransfer(value);
@@ -194,7 +188,7 @@ function formatTransferValue(value) {
 
 function getTraffic(server) {
   const summary = getCycleTransferSummary(server);
-  if (summary && hasTrafficWarning(server)) {
+  if (summary) {
     return `剩余 ${summary.remainingDisplay}`;
   }
 
@@ -212,9 +206,6 @@ function getTraffic(server) {
     case 2:
       return `双向 ${formatTransferValue(netIn + netOut)}`;
     default:
-      if (summary && summary.maxDisplay && summary.maxDisplay !== '-') {
-        return `双向 ${formatTransferValue(netIn + netOut)}`;
-      }
       return '不限制';
   }
 }

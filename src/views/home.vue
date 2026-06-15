@@ -44,6 +44,7 @@
         ref="globeRef"
         :locations="serverLocations"
         :theme="resolvedTheme"
+        :cycle-transfer-map="cycleTransferMap"
       />
       <div
         v-if="isWideScreen"

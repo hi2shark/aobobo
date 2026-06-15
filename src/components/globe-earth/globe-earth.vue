@@ -60,6 +60,7 @@
           :location="selectedMarker"
           :mobile="isMobile"
           :placement="popupState.placement"
+          :cycle-transfer-map="cycleTransferMap"
           @close="clearSelection"
         />
       </div>
@@ -148,6 +149,10 @@ const props = defineProps({
   theme: {
     type: String,
     default: 'dark',
+  },
+  cycleTransferMap: {
+    type: Object,
+    default: () => ({}),
   },
 });
 
