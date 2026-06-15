@@ -29,6 +29,7 @@ const config = reactive({
     monitorChartType: 'multi',
     monitorChartTypeToggle: true,
     statsCostCurrency: 'CNY',
+    defaultCostCurrency: 'CNY',
     exchangeRateEnabled: true,
     exchangeRateApiBase: 'https://api.frankfurter.dev/v2',
     exchangeRateCacheHours: 24,

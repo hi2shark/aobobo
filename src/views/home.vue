@@ -478,8 +478,13 @@ const costTargetCurrency = computed(() => normalizeCurrencyCode(
   'CNY',
 ));
 
+const costDefaultCurrency = computed(() => normalizeCurrencyCode(
+  config.nazhua.defaultCostCurrency || 'CNY',
+  'CNY',
+));
+
 function getBillingCostEntries() {
-  const targetCurrency = costTargetCurrency.value;
+  const defaultCurrency = costDefaultCurrency.value;
   return serverList.value
     .map((server) => {
       const billing = server?.PublicNote?.billingDataMod;
@@ -487,7 +492,7 @@ function getBillingCostEntries() {
         return null;
       }
       return {
-        parsed: parseBillingCostAmount(billing.amount, targetCurrency),
+        parsed: parseBillingCostAmount(billing.amount, defaultCurrency),
       };
     })
     .filter(Boolean);
@@ -763,7 +768,7 @@ const detailStats = computed(() => {
 
     const billing = publicNote.billingDataMod;
     if (billing?.amount !== undefined && billing?.amount !== null && billing?.amount !== '') {
-      const parsed = parseBillingCostAmount(billing.amount, targetCurrency);
+      const parsed = parseBillingCostAmount(billing.amount, costDefaultCurrency.value);
       if (parsed.type === 'free') {
         freeCostCount += 1;
         hasCostData = true;

@@ -12,7 +12,9 @@ window.$$aoboboConfig = {
   // monitorRefreshTime: 30,
 
   // 资源统计弹窗成本换算
-  // statsCostCurrency: 'CNY',
+  // statsCostCurrency: 'USD',
+  // 当服务器价格未标注币种时使用的默认币种（如纯数字 "99" 会被视为 CNY）
+  // defaultCostCurrency: 'CNY',
   // exchangeRateEnabled: true,
   // exchangeRateApiBase: 'https://api.frankfurter.dev/v2',
   // exchangeRateCacheHours: 24,
