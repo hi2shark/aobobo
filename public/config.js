@@ -42,4 +42,8 @@ window.$$aoboboConfig = {
   // v1GroupPath: '/api/v1/server-group',
   // v1ApiSettingPath: '/api/v1/setting',
   // v1ApiProfilePath: '/api/v1/profile',
+
+  // v1 版本控制台地址与登录入口
+  // v1DashboardUrl: '/dashboard', // v1 版本管理后台地址
+  // v1HideNezhaDashboardBtn: false, // 是否隐藏顶部管理后台/登录入口
 };

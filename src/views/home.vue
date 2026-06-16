@@ -29,6 +29,7 @@
       </div>
 
       <div class="status-actions">
+        <v1-dashboard-btn />
         <theme-mode-switch />
       </div>
     </div>
@@ -282,6 +283,7 @@ import ServerTable from '@/components/server-panel/server-table.vue';
 import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
 import ServerStatusFilter from '@/components/server-list/server-status-filter.vue';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
+import V1DashboardBtn from '@/components/v1-dashboard-btn.vue';
 import AppFooter from '@/components/app-footer.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconInbox from '@/components/icons/icon-inbox.vue';

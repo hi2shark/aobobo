@@ -18,6 +18,7 @@
           </h1>
         </div>
         <div class="status-actions">
+          <v1-dashboard-btn />
           <theme-mode-switch />
         </div>
       </div>
@@ -44,6 +45,7 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
+import V1DashboardBtn from '@/components/v1-dashboard-btn.vue';
 import AppFooter from '@/components/app-footer.vue';
 import ServerDetailHeader from '@/components/server-detail/server-detail-header.vue';
 import ServerDetailStatus from '@/components/server-detail/server-detail-status.vue';

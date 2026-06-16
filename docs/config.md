@@ -61,6 +61,13 @@ AoBoBo 通过 `config.js` 注入运行时常量，部署时只需替换该文件
 | `v1ApiSettingPath` | `string` | `'/api/v1/setting'` | v1 站点设置接口路径。 |
 | `v1ApiProfilePath` | `string` | `'/api/v1/profile'` | v1 用户资料接口路径，用于判断是否为 v1 环境。 |
 
+## v1 登录/管理后台入口
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `v1DashboardUrl` | `string` | `'/dashboard'` | v1 版本管理后台地址，顶部登录入口跳转目标。 |
+| `v1HideNezhaDashboardBtn` | `boolean` | `false` | 是否隐藏顶部的管理后台/登录入口。仅在 `nezhaVersion` 为 `v1` 时生效。 |
+
 ---
 
 ## 完整示例
@@ -99,6 +106,9 @@ window.$$aoboboConfig = {
   v1GroupPath: '/api/v1/server-group',
   v1ApiSettingPath: '/api/v1/setting',
   v1ApiProfilePath: '/api/v1/profile',
+
+  v1DashboardUrl: '/dashboard',
+  v1HideNezhaDashboardBtn: false,
 };
 ```
 

@@ -23,6 +23,8 @@ const config = reactive({
     v1GroupPath: '/api/v1/server-group',
     v1ApiSettingPath: '/api/v1/setting',
     v1ApiProfilePath: '/api/v1/profile',
+    v1DashboardUrl: '/dashboard',
+    v1HideNezhaDashboardBtn: false,
     detailCycleTransferRefreshTime: 60,
     hideDetailCycleTransfer: false,
     monitorRefreshTime: 30,
