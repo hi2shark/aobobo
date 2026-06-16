@@ -11,11 +11,6 @@
       :class="{ active: open }"
       @click="toggleOpen"
     >
-      <span
-        v-if="selectedOption?.dot"
-        class="status-dot"
-        :class="selectedOption.dot"
-      />
       <span class="status-filter-label">{{ selectedLabel }}</span>
       <i class="ri-arrow-down-s-line" />
     </button>
@@ -30,11 +25,6 @@
         :class="['status-filter-option', { active: modelValue === option.value }]"
         @click="selectOption(option)"
       >
-        <span
-          v-if="option.dot"
-          class="status-dot"
-          :class="option.dot"
-        />
         <span>{{ option.label }}</span>
       </button>
     </div>
@@ -118,7 +108,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 34px;
+  min-height: 38px;
   padding: 0 8px 0 11px;
   border-radius: 999px;
   border: 1px solid var(--button-subtle-border);
@@ -216,27 +206,6 @@ onUnmounted(() => {
     background: var(--button-active-bg);
     border-color: var(--button-active-border);
     color: var(--text-on-accent);
-
-    .status-dot {
-      box-shadow: none;
-    }
-  }
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex: 0 0 auto;
-
-  &.online {
-    background: var(--accent-success);
-    box-shadow: var(--status-online-glow);
-  }
-
-  &.offline {
-    background: var(--accent-danger);
-    box-shadow: var(--status-offline-glow);
   }
 }
 </style>

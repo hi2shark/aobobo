@@ -396,9 +396,13 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
-  padding: 2px 8px 2px 0;
+  padding: 2px 8px 8px 0;
   margin-right: -8px;
   scrollbar-gutter: stable;
+
+  > * {
+    flex-shrink: 0;
+  }
 }
 
 .overview-band,
@@ -568,6 +572,7 @@ onUnmounted(() => {
 .metric-value-row {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 5px;
   line-height: 1;
 
@@ -815,15 +820,17 @@ onUnmounted(() => {
 
   .stats-modal-card {
     width: 100%;
-    max-height: min(86vh, 720px);
-    max-height: min(86dvh, 720px);
+    max-height: min(760px, calc(100vh - 24px));
+    max-height: min(760px, calc(100dvh - 24px));
     border-radius: 24px 24px 20px 20px;
-    padding: 16px;
+    padding: 14px;
+    gap: 10px;
   }
 
   .stats-modal-body {
-    padding: 0 6px 0 0;
-    margin-right: -6px;
+    gap: 10px;
+    padding: 2px 8px 8px 0;
+    margin-right: -8px;
   }
 
   .stats-modal-header h3 {
@@ -840,29 +847,64 @@ onUnmounted(() => {
   .overview-band {
     align-items: flex-start;
     gap: 10px;
+    min-height: 68px;
+    padding: 12px;
   }
 
   .overview-main {
     min-width: 0;
+
+    strong {
+      word-break: break-all;
+    }
+  }
+
+  .dashboard-section {
+    gap: 10px;
+    padding: 12px;
   }
 
   .metric-cell {
     grid-column: 1 / -1;
-    min-height: 76px;
+    min-height: 68px;
+    padding: 10px;
   }
 
-  .headline-metric strong {
-    font-size: 25px;
+  .metric-value-row {
+    flex-wrap: wrap;
+
+    strong {
+      word-break: break-all;
+    }
+  }
+
+  .headline-metric {
+    min-height: 52px;
+    padding: 9px 11px;
+
+    strong {
+      font-size: 23px;
+    }
   }
 
   .split-row {
     grid-template-columns: 1fr;
   }
 
+  .cost-grid {
+    > div {
+      padding: 9px;
+    }
+
+    strong {
+      font-size: 19px;
+    }
+  }
+
   .rate-status {
     align-items: flex-start;
     min-height: 0;
-    padding: 8px 10px;
+    padding: 6px 10px;
     flex-wrap: wrap;
 
     small {

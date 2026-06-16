@@ -219,6 +219,14 @@
       <div v-else class="empty-list">
         <icon-inbox class="empty-icon" />
         <span>没有符合条件的服务器</span>
+        <button
+          v-if="isListFiltered"
+          type="button"
+          class="clear-filter-btn"
+          @click="clearAllFilters"
+        >
+          清除筛选
+        </button>
       </div>
       <div
         v-if="listResultHint"
@@ -409,6 +417,12 @@ function clearSearchKeyword() {
   searchKeyword.value = '';
 }
 
+function clearAllFilters() {
+  searchKeyword.value = '';
+  filterOnline.value = '';
+  selectedGroup.value = '';
+}
+
 function openStatsModal() {
   statsModalVisible.value = true;
 }
@@ -451,6 +465,18 @@ const serverList = computed(() => store.state.serverList);
 const serverCount = computed(() => store.state.serverCount);
 const serverGroups = computed(() => store.state.serverGroup || []);
 const hasOfflineServer = computed(() => serverList.value.some((s) => s.online !== 1));
+
+watch(
+  [filterOnline, () => serverCount.value?.online, () => serverCount.value?.offline],
+  ([status, online, offline]) => {
+    if (status === '1' && online === 0) {
+      filterOnline.value = '';
+    }
+    if (status === '-1' && offline === 0) {
+      filterOnline.value = '';
+    }
+  },
+);
 const resolvedTheme = computed(() => store.state.resolvedTheme);
 const normalizedSearchKeyword = computed(() => searchKeyword.value.trim().toLowerCase());
 
@@ -1675,9 +1701,9 @@ onUnmounted(() => {
   .search-filter-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0;
     min-height: 40px;
-    padding: 0 4px 0 0;
+    padding: 0;
     border: 1px solid var(--panel-search-border);
     border-radius: 15px;
     background: var(--panel-search-bg);
@@ -1692,6 +1718,31 @@ onUnmounted(() => {
       box-shadow:
         0 0 0 4px rgba(var(--accent-cyan-rgb), 0.12),
         0 14px 28px rgba(var(--accent-cyan-rgb), 0.1);
+
+      :deep(.status-filter-trigger) {
+        border-left-color: var(--accent-cyan);
+      }
+    }
+
+    .server-status-filter {
+      display: flex;
+      align-items: center;
+    }
+
+    :deep(.status-filter-trigger) {
+      min-height: 38px;
+      padding: 0 6px 0 8px;
+      border: none;
+      border-left: 1px solid var(--panel-search-border);
+      border-radius: 0 15px 15px 0;
+      background: transparent;
+      box-shadow: none;
+      gap: 2px;
+
+      &:hover,
+      &.active {
+        background: var(--bg-hover);
+      }
     }
   }
 
@@ -1886,6 +1937,29 @@ onUnmounted(() => {
     width: 34px;
     height: 34px;
     color: var(--empty-icon-color-soft);
+  }
+}
+
+.clear-filter-btn {
+  margin-top: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-chip-border);
+  background: var(--panel-chip-bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &:hover {
+    color: var(--text-on-accent);
+    background: var(--button-active-bg);
+    border-color: var(--button-active-border);
   }
 }
 
@@ -2214,7 +2288,7 @@ onUnmounted(() => {
 
     .search-filter-bar {
       min-height: 36px;
-      padding: 0 3px 0 0;
+      padding: 0;
     }
 
     .search-box {
@@ -2281,8 +2355,8 @@ onUnmounted(() => {
     }
 
     .search-filter-bar {
-      padding: 0 3px 0 0;
-      gap: 4px;
+      padding: 0;
+      gap: 0;
     }
 
     .search-box {

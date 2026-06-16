@@ -29,7 +29,8 @@
               </div>
               <div class="resource-capacity">
                 <span class="resource-used">{{ item.valText }}</span>
-                <span class="resource-total">/ {{ item.content?.default }}</span>
+                <span class="resource-total resource-total--desktop">/ {{ item.content?.default }}</span>
+                <span class="resource-total resource-total--mobile">/ {{ item.content?.mobile || item.content?.default }}</span>
               </div>
             </div>
             <div class="resource-progress">
@@ -221,6 +222,7 @@ function progressStyle(item) {
 .resource-value {
   display: flex;
   align-items: baseline;
+  flex-shrink: 0;
   gap: 5px;
   line-height: 1;
 
@@ -241,9 +243,12 @@ function progressStyle(item) {
   display: flex;
   align-items: baseline;
   gap: 3px;
+  min-width: 0;
   font-size: 10px;
   color: var(--text-secondary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   .resource-used {
     font-weight: 600;
@@ -267,6 +272,20 @@ function progressStyle(item) {
   border-radius: 999px;
   transition: width 0.4s ease;
   min-width: 2px;
+}
+
+.resource-total--mobile {
+  display: none;
+}
+
+@media screen and (max-width: 900px) {
+  .resource-total--desktop {
+    display: none;
+  }
+
+  .resource-total--mobile {
+    display: inline;
+  }
 }
 
 @media screen and (max-width: 768px) {
