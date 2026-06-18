@@ -11,6 +11,10 @@ const routes = [
     name: 'ServerDetail',
     component: () => import('@/views/detail.vue'),
   },
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/',
+  },
 ];
 
 const router = createRouter({
