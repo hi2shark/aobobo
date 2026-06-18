@@ -1044,6 +1044,27 @@ function createMarkerElement(marker) {
   let badgeHTML;
   if (marker.isLarge) {
     badgeHTML = '<span class="marker-cluster marker-cluster--large" aria-hidden="true"></span>';
+  } else if (marker.totalCount > 6) {
+    const centerServer = marker.servers[0];
+    const centerIsOffline = !centerServer || centerServer.online !== 1;
+    const centerOfflineClass = centerIsOffline ? ' is-offline' : '';
+    const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
+    const surroundingCount = marker.totalCount - 1;
+    const dots = Array.from({ length: surroundingCount }, (_, index) => {
+      const server = marker.servers[index + 1];
+      const isOffline = !server || server.online !== 1;
+      const offlineClass = isOffline ? ' is-offline' : '';
+      const angle = (Math.PI * 2 * index) / surroundingCount - (Math.PI / 2);
+      const x = Math.round(Math.cos(angle) * radius * 100) / 100;
+      const y = Math.round(Math.sin(angle) * radius * 100) / 100;
+      return `<span class="marker-dot${offlineClass}" style="transform: translate(${x}px, ${y}px)"></span>`;
+    }).join('');
+    badgeHTML = `
+      <span class="marker-dots" aria-hidden="true">
+        <span class="marker-dot marker-dot--single${centerOfflineClass}"></span>
+        ${dots}
+      </span>
+    `;
   } else if (marker.totalCount > 1) {
     const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
     const dots = Array.from({ length: marker.totalCount }, (_, index) => {
