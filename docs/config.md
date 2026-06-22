@@ -46,7 +46,7 @@ AoBoBo 通过 `config.js` 注入运行时常量，部署时只需替换该文件
 | `apiMonitorPath` | `string` | `'/api/v1/monitor/{id}'` | v0 监控数据接口路径，`{id}` 为服务器 ID 占位符。 |
 | `apiAvailabilityPath` | `string` | `'/api/v1/server/availability'` | 可用性数据接口路径。若后端提供该接口且返回有效数据，列表与详情页会展示服务器可用率。 |
 | `availabilityRefreshTime` | `number` | `60` | 可用性数据刷新间隔（秒），设置为 `0` 则不自动刷新。 |
-| `showAvailability` | `boolean` | `true` | 是否展示可用性数据。关闭后不再请求 `/api/v1/server/availability` 接口。 |
+| `showAvailability` | `boolean` | `false` | 是否展示可用性数据（仅限nezha-next）。关闭后不再请求 `/api/v1/server/availability` 接口。 |
 | `wsPath` | `string` | `'/ws'` | v0 WebSocket 实时数据路径。 |
 | `nezhaPath` | `string` | `'/nezha/'` | v0 哪吒 Dashboard 页面路径，用于解析服务器列表与公开备注。 |
 | `v0ServicePath` | `string / null` | `null` | v0 服务页路径，为空时默认使用 `{nezhaPath}service`。 |
