@@ -70,7 +70,7 @@ export function getBillAndPlanByServer(info) {
         amountValue = '按量';
         label = cycleLabel ? `每${cycleLabel}` : '';
       } else if (billingDataMod.amount.toString() === '0') {
-        amountValue = config.nazhua.freeAmount || '免费';
+        amountValue = config.aobobo.freeAmount || '免费';
         isFree = true;
       } else {
         label = cycleLabel ? `${cycleLabel}付` : '';
@@ -94,7 +94,7 @@ export function getBillAndPlanByServer(info) {
       if (endDate.indexOf('0000-00-00') === 0) {
         obj.remainingTime = {
           label: '剩余',
-          value: config.nazhua.infinityCycle || '长期有效',
+          value: config.aobobo.infinityCycle || '长期有效',
           type: 'infinity',
         };
       } else if (autoRenewal === '1') {

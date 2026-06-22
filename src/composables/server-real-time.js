@@ -217,8 +217,34 @@ export default (params) => {
     return result;
   });
 
+  const availabilityValue = computed(() => {
+    const value = props.info?.availability;
+    if (value === undefined || value === null || Number.isNaN(Number(value))) {
+      return null;
+    }
+    return Number(value);
+  });
+
+  const availabilityClass = computed(() => {
+    if (availabilityValue.value === null) return '';
+    if (availabilityValue.value >= 99) return 'availability-status--success';
+    if (availabilityValue.value >= 95) return 'availability-status--warning';
+    return 'availability-status--danger';
+  });
+
   const serverRealTimeList = computed(() => serverRealTimeListTpls.split(',').map((key) => {
     switch (key) {
+      case 'availability':
+        return {
+          key,
+          label: '可用性',
+          value: availabilityValue.value !== null
+            ? (Math.round(availabilityValue.value * 10) / 10).toFixed(1) * 1
+            : '-',
+          unit: '%',
+          show: availabilityValue.value !== null,
+          class: availabilityClass.value,
+        };
       case 'duration':
         return {
           key,

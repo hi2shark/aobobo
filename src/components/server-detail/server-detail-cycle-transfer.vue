@@ -130,7 +130,7 @@ const props = defineProps({
 const cycleTransferList = ref([]);
 
 const refreshInterval = computed(() => {
-  let value = parseInt(config.nazhua.detailCycleTransferRefreshTime, 10);
+  let value = parseInt(config.aobobo.detailCycleTransferRefreshTime, 10);
   if (Number.isNaN(value)) {
     value = 60;
   }
@@ -138,7 +138,7 @@ const refreshInterval = computed(() => {
 });
 
 const showCard = computed(() => {
-  if (config.nazhua.hideDetailCycleTransfer) {
+  if (config.aobobo.hideDetailCycleTransfer) {
     return false;
   }
   return cycleTransferList.value.length > 0;
@@ -161,7 +161,7 @@ const cycleTransferViewList = computed(() => cycleTransferList.value.map((item) 
 }));
 
 async function loadCycleTransfer() {
-  if (config.nazhua.hideDetailCycleTransfer || !props.info?.ID) {
+  if (config.aobobo.hideDetailCycleTransfer || !props.info?.ID) {
     cycleTransferList.value = [];
     return;
   }
@@ -186,7 +186,7 @@ function clearRefreshTimer() {
 
 function setCycleTransferRefreshTimer() {
   clearRefreshTimer();
-  if (refreshInterval.value <= 0 || config.nazhua.hideDetailCycleTransfer) {
+  if (refreshInterval.value <= 0 || config.aobobo.hideDetailCycleTransfer) {
     return;
   }
   refreshTimer = setTimeout(async () => {

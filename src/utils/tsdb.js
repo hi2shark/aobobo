@@ -10,7 +10,7 @@ import config from '@/config';
  * @returns {boolean}
  */
 export function isTsdbEnabled(store) {
-  if (config.nazhua.nezhaVersion !== 'v1' || !store?.state?.setting) {
+  if (config.aobobo.nezhaVersion !== 'v1' || !store?.state?.setting) {
     return false;
   }
   const { setting } = store.state;
@@ -23,7 +23,7 @@ export function isTsdbEnabled(store) {
  * @returns {boolean}
  */
 export function hasTsdb(store) {
-  if (config.nazhua.nezhaVersion !== 'v1' || !store?.state?.setting) {
+  if (config.aobobo.nezhaVersion !== 'v1' || !store?.state?.setting) {
     return false;
   }
   const { setting } = store.state;

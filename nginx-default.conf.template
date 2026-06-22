@@ -92,6 +92,15 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
   }
 
+  # 仅允许服务器可用性数据需要的 V1 API
+  location = /api/v1/server/availability {
+    proxy_pass ${NEZHA}api/v1/server/availability;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
   # 其余 /api/ 下路径全部拒绝
   location /api {
     deny all;

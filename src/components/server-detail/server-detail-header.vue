@@ -11,6 +11,13 @@
             <span :class="['status-dot', info.online === 1 ? 'online' : 'offline']" />
             <span>{{ info.online === 1 ? '在线' : '离线' }}</span>
           </span>
+          <span
+            v-if="availabilityText"
+            :class="['server-status-badge', 'server-status-badge--availability', availabilityClass]"
+          >
+            <i class="ri-shield-check-line" />
+            <span>可用 {{ availabilityText }}%</span>
+          </span>
         </div>
 
         <div
@@ -125,6 +132,26 @@ const systemOSIcon = computed(() => {
 });
 
 const resolvedLocation = computed(() => resolveServerLocation(props.info));
+
+const availabilityValue = computed(() => {
+  const value = props.info?.availability;
+  if (value === undefined || value === null || Number.isNaN(Number(value))) {
+    return null;
+  }
+  return Number(value);
+});
+
+const availabilityText = computed(() => {
+  if (availabilityValue.value === null) return '';
+  return (Math.round(availabilityValue.value * 10) / 10).toFixed(1) * 1;
+});
+
+const availabilityClass = computed(() => {
+  if (availabilityValue.value === null) return '';
+  if (availabilityValue.value >= 99) return 'availability-status--success';
+  if (availabilityValue.value >= 95) return 'availability-status--warning';
+  return 'availability-status--danger';
+});
 
 const locationCode = computed(() => resolvedLocation.value?.code || '');
 
@@ -243,6 +270,36 @@ function viewOnGlobe() {
       &.offline {
         background: var(--accent-danger);
         box-shadow: var(--status-offline-glow);
+      }
+    }
+
+    &--availability {
+      gap: 3px;
+
+      &.availability-status--success {
+        color: var(--accent-success);
+        border-color: rgba(var(--accent-success-rgb), 0.3);
+        background: rgba(var(--accent-success-rgb), 0.1);
+      }
+
+      &.availability-status--warning {
+        color: var(--accent-warning);
+        border-color: rgba(229, 160, 38, 0.35);
+        background: rgba(229, 160, 38, 0.12);
+      }
+
+      &.availability-status--danger {
+        color: var(--accent-danger);
+        border-color: rgba(var(--accent-danger-rgb), 0.35);
+        background: rgba(var(--accent-danger-rgb), 0.12);
+      }
+
+      i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        line-height: 1;
       }
     }
   }

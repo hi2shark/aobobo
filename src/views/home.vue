@@ -334,6 +334,7 @@ const dragState = ref(null);
 const DRAG_THRESHOLD = 60;
 let serverHoverTimer = null;
 let cycleTransferTimer = null;
+let availabilityTimer = null;
 let globeStatsResizeObserver = null;
 let exchangeRateRequestId = 0;
 
@@ -503,12 +504,12 @@ const totalStats = computed(() => {
 });
 
 const costTargetCurrency = computed(() => normalizeCurrencyCode(
-  config.nazhua.statsCostCurrency || 'CNY',
+  config.aobobo.statsCostCurrency || 'CNY',
   'CNY',
 ));
 
 const costDefaultCurrency = computed(() => normalizeCurrencyCode(
-  config.nazhua.defaultCostCurrency || 'CNY',
+  config.aobobo.defaultCostCurrency || 'CNY',
   'CNY',
 ));
 
@@ -541,9 +542,9 @@ function getRequiredCostCurrencies() {
 const costExchangeSignature = computed(() => JSON.stringify({
   targetCurrency: costTargetCurrency.value,
   currencies: getRequiredCostCurrencies(),
-  enabled: config.nazhua.exchangeRateEnabled !== false,
-  apiBase: config.nazhua.exchangeRateApiBase || '',
-  cacheHours: Number(config.nazhua.exchangeRateCacheHours) || 24,
+  enabled: config.aobobo.exchangeRateEnabled !== false,
+  apiBase: config.aobobo.exchangeRateApiBase || '',
+  cacheHours: Number(config.aobobo.exchangeRateCacheHours) || 24,
 }));
 
 const BYTE_UNITS = {
@@ -657,7 +658,7 @@ async function refreshCostExchangeRates() {
   const requestId = exchangeRateRequestId;
   const targetCurrency = costTargetCurrency.value;
   const currencies = getRequiredCostCurrencies();
-  const enabled = config.nazhua.exchangeRateEnabled !== false;
+  const enabled = config.aobobo.exchangeRateEnabled !== false;
 
   exchangeRateState.value = {
     ...exchangeRateState.value,
@@ -670,8 +671,8 @@ async function refreshCostExchangeRates() {
   try {
     const result = await loadExchangeRatesForCurrencies(currencies, targetCurrency, {
       enabled,
-      apiBase: config.nazhua.exchangeRateApiBase,
-      cacheHours: config.nazhua.exchangeRateCacheHours,
+      apiBase: config.aobobo.exchangeRateApiBase,
+      cacheHours: config.aobobo.exchangeRateCacheHours,
     });
     if (requestId === exchangeRateRequestId) {
       exchangeRateState.value = {
@@ -853,7 +854,7 @@ const detailStats = computed(() => {
       invalidCount: invalidCostCount,
       unconvertedCount: unconvertedCostCount,
       exchangeRate: {
-        enabled: config.nazhua.exchangeRateEnabled !== false,
+        enabled: config.aobobo.exchangeRateEnabled !== false,
         loading: exchangeRateState.value.loading,
         disabled: exchangeRateState.value.disabled,
         statusText: exchangeRateStatus,
@@ -986,8 +987,36 @@ function stopCycleTransferTimer() {
 
 function startCycleTransferTimer() {
   stopCycleTransferTimer();
-  const seconds = Number(config.nazhua.detailCycleTransferRefreshTime) || 60;
+  const seconds = Number(config.aobobo.detailCycleTransferRefreshTime) || 60;
   cycleTransferTimer = window.setInterval(refreshCycleTransfer, seconds * 1000);
+}
+
+function stopAvailabilityTimer() {
+  if (availabilityTimer) {
+    window.clearInterval(availabilityTimer);
+    availabilityTimer = null;
+  }
+}
+
+function startAvailabilityTimer() {
+  stopAvailabilityTimer();
+  if (!store.state.showAvailability) {
+    return;
+  }
+  const seconds = Number(config.aobobo.availabilityRefreshTime);
+  if (!seconds || seconds <= 0) {
+    return;
+  }
+  availabilityTimer = window.setInterval(() => {
+    store.dispatch('refreshAvailability');
+  }, seconds * 1000);
+}
+
+function refreshAvailabilityOnce() {
+  if (!store.state.showAvailability) {
+    return;
+  }
+  store.dispatch('refreshAvailability');
 }
 
 function handleServerHover(server) {
@@ -1122,6 +1151,8 @@ watch(
     if (init && serverList.value.length > 0) {
       refreshCycleTransfer();
       startCycleTransferTimer();
+      refreshAvailabilityOnce();
+      startAvailabilityTimer();
     }
   },
 );
@@ -1132,6 +1163,8 @@ watch(
     if (length > 0 && prevLength === 0 && store.state.init) {
       refreshCycleTransfer();
       startCycleTransferTimer();
+      refreshAvailabilityOnce();
+      startAvailabilityTimer();
     }
   },
 );
@@ -1178,6 +1211,8 @@ onMounted(() => {
   if (store.state.init && serverList.value.length > 0) {
     refreshCycleTransfer();
     startCycleTransferTimer();
+    refreshAvailabilityOnce();
+    startAvailabilityTimer();
   }
 });
 
@@ -1199,6 +1234,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleWindowResize);
   clearServerHoverTimer();
   stopCycleTransferTimer();
+  stopAvailabilityTimer();
   stopCurrentTimeWidthObserver();
 });
 </script>

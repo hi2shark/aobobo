@@ -4,8 +4,8 @@
     variant="flat"
     class="server-detail-monitor"
     :class="{
-      'chart-type--multi': config.nazhua.monitorChartTypeToggle && monitorChartType === 'multi',
-      'chart-type--single': config.nazhua.monitorChartTypeToggle && monitorChartType === 'single',
+      'chart-type--multi': config.aobobo.monitorChartTypeToggle && monitorChartType === 'multi',
+      'chart-type--single': config.aobobo.monitorChartTypeToggle && monitorChartType === 'single',
     }"
   >
     <div class="module-head-group">
@@ -17,7 +17,7 @@
       </div>
       <div class="right-box">
         <div
-          v-if="config.nazhua.monitorChartTypeToggle"
+          v-if="config.aobobo.monitorChartTypeToggle"
           class="control-switch"
           title="监控折线图是否聚合"
           @click="switchChartType"
@@ -240,12 +240,12 @@ const longPressTimer = ref(null);
 
 const chartType = validate.isSet(localData.chartType)
   ? ref(localData.chartType)
-  : ref(config.nazhua.monitorChartType === 'single' ? 'single' : 'multi');
+  : ref(config.aobobo.monitorChartType === 'single' ? 'single' : 'multi');
 const monitorChartType = computed(() => {
-  if (config.nazhua.monitorChartTypeToggle) {
+  if (config.aobobo.monitorChartTypeToggle) {
     return chartType.value;
   }
-  return config.nazhua.monitorChartType;
+  return config.aobobo.monitorChartType;
 });
 
 const nowServerTime = computed(() => store.state.serverTime || Date.now());
@@ -418,22 +418,22 @@ function getTsdbPeriod() {
 
 async function loadMonitor() {
   let url;
-  if (config.nazhua.nezhaVersion === 'v1') {
+  if (config.aobobo.nezhaVersion === 'v1') {
     if (hasTsdb(store)) {
-      url = config.nazhua.v1ApiMonitorPath.replace('{id}', props.info.ID);
+      url = config.aobobo.v1ApiMonitorPath.replace('{id}', props.info.ID);
       if (isTsdbEnabled(store)) {
         const period = getTsdbPeriod();
         url += url.includes('?') ? `&period=${period}` : `?period=${period}`;
       }
     } else {
-      url = config.nazhua.v1ApiMonitorPathFallback.replace('{id}', props.info.ID);
+      url = config.aobobo.v1ApiMonitorPathFallback.replace('{id}', props.info.ID);
     }
   } else {
-    url = config.nazhua.apiMonitorPath.replace('{id}', props.info.ID);
+    url = config.aobobo.apiMonitorPath.replace('{id}', props.info.ID);
   }
   try {
     const res = await request({ url });
-    const list = config.nazhua.nezhaVersion === 'v1' ? res?.data?.data : res?.data?.result;
+    const list = config.aobobo.nezhaVersion === 'v1' ? res?.data?.data : res?.data?.result;
     if (Array.isArray(list)) {
       monitorData.value = list;
     }
@@ -484,7 +484,7 @@ async function setTimeLoadMonitor(force = false) {
   if (refreshData.value || force) {
     await loadMonitor();
   }
-  let monitorRefreshTime = parseInt(config.nazhua.monitorRefreshTime, 10);
+  let monitorRefreshTime = parseInt(config.aobobo.monitorRefreshTime, 10);
   if (monitorRefreshTime === 0) {
     return;
   }

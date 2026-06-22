@@ -4,9 +4,9 @@ import v1TransformV0 from '@/utils/transform-v1-2-v0';
 import WSService, { WS_CONNECTION_STATUS } from './service';
 
 function getWsApiPath() {
-  let url = config?.nazhua?.wsPath;
-  if (config?.nazhua?.nezhaVersion === 'v1') {
-    url = config?.nazhua?.v1WsPath;
+  let url = config?.aobobo?.wsPath;
+  if (config?.aobobo?.nezhaVersion === 'v1') {
+    url = config?.aobobo?.v1WsPath;
   }
   const a = document.createElement('a');
   a.href = url;
@@ -21,7 +21,7 @@ const wsService = new WSService({
   onError: (error) => msg.emit('error', error),
   onMessage: (data) => {
     if (data?.now && data?.servers) {
-      if (config.nazhua.nezhaVersion === 'v1') {
+      if (config.aobobo.nezhaVersion === 'v1') {
         msg.emit('servers', {
           now: data.now,
           servers: data?.servers?.map?.((server) => v1TransformV0(server)) || [],

@@ -29,6 +29,9 @@ window.$$aoboboConfig = {
 
   // v0 接口路径配置（一般无需修改）
   // apiMonitorPath: '/api/v1/monitor/{id}',
+  // showAvailability: true, // 是否展示可用性数据
+  // apiAvailabilityPath: '/api/v1/server/availability', // 可用性数据接口路径
+  // availabilityRefreshTime: 60, // 可用性数据刷新间隔（秒），0 为不刷新
   // wsPath: '/ws',
   // nezhaPath: '/nezha/',
   // v0ServicePath: null,

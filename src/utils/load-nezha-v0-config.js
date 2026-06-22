@@ -1,7 +1,7 @@
 import config from '@/config';
 
 function getNezhaConfigUrl() {
-  const { nezhaPath } = config.nazhua;
+  const { nezhaPath } = config.aobobo;
   if (nezhaPath.startsWith('http')) {
     return nezhaPath;
   }
@@ -23,7 +23,7 @@ const unescaped = (str) => {
   return str2;
 };
 export default async () => fetch(getNezhaConfigUrl()).then((res) => res.text()).then((res) => {
-  let resMatch = res?.match?.(configReg(config.nazhua.nezhaV0ConfigType));
+  let resMatch = res?.match?.(configReg(config.aobobo.nezhaV0ConfigType));
   if (!resMatch) {
     resMatch = res?.match?.(configReg('initData'));
   }

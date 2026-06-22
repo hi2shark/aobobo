@@ -49,7 +49,10 @@
         <i class="ri-speed-line" />
         实时数据
       </h3>
-      <server-real-time :info="info" />
+      <server-real-time
+        :info="info"
+        server-real-time-list-tpls="availability,duration,transfer,speeds"
+      />
     </div>
   </detail-panel>
 </template>

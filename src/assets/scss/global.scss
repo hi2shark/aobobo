@@ -787,6 +787,39 @@ html, body {
       background: rgba(var(--accent-danger-rgb), 0.12);
     }
   }
+
+  &--availability {
+    gap: 4px;
+    padding-left: 7px;
+
+    i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1em;
+      height: 1em;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    &.availability-status--success {
+      color: var(--accent-success);
+      border-color: rgba(var(--accent-success-rgb), 0.3);
+      background: rgba(var(--accent-success-rgb), 0.1);
+    }
+
+    &.availability-status--warning {
+      color: var(--accent-warning);
+      border-color: rgba(229, 160, 38, 0.35);
+      background: rgba(229, 160, 38, 0.12);
+    }
+
+    &.availability-status--danger {
+      color: var(--accent-danger);
+      border-color: rgba(var(--accent-danger-rgb), 0.35);
+      background: rgba(var(--accent-danger-rgb), 0.12);
+    }
+  }
 }
 
 /* ===== Detail Page ===== */

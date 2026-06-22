@@ -91,6 +91,7 @@ window.$$aoboboConfig = {
 | 全量配置 | 从 `/nezha/` 页面解析服务器列表与 `PublicNote` | `/api/v1/setting` 等 REST API |
 | 实时数据 | `/ws` | `/api/v1/ws/server` |
 | 监控数据 | `/api/v1/monitor/{id}` | `/api/v1/server/{id}/service`（兼容 `/api/v1/service/{id}`） |
+| 可用性数据 | `/api/v1/server/availability`（可选扩展接口） | `/api/v1/server/availability`（可选扩展接口） |
 | 周期流量 | `/service` 页面解析 | `/api/v1/service` |
 | 分组数据 | 服务器 `Tag` 字段 | `/api/v1/server-group` |
 | 站点配置 | `config.js` / 公开备注 | `config.js` / `/api/v1/setting` 的 `site_name` |

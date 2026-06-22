@@ -52,9 +52,17 @@
           v-if="getUptime(server)
             || getBilling(server)
             || getRemainingTime(server)
-            || getPlanTags(server).length"
+            || getPlanTags(server).length
+            || getAvailability(server)"
           class="server-list-item__tags server-list-item__tags--bill"
         >
+          <span
+            v-if="getAvailability(server)"
+            :class="['meta-tag', 'meta-tag--availability', getAvailabilityClass(server)]"
+          >
+            <i class="ri-shield-check-line" />
+            <span>可用 {{ getAvailability(server) }}%</span>
+          </span>
           <span v-if="getUptime(server)" class="meta-tag meta-tag--uptime">
             <i class="ri-time-line" />
             <span>在线 {{ getUptime(server) }}</span>
@@ -267,6 +275,22 @@ function getRemainingClass(server) {
   if (days <= 7) return 'remaining-status--danger';
   if (days <= 30) return 'remaining-status--warning';
   return 'remaining-status--success';
+}
+
+function getAvailability(server) {
+  const value = server?.availability;
+  if (value === undefined || value === null || Number.isNaN(Number(value))) {
+    return '';
+  }
+  return Number(value).toFixed(1) * 1;
+}
+
+function getAvailabilityClass(server) {
+  const value = Number(server?.availability);
+  if (Number.isNaN(value)) return '';
+  if (value >= 99) return 'availability-status--success';
+  if (value >= 95) return 'availability-status--warning';
+  return 'availability-status--danger';
 }
 
 function getPlanTags(server) {

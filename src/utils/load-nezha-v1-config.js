@@ -2,7 +2,7 @@ import config from '@/config';
 import request from '@/utils/request';
 
 export const loadServerGroup = async () => request({
-  url: config.nazhua.v1GroupPath || config.nazhua.v1ApiGroupPath,
+  url: config.aobobo.v1GroupPath || config.aobobo.v1ApiGroupPath,
   type: 'GET',
 }).then((res) => {
   if (res.status === 200 && res.data?.success) {
@@ -20,7 +20,7 @@ export const loadServerGroup = async () => request({
 });
 
 export const loadSetting = async () => request({
-  url: config.nazhua.v1ApiSettingPath,
+  url: config.aobobo.v1ApiSettingPath,
   type: 'GET',
 }).then((res) => {
   if (res.status === 200 && res.data?.success) {
@@ -33,7 +33,7 @@ export const loadSetting = async () => request({
 });
 
 export const loadProfile = async (check) => request({
-  url: config.nazhua.v1ApiProfilePath,
+  url: config.aobobo.v1ApiProfilePath,
   type: 'GET',
 }).then((res) => {
   if (check) {

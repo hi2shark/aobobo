@@ -8,10 +8,13 @@ const runtimeConfig = window.$$aoboboConfig || window.$$nazhuaConfig || {};
 
 const config = reactive({
   init: false,
-  nazhua: {
+  aobobo: {
     title: '哪吒监控',
     nezhaVersion: ['v0', 'v1'].includes(defaultNezhaVersion) ? defaultNezhaVersion : null,
     apiMonitorPath: '/api/v1/monitor/{id}',
+    showAvailability: false,
+    apiAvailabilityPath: '/api/v1/server/availability',
+    availabilityRefreshTime: 60,
     wsPath: '/ws',
     nezhaPath: '/nezha/',
     v0ServicePath: null,
@@ -40,13 +43,13 @@ const config = reactive({
   },
 });
 
-if (config.nazhua.nezhaVersion) {
+if (config.aobobo.nezhaVersion) {
   config.init = true;
 }
 
 export function mergeAoboboConfig(customConfig) {
   Object.keys(customConfig).forEach((key) => {
-    config.nazhua[key] = customConfig[key];
+    config.aobobo[key] = customConfig[key];
   });
 }
 
@@ -59,7 +62,7 @@ export default config;
 
 export const init = async () => {
   await loadNezhaV1Profile(true).then((res) => {
-    config.nazhua.nezhaVersion = res ? 'v1' : 'v0';
+    config.aobobo.nezhaVersion = res ? 'v1' : 'v0';
   });
   config.init = true;
 };

@@ -66,7 +66,7 @@ const resolvedAoboboUrl = computed(() => props.aoboboUrl
 const resolvedVersion = computed(() => {
   if (!props.showVersion) return null;
   return props.version
-    || config.nazhua.aoboboVersion
+    || config.aobobo.aoboboVersion
     || pkgVersion
     || null;
 });

@@ -4,7 +4,7 @@
       v-for="item in serverRealTimeList"
       :key="item.key"
       class="server-real-time-item"
-      :class="`server-real-time--${item.key}`"
+      :class="[`server-real-time--${item.key}`, item.class]"
     >
       <span class="item-label">{{ item.label }}</span>
       <div class="item-content">
@@ -231,6 +231,20 @@ const {
   .server-real-time--outSpeed {
     .item-value {
       color: var(--net-speed-out-color);
+    }
+  }
+
+  .server-real-time--availability {
+    &.availability-status--success .item-value {
+      color: var(--accent-success);
+    }
+
+    &.availability-status--warning .item-value {
+      color: var(--accent-warning);
+    }
+
+    &.availability-status--danger .item-value {
+      color: var(--accent-danger);
     }
   }
 }

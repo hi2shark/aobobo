@@ -21,10 +21,10 @@ const store = useStore();
 
 const userLogin = computed(() => store.state.profile?.username);
 const visible = computed(() => (
-  config.nazhua.nezhaVersion === 'v1'
-  && config.nazhua.v1HideNezhaDashboardBtn !== true
+  config.aobobo.nezhaVersion === 'v1'
+  && config.aobobo.v1HideNezhaDashboardBtn !== true
 ));
-const dashboardUrl = computed(() => config.nazhua.v1DashboardUrl || '/dashboard');
+const dashboardUrl = computed(() => config.aobobo.v1DashboardUrl || '/dashboard');
 </script>
 
 <style lang="scss" scoped>

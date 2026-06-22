@@ -314,13 +314,13 @@ const buyBtnIcon = computed(() => {
   if (props.info?.PublicNote?.customData?.buyBtnIcon) {
     return props.info?.PublicNote?.customData?.buyBtnIcon;
   }
-  return config.nazhua.buyBtnIcon || 'ri-shopping-bag-3-line';
+  return config.aobobo.buyBtnIcon || 'ri-shopping-bag-3-line';
 });
 const buyBtnText = computed(() => {
   if (props.info?.PublicNote?.customData?.buyBtnText) {
     return props.info?.PublicNote?.customData?.buyBtnText;
   }
-  return config.nazhua.buyBtnText || '购买';
+  return config.aobobo.buyBtnText || '购买';
 });
 const showBuyBtn = computed(() => !!props.info?.PublicNote?.customData?.orderLink);
 
@@ -331,10 +331,10 @@ function toBuy() {
 
 const gpuList = computed(() => {
   const gpus = props.info?.Host?.GPU || [];
-  if (config.nazhua?.filterGPUKeywords?.length) {
-    const keywors = Array.isArray(config.nazhua.filterGPUKeywords)
-      ? config.nazhua.filterGPUKeywords
-      : [config.nazhua.filterGPUKeywords];
+  if (config.aobobo?.filterGPUKeywords?.length) {
+    const keywors = Array.isArray(config.aobobo.filterGPUKeywords)
+      ? config.aobobo.filterGPUKeywords
+      : [config.aobobo.filterGPUKeywords];
     return gpus.filter((i) => {
       if (keywors.length) {
         return !keywors.some((k) => i.toLowerCase().includes(k.toLowerCase()));

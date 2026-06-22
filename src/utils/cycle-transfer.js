@@ -57,7 +57,7 @@ function resolveRelativeUrl(path) {
 }
 
 function getNezhaV0BaseUrl() {
-  const { nezhaPath } = config.nazhua;
+  const { nezhaPath } = config.aobobo;
   if (nezhaPath.startsWith('http')) {
     return nezhaPath;
   }
@@ -71,7 +71,7 @@ function getNezhaV0BaseUrl() {
 }
 
 export function getV0ServiceUrl() {
-  const customPath = config.nazhua.v0ServicePath;
+  const customPath = config.aobobo.v0ServicePath;
   if (customPath) {
     if (customPath.startsWith('http')) {
       return customPath;
@@ -360,7 +360,7 @@ export function getCycleTransferSummaryByServer(cycleTransferMap, serverInfo) {
 
 async function loadV1CycleTransferMap() {
   const res = await request({
-    url: config.nazhua.v1ApiServicePath,
+    url: config.aobobo.v1ApiServicePath,
     type: 'GET',
   });
   if (!res || res.status !== 200 || !res.data?.success) {
@@ -382,7 +382,7 @@ async function loadV0CycleTransferMap(serverList) {
 }
 
 export async function loadCycleTransferMap(serverList = []) {
-  if (config.nazhua.nezhaVersion === 'v1') {
+  if (config.aobobo.nezhaVersion === 'v1') {
     return loadV1CycleTransferMap();
   }
   return loadV0CycleTransferMap(serverList);

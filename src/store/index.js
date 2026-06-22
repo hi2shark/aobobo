@@ -9,6 +9,7 @@ import {
 import loadNezhaV0Config, {
   loadServerGroup as loadNezhaV0ServerGroup,
 } from '@/utils/load-nezha-v0-config';
+import loadAvailability from '@/utils/load-availability';
 import { msg } from '@/ws';
 import {
   THEME_MODES,
@@ -30,6 +31,9 @@ const defaultState = () => ({
     online: 0,
     offline: 0,
   },
+  availability: {},
+  availabilityEnabled: false,
+  showAvailability: config.aobobo.showAvailability !== false,
   profile: {},
   setting: {},
   themeMode: THEME_MODES.AUTO,
@@ -53,6 +57,29 @@ function handleServerCount(servers) {
   };
 }
 
+function mergeAvailability(servers, availabilityMap, enabled) {
+  return servers.map((server) => {
+    if (!enabled) {
+      if (!Object.prototype.hasOwnProperty.call(server, 'availability')) {
+        return server;
+      }
+      const { availability: _, ...rest } = server;
+      return rest;
+    }
+    if (!availabilityMap || typeof availabilityMap !== 'object') {
+      return server;
+    }
+    const value = availabilityMap[String(server.ID)];
+    if (value === undefined) {
+      return server;
+    }
+    return {
+      ...server,
+      availability: value,
+    };
+  });
+}
+
 let firstSetServers = true;
 let removeThemeListener = null;
 
@@ -66,7 +93,8 @@ const store = createStore({
       state.serverGroup = serverGroup;
     },
     SET_SERVERS(state, servers) {
-      const newServers = [...servers];
+      let newServers = [...servers];
+      newServers = mergeAvailability(newServers, state.availability, state.showAvailability);
       newServers.sort((a, b) => b.DisplayIndex - a.DisplayIndex);
       state.serverList = newServers;
       state.serverCount = handleServerCount(newServers);
@@ -86,10 +114,15 @@ const store = createStore({
         return serverItem;
       });
       newServers = newServers.filter((server) => server);
+      newServers = mergeAvailability(newServers, state.availability, state.showAvailability);
       newServers.sort((a, b) => b.DisplayIndex - a.DisplayIndex);
       state.serverList = newServers;
       state.serverCount = handleServerCount(newServers);
       state.init = true;
+    },
+    SET_AVAILABILITY(state, availability) {
+      state.availability = availability || {};
+      state.availabilityEnabled = !!availability && Object.keys(availability).length > 0;
     },
     SET_PROFILE(state, profile) {
       state.profile = profile;
@@ -157,7 +190,7 @@ const store = createStore({
     },
     async initServerInfo({ commit }, params) {
       firstSetServers = true;
-      if (config.nazhua.nezhaVersion === 'v1') {
+      if (config.aobobo.nezhaVersion === 'v1') {
         const { route } = params || {};
         loadNezhaV1ServerGroup().then((res) => {
           if (res) commit('SET_SERVER_GROUP', res);
@@ -167,9 +200,9 @@ const store = createStore({
             commit('SET_SETTING', res);
             // 仅在未通过运行时配置指定标题时，才使用后端的 site_name
             if (!(window.$$aoboboConfig?.title ?? window.$$nazhuaConfig?.title)) {
-              config.nazhua.title = res.config?.site_name || res.site_name;
+              config.aobobo.title = res.config?.site_name || res.site_name;
               if (route?.name === 'Home' || !route) {
-                document.title = config.nazhua.title;
+                document.title = config.aobobo.title;
               }
             }
           }
@@ -193,6 +226,17 @@ const store = createStore({
       firstSetServers = false;
       commit('SET_SERVERS', servers);
     },
+    async refreshAvailability({ commit, state }) {
+      if (!state.showAvailability) {
+        return;
+      }
+      const availability = await loadAvailability();
+      if (availability) {
+        commit('SET_AVAILABILITY', availability);
+        // 重新合并到当前服务器列表
+        commit('UPDATE_SERVERS', state.serverList);
+      }
+    },
     watchWsMsg({ commit }) {
       msg.on('servers', (res) => {
         if (res) {
@@ -204,7 +248,7 @@ const store = createStore({
           if (firstSetServers) {
             firstSetServers = false;
             commit('SET_SERVERS', servers);
-            if (config.nazhua.nezhaVersion !== 'v1') {
+            if (config.aobobo.nezhaVersion !== 'v1') {
               const group = loadNezhaV0ServerGroup(servers);
               if (group) commit('SET_SERVER_GROUP', group);
             }

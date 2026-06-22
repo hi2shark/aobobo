@@ -11,7 +11,7 @@ export const alias2code = (code) => ALIAS_CODE[code];
 export const locationCode2Info = (code) => {
   const maps = {
     ...CODE_MAPS,
-    ...(config.nazhua.customCodeMap || {}),
+    ...(config.aobobo.customCodeMap || {}),
   };
   let info = maps[code];
   const aliasCode = aliasMapping[code];

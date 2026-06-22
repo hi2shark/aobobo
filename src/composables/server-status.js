@@ -46,12 +46,12 @@ export default (params) => {
     return {};
   }
 
-  const lightBackground = computed(() => config.nazhua.lightBackground);
+  const lightBackground = computed(() => config.aobobo.lightBackground);
   const serverStatusColorMode = computed(() => {
-    if (config.nazhua.simpleColorMode) {
+    if (config.aobobo.simpleColorMode) {
       return 'simple';
     }
-    if (config.nazhua.serverStatusLinear || lightBackground.value) {
+    if (config.aobobo.serverStatusLinear || lightBackground.value) {
       return 'linear';
     }
     return 'default';
