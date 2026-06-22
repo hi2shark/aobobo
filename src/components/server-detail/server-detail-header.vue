@@ -100,6 +100,7 @@ import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import * as hostUtils from '@/utils/host';
 import { resolveServerLocation } from '@/utils/world-map';
+import truncateDecimal from '@/utils/number';
 import useServerInfo from '@/composables/server-info';
 import ServerFlag from '@/components/server-flag.vue';
 
@@ -143,7 +144,7 @@ const availabilityValue = computed(() => {
 
 const availabilityText = computed(() => {
   if (availabilityValue.value === null) return '';
-  return (Math.round(availabilityValue.value * 10) / 10).toFixed(1) * 1;
+  return truncateDecimal(availabilityValue.value, 2);
 });
 
 const availabilityClass = computed(() => {

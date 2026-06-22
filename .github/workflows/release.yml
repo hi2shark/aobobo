@@ -44,8 +44,8 @@ jobs:
       - name: Build default bundle
         run: npm run build
 
-      - name: Package v${{ steps.determine_version.outputs.version }}-all.zip
-        run: zip -r v${{ steps.determine_version.outputs.version }}-all.zip dist
+      - name: Package dist.zip
+        run: zip -r dist.zip dist
 
       - name: Build Nezha v0 bundle
         env:
@@ -64,20 +64,12 @@ jobs:
       - name: Package v0-nazhua.zip
         run: zip -r v0-nazhua.zip dist
 
-      - name: Build Nezha v1 bundle
-        env:
-          VITE_NEZHA_VERSION: 'v1'
-        run: npm run build
-
-      - name: Package dist.zip
-        run: zip -r dist.zip dist
-
       - name: Generate release notes
         id: release_notes
         run: |
           echo "#### Changes" > release_notes.md
           git log -20 --pretty=format:"- %s" >> release_notes.md
-          echo -e "\n-----------\n哪吒 v1 请下载 dist.zip\n哪吒 v0 请下载 v0-dist.zip\n哪吒 v0 /nazhua/ 子目录需求请下载 v0-nazhua.zip\nv${{ steps.determine_version.outputs.version }}-all.zip 是默认构建的全量包" >> release_notes.md
+          echo -e "\n-----------\n默认构建（自动探测哪吒版本）请下载 dist.zip\n哪吒 v0 请下载 v0-dist.zip\n哪吒 v0 /nazhua/ 子目录需求请下载 v0-nazhua.zip" >> release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -87,9 +79,8 @@ jobs:
           body_path: release_notes.md
           draft: true
           files: |
-            v${{ steps.determine_version.outputs.version }}-all.zip
+            dist.zip
             v0-dist.zip
             v0-nazhua.zip
-            dist.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

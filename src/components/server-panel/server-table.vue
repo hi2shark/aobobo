@@ -119,6 +119,7 @@ import {
   getCycleTransferSummaryByServer,
 } from '@/utils/cycle-transfer';
 import { duration } from '@/utils/date';
+import truncateDecimal from '@/utils/number';
 import { getBillAndPlanByServer } from '@/composables/server-bill-and-plan';
 
 const props = defineProps({
@@ -282,7 +283,7 @@ function getAvailability(server) {
   if (value === undefined || value === null || Number.isNaN(Number(value))) {
     return '';
   }
-  return Number(value).toFixed(1) * 1;
+  return truncateDecimal(value, 2);
 }
 
 function getAvailabilityClass(server) {

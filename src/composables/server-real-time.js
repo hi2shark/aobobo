@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import validate from '@/utils/validate';
 import * as dateUtils from '@/utils/date';
 import * as hostUtils from '@/utils/host';
+import truncateDecimal from '@/utils/number';
 
 export default (params) => {
   const {
@@ -239,7 +240,7 @@ export default (params) => {
           key,
           label: '可用性',
           value: availabilityValue.value !== null
-            ? (Math.round(availabilityValue.value * 10) / 10).toFixed(1) * 1
+            ? truncateDecimal(availabilityValue.value, 2)
             : '-',
           unit: '%',
           show: availabilityValue.value !== null,

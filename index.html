@@ -4,8 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AoBoBo</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <script src="./config.js"></script>
+  <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg">
+  <script>
+    (function () {
+      var base = '%BASE_URL%';
+      if (!base.endsWith('/')) base += '/';
+      document.write('<script src="' + base + 'config.js"><\/script>');
+      document.write('<link rel="stylesheet" href="' + base + 'style.css">');
+    })();
+  </script>
   <script>
     (function () {
       var c = window.$$aoboboConfig || window.$$nazhuaConfig || {};
@@ -16,6 +23,5 @@
 <body>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
-  <link rel="stylesheet" href="./style.css" />
 </body>
 </html>
