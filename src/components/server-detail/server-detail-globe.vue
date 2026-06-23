@@ -106,15 +106,15 @@ function readThemePalette() {
 
   if (resolvedTheme.value === 'light') {
     return {
-      ocean: '#cfe5fb',
-      land: 'rgba(86, 145, 218, 0.66)',
-      landBorder: 'rgba(35, 86, 148, 0.34)',
-      highlight: '#2f6fe4',
-      highlightBorder: 'rgba(246, 250, 255, 0.88)',
-      marker,
-      markerSoft,
-      markerHalo: markerSoft,
-      atmosphere: '#6a9dff',
+      ocean: '#bdd8f5',
+      land: '#f8fafc',
+      landBorder: 'rgba(100, 150, 200, 0.60)',
+      highlight: 'rgba(59, 130, 246, 0.52)',
+      highlightBorder: 'rgba(255, 255, 255, 0.92)',
+      marker: '#facc15',
+      markerSoft: 'rgba(250, 204, 21, 0.35)',
+      markerHalo: 'transparent',
+      atmosphere: '#e8f4ff',
     };
   }
 
@@ -179,11 +179,11 @@ const option = computed(() => {
       silent: true,
       light: {
         ambient: {
-          intensity: resolvedTheme.value === 'light' ? 0.72 : 0.84,
+          intensity: resolvedTheme.value === 'light' ? 1.0 : 0.84,
         },
         main: {
-          intensity: resolvedTheme.value === 'light' ? 1.16 : 1.18,
-          shadow: true,
+          intensity: resolvedTheme.value === 'light' ? 0.45 : 1.18,
+          shadow: false,
           alpha: 25,
           beta: 20,
         },
@@ -199,7 +199,7 @@ const option = computed(() => {
         minDistance: 100,
         maxDistance: 300,
       },
-      postEffect: {
+      postEffect: resolvedTheme.value === 'light' ? null : {
         enable: true,
         SSAO: {
           enable: true,
@@ -211,8 +211,8 @@ const option = computed(() => {
       atmosphere: {
         show: true,
         color: palette.atmosphere,
-        glowPower: resolvedTheme.value === 'light' ? 24 : 64,
-        innerGlowPower: resolvedTheme.value === 'light' ? 0.8 : 1.8,
+        glowPower: resolvedTheme.value === 'light' ? 6 : 64,
+        innerGlowPower: resolvedTheme.value === 'light' ? 2.8 : 1.8,
         offset: 0,
       },
     },
@@ -294,18 +294,23 @@ function drawLocationMarkerOnCanvas(ctx, projection, palette) {
 
   const [x, y] = point;
 
+  // 核心圆点，无外围光晕
   ctx.beginPath();
-  ctx.arc(x, y, 18, 0, Math.PI * 2);
-  ctx.fillStyle = palette.markerHalo;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.arc(x, y, 14, 0, Math.PI * 2);
   ctx.fillStyle = palette.marker;
-  ctx.shadowColor = palette.markerSoft;
-  ctx.shadowBlur = 24;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
   ctx.fill();
   ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  // 中心高光点，增强对比
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.fill();
 }
 
 function createGlobeTexture(geoJson, highlightFeature) {

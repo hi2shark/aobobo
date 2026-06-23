@@ -392,7 +392,7 @@ function viewOnGlobe() {
   }
 
   .globe-focus-btn--visual {
-    --detail-globe-size: 112px;
+    --detail-globe-size: 144px;
     position: relative;
     width: var(--detail-globe-size);
     height: var(--detail-globe-size);
@@ -552,7 +552,7 @@ function viewOnGlobe() {
     }
 
     .globe-focus-btn--visual {
-      --detail-globe-size: 88px;
+      --detail-globe-size: 112px;
     }
 
     .globe-focus-btn--text {
@@ -594,7 +594,7 @@ function viewOnGlobe() {
     }
 
     .globe-focus-btn--visual {
-      --detail-globe-size: 72px;
+      --detail-globe-size: 88px;
     }
   }
 }

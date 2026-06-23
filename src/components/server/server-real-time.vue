@@ -1,5 +1,8 @@
 <template>
-  <div class="server-real-time-group">
+  <div
+    class="server-real-time-group"
+    :class="'real-time-count--' + serverRealTimeList.length"
+  >
     <div
       v-for="item in serverRealTimeList"
       :key="item.key"
@@ -78,8 +81,25 @@ const {
 <style lang="scss" scoped>
 .server-real-time-group {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
+
+  &.real-time-count--1 {
+    grid-template-columns: 1fr;
+  }
+
+  &.real-time-count--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  &.real-time-count--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  &.real-time-count--4,
+  &.real-time-count--5,
+  &.real-time-count--6 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 
   .server-real-time-item {
     display: flex;
@@ -251,7 +271,14 @@ const {
 
 @media screen and (max-width: 900px) {
   .server-real-time-group {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    &.real-time-count--1,
+    &.real-time-count--2,
+    &.real-time-count--3,
+    &.real-time-count--4,
+    &.real-time-count--5,
+    &.real-time-count--6 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 }
 
