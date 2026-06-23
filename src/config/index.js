@@ -30,6 +30,7 @@ const config = reactive({
     v1HideNezhaDashboardBtn: false,
     detailCycleTransferRefreshTime: 60,
     hideDetailCycleTransfer: false,
+    hideDetailServerGlobe: false,
     monitorRefreshTime: 30,
     monitorChartType: 'multi',
     monitorChartTypeToggle: true,

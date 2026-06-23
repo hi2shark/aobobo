@@ -81,9 +81,19 @@
     </div>
 
     <button
-      v-if="locationCode"
+      v-if="showDetailGlobe"
       type="button"
-      class="globe-focus-btn"
+      class="globe-focus-btn globe-focus-btn--visual"
+      :aria-label="`在地球上查看 ${info?.Name || '服务器'}`"
+      @click="viewOnGlobe"
+    >
+      <server-detail-globe :location="detailGlobeLocation" />
+    </button>
+
+    <button
+      v-else-if="showFallbackFocusButton"
+      type="button"
+      class="globe-focus-btn globe-focus-btn--text"
       @click="viewOnGlobe"
     >
       <i class="ri-earth-line" />
@@ -95,6 +105,8 @@
 <script setup>
 import {
   computed,
+  defineAsyncComponent,
+  h,
 } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
@@ -103,6 +115,17 @@ import { resolveServerLocation } from '@/utils/world-map';
 import truncateDecimal from '@/utils/number';
 import useServerInfo from '@/composables/server-info';
 import ServerFlag from '@/components/server-flag.vue';
+import config from '@/config';
+
+const ServerDetailGlobePlaceholder = {
+  render: () => h('div', { class: 'server-detail-globe-placeholder' }),
+};
+
+const ServerDetailGlobe = defineAsyncComponent({
+  loader: () => import('@/components/server-detail/server-detail-globe.vue'),
+  loadingComponent: ServerDetailGlobePlaceholder,
+  delay: 0,
+});
 
 const props = defineProps({
   info: {
@@ -154,7 +177,36 @@ const availabilityClass = computed(() => {
   return 'availability-status--danger';
 });
 
+function normalizeCountryCode(code) {
+  if (typeof code !== 'string') {
+    return '';
+  }
+  const normalized = code.trim().toUpperCase();
+  if (normalized === 'UK') {
+    return 'GB';
+  }
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : '';
+}
+
 const locationCode = computed(() => resolvedLocation.value?.code || '');
+const countryCode = computed(() => normalizeCountryCode(props.info?.Host?.CountryCode)
+  || normalizeCountryCode(resolvedLocation.value?.aliasCode));
+
+const detailGlobeLocation = computed(() => {
+  const loc = resolvedLocation.value;
+  if (!loc) {
+    return {};
+  }
+
+  return {
+    ...loc,
+    countryCode: countryCode.value,
+  };
+});
+
+const hideDetailGlobe = computed(() => config.aobobo?.hideDetailServerGlobe === true);
+const showDetailGlobe = computed(() => !!locationCode.value && !hideDetailGlobe.value);
+const showFallbackFocusButton = computed(() => !!locationCode.value && hideDetailGlobe.value);
 
 const regionLabel = computed(() => {
   const loc = resolvedLocation.value;
@@ -194,6 +246,7 @@ function viewOnGlobe() {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex: 1 1 auto;
     min-width: 0;
   }
 
@@ -236,11 +289,13 @@ function viewOnGlobe() {
   }
 
   .server-name {
+    min-width: 0;
     line-height: 1.2;
     font-size: 18px;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
   }
 
   .server-status-badge {
@@ -308,8 +363,63 @@ function viewOnGlobe() {
   .globe-focus-btn {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
     flex-shrink: 0;
+    border: 1px solid var(--button-subtle-border);
+    background: var(--button-subtle-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast),
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast),
+      transform var(--transition-fast);
+
+    &:hover,
+    &:focus-visible {
+      color: var(--text-on-accent);
+      background: var(--button-active-bg);
+      border-color: var(--button-active-border);
+      box-shadow: var(--button-active-shadow);
+      transform: translateY(-1px);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(var(--accent-primary-rgb), 0.42);
+      outline-offset: 3px;
+    }
+  }
+
+  .globe-focus-btn--visual {
+    --detail-globe-size: 112px;
+    position: relative;
+    width: var(--detail-globe-size);
+    height: var(--detail-globe-size);
+    padding: 0;
+    border-color: transparent;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+
+    &:hover,
+    &:focus-visible {
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      transform: none;
+    }
+  }
+
+  .server-detail-globe-placeholder {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+  }
+
+  .globe-focus-btn--text {
+    gap: 5px;
     height: 32px;
     padding: 0 12px;
     border-radius: 999px;
@@ -319,21 +429,6 @@ function viewOnGlobe() {
     font-size: 13px;
     font-weight: 600;
     line-height: 1;
-    cursor: pointer;
-    transition:
-      color var(--transition-fast),
-      background var(--transition-fast),
-      border-color var(--transition-fast),
-      box-shadow var(--transition-fast),
-      transform var(--transition-fast);
-
-    &:hover {
-      color: var(--text-on-accent);
-      background: var(--button-active-bg);
-      border-color: var(--button-active-border);
-      box-shadow: var(--button-active-shadow);
-      transform: translateY(-1px);
-    }
 
     i {
       display: inline-flex;
@@ -432,13 +527,15 @@ function viewOnGlobe() {
 
 @media screen and (max-width: 768px) {
   .server-detail-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    padding: 8px 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+    padding: 8px 12px;
 
     .server-identity {
       gap: 10px;
+      min-width: 0;
     }
 
     .server-flag-box {
@@ -454,11 +551,50 @@ function viewOnGlobe() {
       font-size: 15px;
     }
 
-    .globe-focus-btn {
+    .globe-focus-btn--visual {
+      --detail-globe-size: 88px;
+    }
+
+    .globe-focus-btn--text {
+      grid-column: 1 / -1;
       width: 100%;
       justify-content: center;
       height: 28px;
       font-size: 12px;
+    }
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .server-detail-header {
+    gap: 8px;
+    padding: 8px 10px;
+
+    .server-identity {
+      gap: 8px;
+    }
+
+    .server-flag-box {
+      --flag-size: 34px;
+    }
+
+    .server-name-row {
+      gap: 6px;
+    }
+
+    .server-name {
+      font-size: 14px;
+    }
+
+    .server-status-badge,
+    .meta-tag {
+      height: 20px;
+      padding: 0 6px;
+      font-size: 10px;
+    }
+
+    .globe-focus-btn--visual {
+      --detail-globe-size: 72px;
     }
   }
 }

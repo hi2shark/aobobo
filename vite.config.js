@@ -82,7 +82,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('echarts-gl') || id.includes('claygl')) {
+              return 'detail-globe';
+            }
             return 'vendor';
+          }
+          if (id.includes('src/data/world.geo.json')) {
+            return 'world-geo';
           }
           if (id.includes('.svg')) {
             return 'svg';

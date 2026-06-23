@@ -22,6 +22,7 @@ AoBoBo 通过 `config.js` 注入运行时常量，部署时只需替换该文件
 | `monitorRefreshTime` | `number` | `30` | 监控数据刷新间隔（秒），设置为 `0` 则不自动刷新。 |
 | `hideDetailCycleTransfer` | `boolean` | `false` | 是否隐藏服务器详情页的周期流量卡片。 |
 | `detailCycleTransferRefreshTime` | `number` | `60` | 详情页周期流量刷新间隔（秒）。 |
+| `hideDetailServerGlobe` | `boolean` | `false` | 是否隐藏服务器详情页头部的微缩 3D 地球。 |
 
 ## 成本与汇率
 
@@ -86,6 +87,7 @@ window.$$aoboboConfig = {
 
   hideDetailCycleTransfer: false,
   detailCycleTransferRefreshTime: 60,
+  hideDetailServerGlobe: false,
 
   statsCostCurrency: 'USD',
   defaultCostCurrency: 'CNY',

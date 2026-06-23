@@ -77,6 +77,7 @@ window.$$aoboboConfig = {
   monitorChartTypeToggle: true, // 是否允许切换监控图表类型
   monitorRefreshTime: 30,       // 监控刷新间隔（秒），0 为不刷新
   hideDetailCycleTransfer: false, // 是否隐藏详情页周期流量卡片
+  hideDetailServerGlobe: false, // 是否隐藏详情页头部微缩 3D 地球
 };
 ```
 
@@ -220,10 +221,9 @@ Release 产物说明：
 
 | 文件名 | 适用场景 |
 | --- | --- |
-| `v{X.Y.Z}-all.zip` | 默认构建，运行时自动探测哪吒版本 |
-| `dist.zip` | 构建时默认锁定为哪吒 v1 |
+| `dist.zip` | 自动检测版本，优先v1 |
 | `v0-dist.zip` | 构建时默认锁定为哪吒 v0 |
-| `v0-nazhua.zip` | 哪吒 v0 同域 `/aobobo/` 子目录部署 |
+| `v0-aobobo.zip` | 哪吒 v0 同域 `/aobobo/` 子目录部署 |
 
 ## 相关链接
 

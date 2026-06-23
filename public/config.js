@@ -23,6 +23,8 @@ window.$$aoboboConfig = {
   // hideDetailCycleTransfer: false,
   // 详情页周期流量刷新间隔（秒）
   // detailCycleTransferRefreshTime: 60,
+  // 是否隐藏详情页头部微缩 3D 地球
+  // hideDetailServerGlobe: false,
 
   // GPU 名称中包含以下关键字时过滤掉
   // filterGPUKeywords: ['Virtual Display'],
