@@ -41,9 +41,12 @@ import {
   computed,
   watch,
   provide,
+  onMounted,
+  onUnmounted,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import config from '@/config';
 import ThemeModeSwitch from '@/components/theme-mode-switch.vue';
 import V1DashboardBtn from '@/components/v1-dashboard-btn.vue';
 import AppFooter from '@/components/app-footer.vue';
@@ -65,6 +68,36 @@ const dataInit = computed(() => store.state.init);
 const currentTime = computed(() => store.state.serverTime || Date.now());
 provide('currentTime', currentTime);
 
+let availabilityTimer = null;
+
+function stopAvailabilityTimer() {
+  if (availabilityTimer) {
+    window.clearInterval(availabilityTimer);
+    availabilityTimer = null;
+  }
+}
+
+function startAvailabilityTimer() {
+  stopAvailabilityTimer();
+  if (!store.state.showAvailability) {
+    return;
+  }
+  const seconds = Number(config.aobobo.availabilityRefreshTime);
+  if (!seconds || seconds <= 0) {
+    return;
+  }
+  availabilityTimer = window.setInterval(() => {
+    store.dispatch('refreshAvailability');
+  }, seconds * 1000);
+}
+
+function refreshAvailabilityOnce() {
+  if (!store.state.showAvailability) {
+    return;
+  }
+  store.dispatch('refreshAvailability');
+}
+
 watch(info, (val) => {
   if (val?.Name) {
     document.title = `${val.Name} · 哪吒监控`;
@@ -76,6 +109,27 @@ watch([dataInit, info], () => {
     router.replace('/');
   }
 }, { immediate: true });
+
+watch(
+  () => store.state.init,
+  (init) => {
+    if (init) {
+      refreshAvailabilityOnce();
+      startAvailabilityTimer();
+    }
+  },
+);
+
+onMounted(() => {
+  if (store.state.init) {
+    refreshAvailabilityOnce();
+    startAvailabilityTimer();
+  }
+});
+
+onUnmounted(() => {
+  stopAvailabilityTimer();
+});
 </script>
 
 <style lang="scss" scoped>
