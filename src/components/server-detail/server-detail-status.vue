@@ -51,7 +51,7 @@
       </h3>
       <server-real-time
         :info="info"
-        server-real-time-list-tpls="availability,duration,transfer,speeds"
+        :server-real-time-list-tpls="realTimeTpls"
       />
     </div>
   </detail-panel>
@@ -61,6 +61,10 @@
 /**
  * 服务器状态组
  */
+import {
+  computed,
+} from 'vue';
+import { useStore } from 'vuex';
 import useServerStatus from '@/composables/server-status';
 import DetailPanel from '@/components/server-detail/detail-panel.vue';
 import ServerRealTime from '@/components/server/server-real-time.vue';
@@ -70,6 +74,13 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+});
+
+const store = useStore();
+
+const realTimeTpls = computed(() => {
+  const base = 'duration,transfer,speeds';
+  return store.state.showAvailability ? `availability,${base}` : base;
 });
 
 const {

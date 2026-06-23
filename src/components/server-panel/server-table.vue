@@ -53,11 +53,11 @@
             || getBilling(server)
             || getRemainingTime(server)
             || getPlanTags(server).length
-            || getAvailability(server)"
+            || (showAvailability && getAvailability(server))"
           class="server-list-item__tags server-list-item__tags--bill"
         >
           <span
-            v-if="getAvailability(server)"
+            v-if="showAvailability && getAvailability(server)"
             :class="['meta-tag', 'meta-tag--availability', getAvailabilityClass(server)]"
           >
             <i class="ri-shield-check-line" />
@@ -109,7 +109,11 @@
 </template>
 
 <script setup>
+import {
+  computed,
+} from 'vue';
 import { useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 import {
   calcTransfer,
   getCPUInfo,
@@ -136,6 +140,9 @@ const props = defineProps({
 const emit = defineEmits(['hover-server']);
 
 const router = useRouter();
+const store = useStore();
+
+const showAvailability = computed(() => store.state.showAvailability);
 
 function goDetail(server) {
   router.push(`/server/${server.ID}`);

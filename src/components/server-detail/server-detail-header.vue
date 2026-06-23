@@ -12,7 +12,7 @@
             <span>{{ info.online === 1 ? '在线' : '离线' }}</span>
           </span>
           <span
-            v-if="availabilityText"
+            v-if="availabilityText && store.state.showAvailability"
             :class="['server-status-badge', 'server-status-badge--availability', availabilityClass]"
           >
             <i class="ri-shield-check-line" />
