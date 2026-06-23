@@ -223,6 +223,7 @@ const BLOOM_CONFIG = {
 };
 const globeTextureCache = { light: null, dark: null };
 let rimAtmosphereGroup = null;
+let rimAtmosphereTheme = null;
 let bloomPass = null;
 let cameraKeyLight = null;
 let sceneBackgroundTexture = null;
@@ -284,7 +285,7 @@ function getThemePalette(theme) {
     landSpecular: '#6a7a8c',
     coastline: 'rgba(120, 140, 165, 0.16)',
     landSide: '#252e38',
-    atmosphere: '#2d9aff',
+    atmosphere: '#89c3eb',
     atmosphereAltitude: 0.018,
     polygonAltitude: 0.0008,
     polygonCurvature: 8,
@@ -314,19 +315,36 @@ function getGlobeMaps(theme) {
   return globeTextureCache[cacheKey];
 }
 
+function getRimAtmosphereOptions(theme) {
+  return theme === 'light'
+    ? { innerStrengthScale: 0.32, glowIntensityScale: 0.32, layers: GLOW_LAYERS_LIGHT }
+    : { innerStrengthScale: 1.18, glowIntensityScale: 1.12 };
+}
+
+function disposeCurrentRimAtmosphere(scene) {
+  if (!rimAtmosphereGroup) {
+    return;
+  }
+
+  scene?.remove(rimAtmosphereGroup);
+  disposeRimAtmosphereGroup(rimAtmosphereGroup);
+  rimAtmosphereGroup = null;
+  rimAtmosphereTheme = null;
+}
+
 function syncRimAtmosphere(palette) {
   const scene = globe?.scene?.();
   if (!scene) {
     return;
   }
 
-  const isLight = props.theme === 'light';
-  const rimOptions = isLight
-    ? { innerStrengthScale: 0.32, glowIntensityScale: 0.32, layers: GLOW_LAYERS_LIGHT }
-    : { innerStrengthScale: 1.18, glowIntensityScale: 1.12 };
-
-  if (!rimAtmosphereGroup) {
-    rimAtmosphereGroup = createRimAtmosphereGroup(palette.atmosphere, rimOptions);
+  if (!rimAtmosphereGroup || rimAtmosphereTheme !== props.theme) {
+    disposeCurrentRimAtmosphere(scene);
+    rimAtmosphereGroup = createRimAtmosphereGroup(
+      palette.atmosphere,
+      getRimAtmosphereOptions(props.theme),
+    );
+    rimAtmosphereTheme = props.theme;
     scene.add(rimAtmosphereGroup);
     return;
   }
@@ -1570,11 +1588,7 @@ onUnmounted(() => {
     globeContainer.value.removeEventListener('pointerup', markerPointerUpHandler, true);
   }
 
-  if (rimAtmosphereGroup) {
-    globe?.scene?.()?.remove(rimAtmosphereGroup);
-    disposeRimAtmosphereGroup(rimAtmosphereGroup);
-    rimAtmosphereGroup = null;
-  }
+  disposeCurrentRimAtmosphere(globe?.scene?.());
 
   if (cameraKeyLight) {
     globe?.camera?.()?.remove(cameraKeyLight);
