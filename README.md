@@ -125,7 +125,7 @@ NEZHA_HOST=http://your-nezha-host:8080
 | `npm run build` | 构建生产版本（默认自动探测哪吒版本） |
 | `npm run build:v0` | 构建默认指向哪吒 v0 的版本 |
 | `npm run build:v1` | 构建默认指向哪吒 v1 的版本 |
-| `npm run build:nazhua` | 构建 v0 同域 `/nazhua/` 子目录版本 |
+| `npm run build:nazhua` | 构建 v0 同域 `/aobobo/` 子目录版本 |
 | `npm run preview` | 预览生产构建 |
 | `npm run lint` | 运行 ESLint |
 | `npm run lint:fix` | 自动修复 ESLint 问题 |
@@ -223,7 +223,7 @@ Release 产物说明：
 | `v{X.Y.Z}-all.zip` | 默认构建，运行时自动探测哪吒版本 |
 | `dist.zip` | 构建时默认锁定为哪吒 v1 |
 | `v0-dist.zip` | 构建时默认锁定为哪吒 v0 |
-| `v0-nazhua.zip` | 哪吒 v0 同域 `/nazhua/` 子目录部署 |
+| `v0-nazhua.zip` | 哪吒 v0 同域 `/aobobo/` 子目录部署 |
 
 ## 相关链接
 

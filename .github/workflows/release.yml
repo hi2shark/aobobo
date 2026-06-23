@@ -55,9 +55,9 @@ jobs:
       - name: Package v0-dist.zip
         run: zip -r v0-dist.zip dist
 
-      - name: Build Nezha v0 /nazhua/ subdirectory bundle
+      - name: Build Nezha v0 /aobobo/ subdirectory bundle
         env:
-          VITE_BASE_PATH: '/nazhua/'
+          VITE_BASE_PATH: '/aobobo/'
           VITE_NEZHA_VERSION: 'v0'
         run: npm run build
 
@@ -69,7 +69,7 @@ jobs:
         run: |
           echo "#### Changes" > release_notes.md
           git log -20 --pretty=format:"- %s" >> release_notes.md
-          echo -e "\n-----------\n默认构建（自动探测哪吒版本）请下载 dist.zip\n哪吒 v0 请下载 v0-dist.zip\n哪吒 v0 /nazhua/ 子目录需求请下载 v0-nazhua.zip" >> release_notes.md
+          echo -e "\n-----------\n默认构建（自动探测哪吒版本）请下载 dist.zip\n哪吒 v0 请下载 v0-dist.zip\n哪吒 v0 /aobobo/ 子目录需求请下载 v0-nazhua.zip" >> release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
