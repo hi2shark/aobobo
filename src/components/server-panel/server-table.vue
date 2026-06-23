@@ -112,7 +112,6 @@
 import {
   computed,
 } from 'vue';
-import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import {
   calcTransfer,
@@ -137,15 +136,14 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['hover-server']);
+const emit = defineEmits(['hover-server', 'select-server']);
 
-const router = useRouter();
 const store = useStore();
 
 const showAvailability = computed(() => store.state.showAvailability);
 
 function goDetail(server) {
-  router.push(`/server/${server.ID}`);
+  emit('select-server', server);
 }
 
 function onRowEnter(server) {

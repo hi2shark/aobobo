@@ -216,6 +216,7 @@
         :servers="filteredServers"
         :cycle-transfer-map="cycleTransferMap"
         @hover-server="handleServerHover"
+        @select-server="handleServerSelect"
       />
       <div v-else class="empty-list">
         <icon-inbox class="empty-icon" />
@@ -244,6 +245,50 @@
     />
 
     <app-footer class="app-footer--absolute" />
+
+    <transition name="drawer-fade">
+      <div
+        v-if="detailDrawerOpen"
+        class="detail-drawer-backdrop"
+        aria-hidden="true"
+        @click="closeDetailDrawer"
+      />
+    </transition>
+
+    <transition name="drawer-slide">
+      <aside
+        v-if="detailDrawerOpen && detailServerInfo"
+        ref="detailDrawerRef"
+        class="detail-drawer"
+        :class="{ 'server--offline': detailServerInfo.online !== 1 }"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`${detailServerInfo.Name || '服务器'} 详情`"
+        tabindex="-1"
+        @keydown.esc="closeDetailDrawer"
+      >
+        <div class="detail-drawer__header">
+          <h2 class="detail-drawer__title">{{ detailServerInfo.Name || '服务器详情' }}</h2>
+          <button
+            type="button"
+            class="detail-drawer__close"
+            aria-label="关闭详情"
+            @click="closeDetailDrawer"
+          >
+            <i class="ri-close-line" />
+          </button>
+        </div>
+        <div class="detail-drawer__body">
+          <div class="detail-drawer__stack">
+            <server-detail-header :info="detailServerInfo" class="stack-item stack-item--header" />
+            <server-detail-status :info="detailServerInfo" class="stack-item stack-item--status" />
+            <server-detail-cycle-transfer :info="detailServerInfo" class="stack-item stack-item--cycle" />
+            <server-detail-info :info="detailServerInfo" class="stack-item stack-item--info" />
+            <server-detail-monitor :info="detailServerInfo" class="stack-item stack-item--monitor" />
+          </div>
+        </div>
+      </aside>
+    </transition>
   </div>
 </template>
 
@@ -257,6 +302,7 @@ import {
   onUnmounted,
   watch,
   nextTick,
+  provide,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
@@ -277,6 +323,7 @@ import {
   serverSortHandler,
   defaultServerSortConfig,
 } from '@/composables/server-sort';
+// eslint-disable-next-line no-unused-vars
 import CurrentTime from '@/components/current-time.vue';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
@@ -289,6 +336,11 @@ import IconLoading from '@/components/icons/icon-loading.vue';
 import IconInbox from '@/components/icons/icon-inbox.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
 import StatsDetailModal from '@/components/stats-detail-modal.vue';
+import ServerDetailHeader from '@/components/server-detail/server-detail-header.vue';
+import ServerDetailStatus from '@/components/server-detail/server-detail-status.vue';
+import ServerDetailCycleTransfer from '@/components/server-detail/server-detail-cycle-transfer.vue';
+import ServerDetailInfo from '@/components/server-detail/server-detail-info.vue';
+import ServerDetailMonitor from '@/components/server-detail/server-detail-monitor.vue';
 
 const SERVER_HOVER_FOCUS_DELAY = 3000;
 const FILTER_OPTIONS = [
@@ -301,7 +353,7 @@ const serverSortOptionsList = serverSortOptions();
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
-const WIDE_BREAKPOINT = 1024;
+const WIDE_BREAKPOINT = 1001;
 
 const filterOnline = ref('');
 const searchKeyword = ref('');
@@ -309,6 +361,9 @@ const selectedGroup = ref('');
 const serverSortConfig = ref(defaultServerSortConfig());
 const sidebarOpen = ref(typeof window === 'undefined' ? true : window.innerWidth > 768);
 const isWideScreen = ref(false);
+const detailDrawerOpen = ref(false);
+const detailServerId = ref(null);
+const detailDrawerRef = ref(null);
 const globeRef = ref(null);
 const globeKey = ref(0);
 const cycleTransferMap = ref({});
@@ -343,6 +398,27 @@ function updateWideScreen() {
   if (isWideScreen.value) {
     sidebarOpen.value = true;
     panelExpanded.value = false;
+  }
+}
+
+function openDetailDrawer(id) {
+  detailServerId.value = id;
+  detailDrawerOpen.value = true;
+}
+
+function closeDetailDrawer() {
+  detailDrawerOpen.value = false;
+  if (route.query.detail) {
+    router.replace({ query: { ...route.query, detail: undefined } });
+  }
+}
+
+function handleServerSelect(server) {
+  if (isWideScreen.value) {
+    openDetailDrawer(server.ID);
+    router.replace({ query: { ...route.query, detail: server.ID } });
+  } else {
+    router.push(`/server/${server.ID}`);
   }
 }
 
@@ -468,6 +544,12 @@ const serverList = computed(() => store.state.serverList);
 const serverCount = computed(() => store.state.serverCount);
 const serverGroups = computed(() => store.state.serverGroup || []);
 const hasOfflineServer = computed(() => serverList.value.some((s) => s.online !== 1));
+const detailServerInfo = computed(() => {
+  if (!detailServerId.value) return null;
+  return serverList.value.find((s) => String(s.ID) === String(detailServerId.value)) || null;
+});
+const currentTime = computed(() => store.state.serverTime || Date.now());
+provide('currentTime', currentTime);
 
 watch(
   [filterOnline, () => serverCount.value?.online, () => serverCount.value?.offline],
@@ -1185,6 +1267,32 @@ watch(
 );
 
 watch(
+  () => route.query.detail,
+  (detailId) => {
+    if (detailId && isWideScreen.value) {
+      openDetailDrawer(detailId);
+    } else if (!detailId) {
+      closeDetailDrawer();
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  detailDrawerOpen,
+  (open) => {
+    if (open) {
+      document.body.classList.add('detail-drawer-open');
+      nextTick(() => {
+        detailDrawerRef.value?.focus();
+      });
+    } else {
+      document.body.classList.remove('detail-drawer-open');
+    }
+  },
+);
+
+watch(
   [resolvedTheme, serverCount, totalStats],
   async () => {
     await nextTick();
@@ -1194,7 +1302,13 @@ watch(
 );
 
 function handleWindowResize() {
+  const wasWide = isWideScreen.value;
   updateWideScreen();
+  if (!isWideScreen.value && detailDrawerOpen.value) {
+    closeDetailDrawer();
+  } else if (!wasWide && isWideScreen.value && route.query.detail && !detailDrawerOpen.value) {
+    openDetailDrawer(route.query.detail);
+  }
   if (typeof ResizeObserver === 'undefined') {
     nextTick(() => syncCurrentTimePanelWidth());
   }
@@ -2473,6 +2587,148 @@ onUnmounted(() => {
     .stats-unit {
       font-size: 9px;
     }
+  }
+}
+
+/* ===== 服务器详情抽屉 ===== */
+.detail-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  will-change: opacity;
+}
+
+.detail-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  width: 900px;
+  max-width: 100%;
+  background: var(--page-bg);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  will-change: transform;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: -2px;
+  }
+
+  &.server--offline {
+    filter: grayscale(1);
+  }
+}
+
+.detail-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 14px 18px;
+  background: var(--section-header-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-drawer__title {
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--button-subtle-border);
+  background: var(--button-subtle-bg);
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+
+  &:hover {
+    background: var(--button-active-bg);
+    border-color: var(--button-active-border);
+    color: var(--text-on-accent);
+    box-shadow: var(--button-active-shadow);
+    transform: translateY(-1px);
+  }
+}
+
+.detail-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px 20px;
+}
+
+.detail-drawer__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: var(--detail-container-width);
+  margin: 0 auto;
+  width: 100%;
+
+  .stack-item {
+    border-radius: var(--radius-lg);
+    background: var(--section-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+}
+
+.drawer-fade-enter-active {
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer-fade-leave-active {
+  transition: opacity 0.28s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.drawer-fade-enter-from,
+.drawer-fade-leave-to {
+  opacity: 0;
+}
+
+.drawer-slide-enter-active {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer-slide-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 1, 1);
+}
+
+.drawer-slide-enter-from,
+.drawer-slide-leave-to {
+  transform: translate3d(100%, 0, 0);
+}
+
+@media screen and (max-width: 1000px) {
+  .detail-drawer {
+    width: 100%;
   }
 }
 </style>
