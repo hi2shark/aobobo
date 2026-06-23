@@ -106,9 +106,9 @@ function readThemePalette() {
 
   if (resolvedTheme.value === 'light') {
     return {
-      ocean: '#bdd8f5',
-      land: '#f8fafc',
-      landBorder: 'rgba(100, 150, 200, 0.60)',
+      ocean: '#cfe5fb',
+      land: '#f5f7fa',
+      landBorder: 'rgba(100, 150, 200, 0.65)',
       highlight: 'rgba(59, 130, 246, 0.52)',
       highlightBorder: 'rgba(255, 255, 255, 0.92)',
       marker: '#facc15',
@@ -174,16 +174,16 @@ const option = computed(() => {
     backgroundColor: 'transparent',
     globe: {
       baseTexture: globeTextureCanvas.value,
-      shading: 'lambert',
+      shading: resolvedTheme.value === 'light' ? 'color' : 'lambert',
       environment: 'none',
       silent: true,
-      light: {
+      light: resolvedTheme.value === 'light' ? null : {
         ambient: {
-          intensity: resolvedTheme.value === 'light' ? 1.0 : 0.84,
+          intensity: 0.84,
         },
         main: {
-          intensity: resolvedTheme.value === 'light' ? 0.45 : 1.18,
-          shadow: false,
+          intensity: 1.18,
+          shadow: true,
           alpha: 25,
           beta: 20,
         },
