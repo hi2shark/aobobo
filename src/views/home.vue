@@ -47,6 +47,7 @@
         :locations="serverLocations"
         :theme="resolvedTheme"
         :cycle-transfer-map="cycleTransferMap"
+        @select-server="handleServerSelect"
       />
       <div
         ref="globeStatsFloatingRef"
@@ -410,6 +411,12 @@ function closeDetailDrawer() {
   detailDrawerOpen.value = false;
   if (route.query.detail) {
     router.replace({ query: { ...route.query, detail: undefined } });
+  }
+}
+
+function restoreHomeTitle() {
+  if (config.aobobo.title) {
+    document.title = config.aobobo.title;
   }
 }
 
@@ -1153,6 +1160,7 @@ async function focusLocationFromQuery(focusCode) {
 }
 
 let focusingFromQuery = false;
+let globeFocusOperation = null;
 
 async function tryFocusFromQuery() {
   if (focusingFromQuery) {
@@ -1193,9 +1201,21 @@ async function handleGlobeFocus() {
     return;
   }
 
+  // 取消上一个地球聚焦操作，避免旧实例/旧路由竞争导致气泡不显示
+  if (globeFocusOperation) {
+    globeFocusOperation.cancelled = true;
+  }
+  const operation = { cancelled: false };
+  globeFocusOperation = operation;
+
   await globeRef.value.ready();
 
-  if (!store.state.globeFocus || serverLocations.value.length === 0) {
+  if (
+    operation.cancelled
+    || !store.state.globeFocus
+    || !globeRef.value
+    || serverLocations.value.length === 0
+  ) {
     return;
   }
 
@@ -1212,7 +1232,7 @@ async function handleGlobeFocus() {
     focus.name || location.label,
   );
 
-  if (success) {
+  if (success && !operation.cancelled && globeRef.value) {
     store.dispatch('clearGlobeFocus');
   }
 }
@@ -1315,6 +1335,7 @@ function handleWindowResize() {
 }
 
 onMounted(() => {
+  restoreHomeTitle();
   updateWideScreen();
   window.addEventListener('resize', handleWindowResize);
   setupCurrentTimeWidthSync();
@@ -1331,6 +1352,7 @@ onMounted(() => {
 });
 
 onActivated(() => {
+  restoreHomeTitle();
   globeKey.value += 1;
   nextTick(() => {
     setupCurrentTimeWidthSync();

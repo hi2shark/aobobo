@@ -59,7 +59,6 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router';
 import { duration } from '@/utils/date';
 import {
   calcTransfer,
@@ -70,7 +69,7 @@ import {
   getCycleTransferSummaryByServer,
 } from '@/utils/cycle-transfer';
 
-defineEmits(['close']);
+const emit = defineEmits(['close', 'select-server']);
 
 const props = defineProps({
   location: {
@@ -95,10 +94,8 @@ const props = defineProps({
   },
 });
 
-const router = useRouter();
-
 function openServer(server) {
-  router.push(`/server/${server.ID}`);
+  emit('select-server', server);
 }
 
 function getCPUCompany(server) {

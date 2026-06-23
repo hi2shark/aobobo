@@ -66,6 +66,7 @@
           :placement="popupState.placement"
           :cycle-transfer-map="cycleTransferMap"
           @close="clearSelection"
+          @select-server="handlePopupSelectServer"
         />
       </div>
     </transition>
@@ -161,7 +162,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['marker-click']);
+const emit = defineEmits(['marker-click', 'select-server']);
 
 const rootRef = ref(null);
 const globeContainer = ref(null);
@@ -768,6 +769,9 @@ function focusLocationWithHighlight(location, serverName) {
       return;
     }
 
+    // 留一点缓冲，等地球旋转动画和控制阻尼完全稳定后再显示气泡
+    const bubbleShowDelay = FOCUS_ANIMATION_DURATION + 180;
+
     focusBubbleTimer = window.setTimeout(() => {
       focusBubbleMarker.value = marker;
       focusBubbleServerName.value = serverName || marker.label;
@@ -776,22 +780,25 @@ function focusLocationWithHighlight(location, serverName) {
       applyAutoRotateState();
 
       let positionAttempts = 0;
-      const maxPositionAttempts = 30;
+      const maxPositionAttempts = 40;
 
       const tryUpdatePosition = () => {
         positionAttempts += 1;
+        syncMarkerElementState();
         updateFocusBubblePosition();
         if (focusBubbleState.visible) {
           resolve(true);
         } else if (positionAttempts >= maxPositionAttempts) {
           resolve(false);
         } else {
-          focusBubbleTimer = window.setTimeout(tryUpdatePosition, 100);
+          focusBubbleTimer = window.setTimeout(tryUpdatePosition, 80);
         }
       };
 
-      nextTick(tryUpdatePosition);
-    }, FOCUS_ANIMATION_DURATION);
+      nextTick(() => {
+        window.requestAnimationFrame(tryUpdatePosition);
+      });
+    }, bubbleShowDelay);
   });
 }
 
@@ -1173,6 +1180,10 @@ function handlePopupEnter() {
 
 function handlePopupLeave() {
   isPopupHovered.value = false;
+}
+
+function handlePopupSelectServer(server) {
+  emit('select-server', server);
 }
 
 function updateViewportMode() {
