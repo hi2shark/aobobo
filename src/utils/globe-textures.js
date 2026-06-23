@@ -46,6 +46,8 @@ const THEME_COLORS = {
   light: {
     oceanBase: '#d9edff',
     land: BASE_LAND_COLORS.light,
+    coastline: 'rgba(112, 137, 168, 0.34)',
+    coastlineWidth: 1.25,
   },
   dark: {
     oceanBase: '#061221',
@@ -54,6 +56,8 @@ const THEME_COLORS = {
     oceanEdge: '#0b2843',
     oceanLimb: '#0d304f',
     land: brighten(BASE_LAND_COLORS.dark, LAND_BRIGHTEN_PERCENT),
+    coastline: 'rgba(116, 152, 184, 0.22)',
+    coastlineWidth: 1.45,
   },
 };
 
@@ -230,26 +234,45 @@ function drawDarkGraticules(ctx, width, height) {
   }
 }
 
+function traceLandPath(ctx, width, height, polygon) {
+  const rings = polygon.geometry.coordinates;
+  ctx.beginPath();
+  rings.forEach((ring) => {
+    ring.forEach(([lng, lat], index) => {
+      const { x, y } = projectGeoToCanvas(lng, lat, width, height);
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+  });
+}
+
 function drawLandColor(ctx, width, height, color) {
   const polygons = getLandPolygonsData();
 
   ctx.fillStyle = color;
   polygons.forEach((polygon) => {
-    const rings = polygon.geometry.coordinates;
-    ctx.beginPath();
-    rings.forEach((ring) => {
-      ring.forEach(([lng, lat], index) => {
-        const { x, y } = projectGeoToCanvas(lng, lat, width, height);
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.closePath();
-    });
+    traceLandPath(ctx, width, height, polygon);
     ctx.fill('evenodd');
   });
+}
+
+function drawLandCoastline(ctx, width, height, color, lineWidth) {
+  const polygons = getLandPolygonsData();
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  polygons.forEach((polygon) => {
+    traceLandPath(ctx, width, height, polygon);
+    ctx.stroke();
+  });
+  ctx.restore();
 }
 
 /** 生成海洋 + 陆地的球面纹理；陆地直接绘制在纹理上以获得平滑光照 */
@@ -269,6 +292,13 @@ export function createGlobeOceanMap(theme = 'dark') {
   }
 
   drawLandColor(ctx, canvas.width, canvas.height, THEME_COLORS[theme].land);
+  drawLandCoastline(
+    ctx,
+    canvas.width,
+    canvas.height,
+    THEME_COLORS[theme].coastline,
+    THEME_COLORS[theme].coastlineWidth,
+  );
 
   return createColorTexture(canvas);
 }
@@ -344,7 +374,6 @@ export function createSceneBackgroundTexture(theme = 'dark') {
 export function createGlobeMaps(theme = 'dark') {
   return {
     colorMap: createGlobeOceanMap(theme),
-    bumpMap: createGlobeBumpMap(),
   };
 }
 

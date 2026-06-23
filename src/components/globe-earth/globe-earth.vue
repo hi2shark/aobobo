@@ -121,6 +121,13 @@ const INITIAL_POINT_OF_VIEW = {
 const GLOBE_RADIUS = 100;
 const CAMERA_FOV = 50;
 const FIT_PADDING = 0.12;
+const INVISIBLE_POLYGON_MATERIAL = new THREE.MeshBasicMaterial({
+  colorWrite: false,
+  depthWrite: false,
+  transparent: true,
+  opacity: 0,
+  side: THREE.DoubleSide,
+});
 
 function computeFitAltitude(width, height) {
   const aspect = width / height;
@@ -215,7 +222,7 @@ let pendingTap = null;
 let interactionSettleTimer = null;
 let focusBubbleTimer = null;
 let localTimeInterval = null;
-const GLOBE_TEXTURE_VERSION = 25;
+const GLOBE_TEXTURE_VERSION = 28;
 const BLOOM_CONFIG = {
   strength: 0.28,
   radius: 0.42,
@@ -283,7 +290,7 @@ function getThemePalette(theme) {
     landEmissive: '#1c2128',
     landEmissiveIntensity: 0,
     landSpecular: '#6a7a8c',
-    coastline: 'rgba(120, 140, 165, 0.16)',
+    coastline: 'rgba(190, 230, 255, 0.12)',
     landSide: '#252e38',
     atmosphere: '#89c3eb',
     atmosphereAltitude: 0.018,
@@ -1010,13 +1017,10 @@ function applyThemeToGlobe() {
 
   const palette = getThemePalette(props.theme);
   const isLight = props.theme === 'light';
-  const { colorMap, bumpMap } = getGlobeMaps(props.theme);
+  const { colorMap } = getGlobeMaps(props.theme);
   const renderer = globe?.renderer?.();
   const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || 16;
   colorMap.anisotropy = maxAnisotropy;
-  if (bumpMap) {
-    bumpMap.anisotropy = maxAnisotropy;
-  }
 
   const oceanMaterial = isLight
     ? new THREE.MeshBasicMaterial({
@@ -1025,10 +1029,8 @@ function applyThemeToGlobe() {
     })
     : new THREE.MeshPhongMaterial({
       map: colorMap,
-      bumpMap,
-      bumpScale: 0.004,
 
-      color: '#ffffff',
+      color: '#ebf6f7',
       emissive: palette.oceanEmissive,
       emissiveIntensity: 0,
       shininess: 10,
@@ -1045,10 +1047,10 @@ function applyThemeToGlobe() {
     .pathsData([])
     .polygonsData(getLandPolygonsData())
     .polygonGeoJsonGeometry((d) => d.geometry)
-    .polygonCapMaterial(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }))
-    .polygonSideMaterial(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }))
+    .polygonCapMaterial(() => INVISIBLE_POLYGON_MATERIAL)
+    .polygonSideMaterial(() => INVISIBLE_POLYGON_MATERIAL)
     .polygonStrokeColor(() => palette.coastline)
-    .polygonAltitude(0)
+    .polygonAltitude(palette.polygonAltitude)
     .polygonCapCurvatureResolution(5)
     .polygonsTransitionDuration(0);
 
