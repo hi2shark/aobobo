@@ -114,7 +114,7 @@ function drawLightOcean(ctx) {
   // Use a centered, subtle radial gradient so the sphere looks uniformly
   // round without visible seams or directional shadows when mapped onto the
   // globe with `shading: 'color'`.
-  ctx.fillStyle = '#d6e9f8';
+  ctx.fillStyle = '#c4ddf0';
   ctx.fillRect(0, 0, width, height);
 
   const bodyGradient = ctx.createRadialGradient(
@@ -125,9 +125,9 @@ function drawLightOcean(ctx) {
     height * 0.5,
     height * 0.85,
   );
-  bodyGradient.addColorStop(0, '#e8f4ff');
-  bodyGradient.addColorStop(0.55, '#dcedfa');
-  bodyGradient.addColorStop(1, '#beddf5');
+  bodyGradient.addColorStop(0, '#dff0ff');
+  bodyGradient.addColorStop(0.55, '#c6e2f5');
+  bodyGradient.addColorStop(1, '#a8ccea');
   ctx.fillStyle = bodyGradient;
   ctx.fillRect(0, 0, width, height);
 }
