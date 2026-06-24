@@ -114,6 +114,8 @@ import 'echarts-gl';
 import graphicGL from 'echarts-gl/lib/util/graphicGL';
 import {
   createGlobeOceanMap,
+  getGlobeRendererPixelRatio,
+  getPreferredGlobeTextureSize,
   THEME_COLORS,
 } from '@/utils/globe-textures';
 import { getLandPolygonsData } from '@/utils/globe-land-polygons.js';
@@ -133,6 +135,7 @@ const GLOBE_RADIUS = 100;
 const CAMERA_FOV = 50;
 const DEFAULT_FILL_RATIO = 0.92;
 const AUTO_ROTATE_SPEED_MULTIPLIER = 2;
+const MOBILE_MIN_VIEW_DISTANCE = GLOBE_RADIUS * 1.1;
 // Slightly above the shrunken earth mesh to avoid z-fighting flicker.
 const COASTLINE_SURFACE_OFFSET = 0.1;
 const COASTLINE_SCALE = (GLOBE_RADIUS * 0.99 + COASTLINE_SURFACE_OFFSET) / GLOBE_RADIUS;
@@ -286,10 +289,11 @@ function getThemePalette(theme) {
 }
 
 function getGlobeMaps(theme) {
-  const cacheKey = `${theme}`;
+  const textureSize = getPreferredGlobeTextureSize();
+  const cacheKey = `${theme}-${textureSize.width}`;
   if (!globeTextureCache[cacheKey]) {
     globeTextureCache[cacheKey] = {
-      colorMap: createGlobeOceanMap(theme).toDataURL(),
+      colorMap: createGlobeOceanMap(theme, textureSize).toDataURL(),
     };
   }
   return globeTextureCache[cacheKey];
@@ -364,6 +368,40 @@ function getCoastlineSeriesData(theme) {
 
   coastlineDataCache[theme] = data;
   return data;
+}
+
+function getCoastlineLayerStyles(theme) {
+  const colors = THEME_COLORS[theme];
+  const compact = isCompactGlobeViewport();
+
+  if (!compact) {
+    return [
+      {
+        width: colors.coastlineWidth,
+        color: colors.coastline,
+      },
+    ];
+  }
+
+  if (theme === 'dark') {
+    return [
+      {
+        width: colors.mobileCoastlineWidth,
+        color: colors.mobileCoastline,
+      },
+    ];
+  }
+
+  return [
+    {
+      width: colors.mobileCoastlineHaloWidth,
+      color: colors.mobileCoastlineHalo,
+    },
+    {
+      width: colors.mobileCoastlineWidth,
+      color: colors.mobileCoastline,
+    },
+  ];
 }
 
 function getMarkerDimensions(count) {
@@ -564,7 +602,7 @@ function getViewDistanceOptions() {
   const fitDistance = GLOBE_RADIUS * fitAltitude;
   return {
     distance: currentDistance.value,
-    minDistance: GLOBE_RADIUS * 0.5,
+    minDistance: isMobile.value ? MOBILE_MIN_VIEW_DISTANCE : GLOBE_RADIUS * 0.5,
     maxDistance: Math.max(360, fitDistance * 1.5),
   };
 }
@@ -572,6 +610,8 @@ function getViewDistanceOptions() {
 function getGlobeOption() {
   const isLight = props.theme === 'light';
   const maps = getGlobeMaps(props.theme);
+  const coastlineData = getCoastlineSeriesData(props.theme);
+  const coastlineLayers = getCoastlineLayerStyles(props.theme);
 
   return {
     backgroundColor: isLight ? 'transparent' : '#020a16',
@@ -606,20 +646,21 @@ function getGlobeOption() {
         animation: false,
       },
     },
-    series: [
+    series: coastlineLayers.map((lineStyle) => (
       {
         type: 'lines3D',
         coordinateSystem: 'globe',
         polyline: true,
         silent: true,
+        blendMode: 'source-over',
         lineStyle: {
-          width: THEME_COLORS[props.theme].coastlineWidth,
-          color: THEME_COLORS[props.theme].coastline,
+          width: lineStyle.width,
+          color: lineStyle.color,
           opacity: 1,
         },
-        data: getCoastlineSeriesData(props.theme),
-      },
-    ],
+        data: coastlineData,
+      }
+    )),
   };
 }
 
@@ -638,11 +679,29 @@ function sharpenGlobeTextures() {
     }
 
     const texture = material.get('diffuseMap');
-    if (texture && texture.useMipmap !== false) {
-      texture.useMipmap = false;
-      texture.minFilter = graphicGL.Texture.LINEAR;
-      texture.magFilter = graphicGL.Texture.LINEAR;
-      texture.dirty();
+    if (texture) {
+      let changed = false;
+
+      if (texture.useMipmap !== false) {
+        texture.useMipmap = false;
+        changed = true;
+      }
+      if (texture.minFilter !== graphicGL.Texture.LINEAR) {
+        texture.minFilter = graphicGL.Texture.LINEAR;
+        changed = true;
+      }
+      if (texture.magFilter !== graphicGL.Texture.LINEAR) {
+        texture.magFilter = graphicGL.Texture.LINEAR;
+        changed = true;
+      }
+      if (!texture.anisotropic || texture.anisotropic < 8) {
+        texture.anisotropic = 8;
+        changed = true;
+      }
+
+      if (changed) {
+        texture.dirty();
+      }
     }
   } catch {
     // Internal APIs may change; ignore if unavailable.
@@ -659,11 +718,13 @@ function syncCoastlineDepth() {
     // z-fighting, while lines3D coastlines are generated at full radius.
     // Scale the lines just a hair above the mesh surface so they are clearly
     // in front without visibly floating.
-    const seriesModel = chart.getModel().getSeriesByType('lines3D')[0];
-    const view = seriesModel && chart.getViewOfSeriesModel(seriesModel);
-    if (view && view.groupGL) {
-      view.groupGL.scale.set(COASTLINE_SCALE, COASTLINE_SCALE, COASTLINE_SCALE);
-    }
+    const seriesModels = chart.getModel().getSeriesByType('lines3D');
+    seriesModels.forEach((seriesModel) => {
+      const view = seriesModel && chart.getViewOfSeriesModel(seriesModel);
+      if (view && view.groupGL) {
+        view.groupGL.scale.set(COASTLINE_SCALE, COASTLINE_SCALE, COASTLINE_SCALE);
+      }
+    });
   } catch {
     // Internal APIs may change; ignore if unavailable.
   }
@@ -1406,6 +1467,7 @@ function initChart() {
 
     chart = echarts.init(chartContainer.value, null, {
       renderer: 'canvas',
+      devicePixelRatio: getGlobeRendererPixelRatio(),
     });
 
     chart.setOption(getGlobeOption(), { notMerge: true });

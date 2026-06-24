@@ -1,9 +1,12 @@
 import { getLandPolygonsData } from './globe-land-polygons.js';
 
-const TEXTURE_WIDTH = 4096;
-const TEXTURE_HEIGHT = 2048;
+const BASE_TEXTURE_WIDTH = 4096;
+const MIN_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_HEIGHT = 1024;
+const MAX_RENDERER_PIXEL_RATIO = 3;
+
+let cachedMaxTextureSize = null;
 
 const BASE_LAND_COLORS = {
   light: '#eef6ff',
@@ -14,8 +17,14 @@ export const THEME_COLORS = {
   light: {
     oceanBase: '#d0e6fa',
     land: BASE_LAND_COLORS.light,
-    coastline: 'rgba(130, 165, 205, 0.30)',
-    coastlineWidth: 1.5,
+    coastline: 'rgba(96, 140, 184, 0.36)',
+    coastlineWidth: 0.9,
+    coastlineHalo: 'rgba(255, 255, 255, 0.68)',
+    coastlineHaloWidth: 2.2,
+    mobileCoastline: 'rgba(72, 118, 166, 0.44)',
+    mobileCoastlineWidth: 0.72,
+    mobileCoastlineHalo: 'rgba(255, 255, 255, 0.48)',
+    mobileCoastlineHaloWidth: 1.5,
   },
   dark: {
     oceanBase: '#061221',
@@ -24,10 +33,76 @@ export const THEME_COLORS = {
     oceanEdge: '#0b2843',
     oceanLimb: '#0d304f',
     land: BASE_LAND_COLORS.dark,
-    coastline: 'rgba(120, 160, 195, 0.30)',
-    coastlineWidth: 1.5,
+    coastline: 'rgba(136, 176, 205, 0.34)',
+    coastlineWidth: 0.9,
+    coastlineHalo: 'rgba(2, 9, 20, 0.66)',
+    coastlineHaloWidth: 2.4,
+    mobileCoastline: 'rgba(166, 206, 230, 0.30)',
+    mobileCoastlineWidth: 0.58,
+    mobileCoastlineHalo: 'rgba(0, 5, 14, 0.52)',
+    mobileCoastlineHaloWidth: 1.65,
   },
 };
+
+function getPowerOfTwoAtMost(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return BASE_TEXTURE_WIDTH;
+  }
+
+  return 2 ** Math.floor(Math.log2(value));
+}
+
+function getMaxTextureSize() {
+  if (cachedMaxTextureSize !== null) {
+    return cachedMaxTextureSize;
+  }
+
+  if (typeof document === 'undefined') {
+    cachedMaxTextureSize = BASE_TEXTURE_WIDTH;
+    return cachedMaxTextureSize;
+  }
+
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+  if (!gl) {
+    cachedMaxTextureSize = BASE_TEXTURE_WIDTH;
+    return cachedMaxTextureSize;
+  }
+
+  cachedMaxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || BASE_TEXTURE_WIDTH;
+
+  const loseContext = gl.getExtension('WEBGL_lose_context');
+  if (loseContext) {
+    loseContext.loseContext();
+  }
+
+  return cachedMaxTextureSize;
+}
+
+export function getGlobeRendererPixelRatio() {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+
+  const dpr = Number(window.devicePixelRatio) || 1;
+  return Math.min(Math.max(dpr, 1), MAX_RENDERER_PIXEL_RATIO);
+}
+
+export function getPreferredGlobeTextureSize(options = {}) {
+  const {
+    maxWidth = BASE_TEXTURE_WIDTH,
+  } = options;
+  const maxTextureSize = getPowerOfTwoAtMost(getMaxTextureSize());
+  const minimumWidth = Math.min(MIN_TEXTURE_WIDTH, maxTextureSize);
+  const requestedWidth = Math.min(BASE_TEXTURE_WIDTH, maxWidth, maxTextureSize);
+  const width = Math.max(minimumWidth, requestedWidth);
+
+  return {
+    width,
+    height: width / 2,
+  };
+}
 
 function projectGeoToCanvas(lng, lat, width, height) {
   const x = ((lng + 180) / 360) * width;
@@ -126,33 +201,44 @@ function drawDarkOcean(ctx) {
   ctx.fillRect(0, 0, width, height);
 }
 
-function addLightNoise(ctx) {
-  const imageData = ctx.getImageData(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+function addTextureNoise(ctx, opacity) {
+  const patternSize = 256;
+  const noiseCanvas = document.createElement('canvas');
+  noiseCanvas.width = patternSize;
+  noiseCanvas.height = patternSize;
+  const noiseCtx = noiseCanvas.getContext('2d');
+  const imageData = noiseCtx.createImageData(patternSize, patternSize);
   const { data } = imageData;
 
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 2;
-    data[i] = Math.max(0, Math.min(255, data[i] + noise));
-    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
-    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+    const value = Math.round(128 + (Math.random() - 0.5) * 64);
+    data[i] = value;
+    data[i + 1] = value;
+    data[i + 2] = value;
+    data[i + 3] = 255;
   }
 
-  ctx.putImageData(imageData, 0, 0);
+  noiseCtx.putImageData(imageData, 0, 0);
+
+  const noisePattern = ctx.createPattern(noiseCanvas, 'repeat');
+  if (!noisePattern) {
+    return;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.fillStyle = noisePattern;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+}
+
+function addLightNoise(ctx) {
+  addTextureNoise(ctx, 0.018);
 }
 
 function addDarkNoise(ctx) {
-  const { width, height } = ctx.canvas;
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const { data } = imageData;
-
-  for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 1.2;
-    data[i] = Math.max(0, Math.min(255, data[i] + noise));
-    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
-    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
-  }
-
-  ctx.putImageData(imageData, 0, 0);
+  addTextureNoise(ctx, 0.014);
 }
 
 function drawDarkGraticules(ctx, width, height) {
@@ -203,10 +289,10 @@ function drawLandColor(ctx, width, height, color) {
 }
 
 /** 生成海洋 + 陆地的球面纹理；陆地直接绘制在纹理上以获得平滑光照 */
-export function createGlobeOceanMap(theme = 'dark') {
+export function createGlobeOceanMap(theme = 'dark', textureSize = getPreferredGlobeTextureSize()) {
   const canvas = document.createElement('canvas');
-  canvas.width = TEXTURE_WIDTH;
-  canvas.height = TEXTURE_HEIGHT;
+  canvas.width = textureSize.width;
+  canvas.height = textureSize.height;
   const ctx = canvas.getContext('2d');
 
   if (theme === 'light') {

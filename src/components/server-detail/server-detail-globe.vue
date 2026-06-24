@@ -13,6 +13,7 @@
       ref="chartRef"
       class="server-detail-globe__chart"
       :option="option"
+      :init-options="chartInitOptions"
       autoresize
     />
     <div
@@ -48,6 +49,10 @@ import {
   geoPath,
 } from 'd3-geo';
 import 'echarts-gl';
+import {
+  getGlobeRendererPixelRatio,
+  getPreferredGlobeTextureSize,
+} from '@/utils/globe-textures';
 
 const props = defineProps({
   location: {
@@ -90,6 +95,11 @@ const sizeReady = computed(() => !isDeactivated.value
   && boxSize.value.height > 0);
 
 const resolvedTheme = computed(() => store.state.resolvedTheme || 'dark');
+
+const chartInitOptions = computed(() => ({
+  renderer: 'canvas',
+  devicePixelRatio: getGlobeRendererPixelRatio(),
+}));
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -286,7 +296,7 @@ function drawFeatureOnCanvas(ctx, path, feature, color, options = {}) {
   }
 }
 
-function drawLocationMarkerOnCanvas(ctx, projection, palette) {
+function drawLocationMarkerOnCanvas(ctx, projection, palette, scale = 1) {
   const point = projection([locationLon.value, locationLat.value]);
   if (!point) {
     return;
@@ -296,26 +306,30 @@ function drawLocationMarkerOnCanvas(ctx, projection, palette) {
 
   // 核心圆点，无外围光晕
   ctx.beginPath();
-  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.arc(x, y, 14 * scale, 0, Math.PI * 2);
   ctx.fillStyle = palette.marker;
   ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = 8 * scale;
   ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 2;
+  ctx.shadowOffsetY = 2 * scale;
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
 
   // 中心高光点，增强对比
   ctx.beginPath();
-  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.arc(x, y, 5 * scale, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
   ctx.fill();
 }
 
 function createGlobeTexture(geoJson, highlightFeature) {
-  const textureWidth = 2048;
-  const textureHeight = 1024;
+  const textureSize = getPreferredGlobeTextureSize({
+    maxWidth: 4096,
+  });
+  const textureWidth = textureSize.width;
+  const textureHeight = textureSize.height;
+  const textureScale = textureWidth / 2048;
   const canvas = document.createElement('canvas');
   const palette = readThemePalette();
 
@@ -331,24 +345,24 @@ function createGlobeTexture(geoJson, highlightFeature) {
   const projection = geoEquirectangular()
     .scale(textureWidth / (2 * Math.PI))
     .translate([textureWidth / 2, textureHeight / 2])
-    .precision(0.1);
+    .precision(0.05);
   const path = geoPath(projection, ctx);
 
   geoJson?.features?.forEach((feature) => {
     drawFeatureOnCanvas(ctx, path, feature, palette.land, {
       strokeColor: palette.landBorder,
-      lineWidth: 1,
+      lineWidth: textureScale,
     });
   });
 
   if (highlightFeature) {
     drawFeatureOnCanvas(ctx, path, highlightFeature, palette.highlight, {
       strokeColor: palette.highlightBorder,
-      lineWidth: 1.5,
+      lineWidth: 1.5 * textureScale,
     });
   }
 
-  drawLocationMarkerOnCanvas(ctx, projection, palette);
+  drawLocationMarkerOnCanvas(ctx, projection, palette, textureScale);
 
   return canvas;
 }
