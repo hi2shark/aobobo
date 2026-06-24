@@ -612,12 +612,41 @@ function syncCoastlineDepth() {
   }
 }
 
+function showGlobeWhenReady() {
+  if (!chart) {
+    isReady.value = true;
+    isGlobeVisible.value = true;
+    return;
+  }
+
+  try {
+    const globeModel = chart.getModel().getComponent('globe');
+    const globeView = globeModel && chart.getViewOfComponentModel(globeModel);
+    const material = globeView && globeView._earthMesh && globeView._earthMesh.material;
+    const texture = material && material.get('diffuseMap');
+    if (texture && texture.isRenderable && texture.isRenderable()) {
+      // Wait one more frame so the GPU can actually render with the texture
+      // before we remove the loading mask and fade in.
+      requestAnimationFrame(() => {
+        isReady.value = true;
+        isGlobeVisible.value = true;
+      });
+      return;
+    }
+  } catch {
+    // Internal APIs may change; ignore.
+  }
+
+  requestAnimationFrame(showGlobeWhenReady);
+}
+
 function applyThemeToGlobe() {
   if (!chart) {
     return;
   }
 
   chart.setOption(getGlobeOption(), { notMerge: true });
+  showGlobeWhenReady();
   sharpenGlobeTextures();
 
   // setOption with notMerge may recreate the GL view and its OrbitControl.
@@ -1096,7 +1125,7 @@ function focusLocation(location) {
 
   animateView({
     targetCoord: [location.lng, location.lat],
-    distance: GLOBE_RADIUS * (isMobile.value ? 2.6 : 2.4),
+    distance: currentDistance.value,
   });
 
   return true;
@@ -1113,7 +1142,7 @@ function focusLocationWithHighlight(location, serverName) {
 
     animateView({
       targetCoord: [location.lng, location.lat],
-      distance: GLOBE_RADIUS * (isMobile.value ? 2.6 : 2.4),
+      distance: currentDistance.value,
     }).then(() => {
       if (isMobile.value) {
         resolve(true);
@@ -1298,11 +1327,8 @@ function initChart() {
     sharpenGlobeTextures();
 
     chart.on('finished', syncCoastlineDepth);
-    chart.on('finished', () => {
-      isReady.value = true;
-      isGlobeVisible.value = true;
-    });
-    // Fallback: show the globe even if finished doesn't fire as expected.
+    showGlobeWhenReady();
+    // Fallback: show the globe even if texture readiness cannot be detected.
     setTimeout(() => {
       isReady.value = true;
       isGlobeVisible.value = true;
@@ -1579,6 +1605,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
+  background-color: var(--bg-primary);
   color: var(--text-secondary);
   font-size: 14px;
   text-shadow: 0 0 24px rgba(15, 23, 42, 0.08);
