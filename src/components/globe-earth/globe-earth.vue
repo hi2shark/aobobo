@@ -162,6 +162,7 @@ const READY_FRAME_BUFFER = 4;
 // lifts the loading mask). The mask stays on top until the dark earth is fully
 // painted underneath, so no blank-canvas frame is ever visible.
 const GLOBE_REVEAL_DELAY = 260;
+const COMPACT_GLOBE_WIDTH = 560;
 
 const props = defineProps({
   locations: {
@@ -304,6 +305,48 @@ function getSceneEnvironment(theme) {
     { offset: 0.48, color: '#031020' },
     { offset: 1, color: '#010814' },
   ]);
+}
+
+function isCompactGlobeViewport() {
+  const fallbackWidth = typeof window !== 'undefined'
+    ? window.innerWidth
+    : COMPACT_GLOBE_WIDTH + 1;
+  const width = chartContainer.value?.clientWidth || fallbackWidth;
+  return isMobile.value || width <= COMPACT_GLOBE_WIDTH;
+}
+
+function getAtmosphereOption(theme) {
+  const compact = isCompactGlobeViewport();
+
+  if (theme === 'light') {
+    return compact ? {
+      show: true,
+      offset: 1,
+      color: '#D1E8FF',
+      glowPower: 2,
+      innerGlowPower: 5,
+    } : {
+      show: true,
+      offset: 2,
+      color: '#a8d8ff',
+      glowPower: 4,
+      innerGlowPower: 3.5,
+    };
+  }
+
+  return compact ? {
+    show: true,
+    offset: 1.2,
+    color: '#9bd2ff',
+    glowPower: 3.2,
+    innerGlowPower: 4,
+  } : {
+    show: true,
+    offset: 4,
+    color: '#9bd2ff',
+    glowPower: 6,
+    innerGlowPower: 2,
+  };
 }
 
 function getCoastlineSeriesData(theme) {
@@ -542,19 +585,7 @@ function getGlobeOption() {
       globeOuterRadius: GLOBE_RADIUS,
       shading: 'color',
       environment: getSceneEnvironment(props.theme),
-      atmosphere: isLight ? {
-        show: true,
-        offset: 2,
-        color: '#a8d8ff',
-        glowPower: 4,
-        innerGlowPower: 3.5,
-      } : {
-        show: true,
-        offset: 4,
-        color: '#9bd2ff',
-        glowPower: 6,
-        innerGlowPower: 2,
-      },
+      atmosphere: getAtmosphereOption(props.theme),
       postEffect: {
         enable: false,
       },
@@ -1304,6 +1335,7 @@ function handleResize() {
 
   chart.setOption({
     globe: {
+      atmosphere: getAtmosphereOption(props.theme),
       viewControl: {
         ...getViewDistanceOptions(),
       },
