@@ -51,10 +51,11 @@ export function projectLatLngToScreen(chart, containerRect, lng, lat, altitude =
 
   // Keep markers hidden until they are clearly in front of the visible horizon.
   // `surfaceRadius / cameraDistance` is the cosine of the horizon angle for a
-  // surface point; add a small margin so the marker billboard does not clip the
-  // globe limb before the actual location rotates into view.
+  // surface point; add a tiny angular margin so the marker billboard does not
+  // clip the globe limb. The margin is kept small so markers remain visible
+  // near the edge even when zoomed in close.
   const horizonThreshold = cameraDistance > 0 ? surfaceRadius / cameraDistance : 0;
-  const VISIBLE_FACING_THRESHOLD = Math.min(1, horizonThreshold + 0.05);
+  const VISIBLE_FACING_THRESHOLD = Math.min(1, horizonThreshold + 0.005);
 
   const view = multiplyMat4ByVec4(viewMatrix, world);
   const clip = multiplyMat4ByVec4(projectionMatrix, view);

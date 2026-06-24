@@ -103,8 +103,9 @@ import 'echarts-gl';
 import graphicGL from 'echarts-gl/lib/util/graphicGL';
 import {
   createGlobeOceanMap,
-  createGlobeBumpMap,
+  THEME_COLORS,
 } from '@/utils/globe-textures';
+import { getLandPolygonsData } from '@/utils/globe-land-polygons.js';
 import { projectLatLngToScreen } from '@/utils/globe-projection';
 import { formatLocationLocalTime } from '@/utils/location-time';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
@@ -120,6 +121,10 @@ const INITIAL_POINT_OF_VIEW = {
 const GLOBE_RADIUS = 100;
 const CAMERA_FOV = 50;
 const DEFAULT_FILL_RATIO = 0.8;
+const AUTO_ROTATE_SPEED_MULTIPLIER = 4;
+// Slightly above the shrunken earth mesh to avoid z-fighting flicker.
+const COASTLINE_SURFACE_OFFSET = 0.1;
+const COASTLINE_SCALE = (GLOBE_RADIUS * 0.99 + COASTLINE_SURFACE_OFFSET) / GLOBE_RADIUS;
 
 function computeFitAltitude(width, height) {
   const aspect = width / height;
@@ -218,6 +223,7 @@ let markerUpdateHandler = null;
 let cachedContainerRect = null;
 
 const globeTextureCache = {};
+const coastlineDataCache = {};
 
 const currentTargetCoord = ref([INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat]);
 const currentDistance = ref(GLOBE_RADIUS * INITIAL_POINT_OF_VIEW.altitude);
@@ -261,10 +267,26 @@ function getGlobeMaps(theme) {
   if (!globeTextureCache[cacheKey]) {
     globeTextureCache[cacheKey] = {
       colorMap: createGlobeOceanMap(theme).toDataURL(),
-      bumpMap: createGlobeBumpMap().toDataURL(),
     };
   }
   return globeTextureCache[cacheKey];
+}
+
+function getCoastlineSeriesData(theme) {
+  if (coastlineDataCache[theme]) {
+    return coastlineDataCache[theme];
+  }
+
+  const polygons = getLandPolygonsData();
+  const data = [];
+  polygons.forEach((polygon) => {
+    polygon.geometry.coordinates.forEach((ring) => {
+      data.push(ring.map(([lng, lat]) => [lng, lat]));
+    });
+  });
+
+  coastlineDataCache[theme] = data;
+  return data;
 }
 
 function getMarkerDimensions(count) {
@@ -465,13 +487,12 @@ function getViewDistanceOptions() {
   const fitDistance = GLOBE_RADIUS * fitAltitude;
   return {
     distance: currentDistance.value,
-    minDistance: 120,
+    minDistance: GLOBE_RADIUS * 0.5,
     maxDistance: Math.max(360, fitDistance * 1.5),
   };
 }
 
 function getGlobeOption() {
-  const isLight = props.theme === 'light';
   const maps = getGlobeMaps(props.theme);
 
   return {
@@ -482,40 +503,10 @@ function getGlobeOption() {
     globe: {
       show: true,
       baseTexture: maps.colorMap,
-      heightTexture: maps.bumpMap,
-      displacementScale: 0,
-      displacementQuality: 'medium',
       globeRadius: GLOBE_RADIUS,
       globeOuterRadius: GLOBE_RADIUS,
-      shading: 'lambert',
+      shading: 'color',
       environment: 'none',
-      light: isLight
-        ? {
-          ambient: {
-            intensity: 0.75,
-            color: '#ffffff',
-          },
-          main: {
-            intensity: 0.7,
-            alpha: 30,
-            beta: 20,
-            color: '#fff8e8',
-          },
-        }
-        : {
-          ambient: {
-            intensity: 0.22,
-            color: '#4a5c70',
-          },
-          main: {
-            intensity: 1.0,
-            shadow: true,
-            shadowQuality: 'medium',
-            alpha: 25,
-            beta: 20,
-            color: '#d8ecff',
-          },
-        },
       atmosphere: {
         show: false,
       },
@@ -523,11 +514,11 @@ function getGlobeOption() {
         enable: false,
       },
       temporalSuperSampling: {
-        enable: true,
+        enable: false,
       },
       viewControl: {
         autoRotate: currentAutoRotate.value,
-        autoRotateSpeed: props.rotateSpeed * 20,
+        autoRotateSpeed: props.rotateSpeed * AUTO_ROTATE_SPEED_MULTIPLIER,
         autoRotateDirection: 'ccw',
         autoRotateAfterStill: 3,
         rotateSensitivity: 1,
@@ -539,7 +530,20 @@ function getGlobeOption() {
         animation: false,
       },
     },
-    series: [],
+    series: [
+      {
+        type: 'lines3D',
+        coordinateSystem: 'globe',
+        polyline: true,
+        silent: true,
+        lineStyle: {
+          width: THEME_COLORS[props.theme].coastlineWidth,
+          color: THEME_COLORS[props.theme].coastline,
+          opacity: 1,
+        },
+        data: getCoastlineSeriesData(props.theme),
+      },
+    ],
   };
 }
 
@@ -557,15 +561,33 @@ function sharpenGlobeTextures() {
       return;
     }
 
-    ['diffuseMap', 'bumpMap'].forEach((name) => {
-      const texture = material.get(name);
-      if (texture && texture.useMipmap !== false) {
-        texture.useMipmap = false;
-        texture.minFilter = graphicGL.Texture.LINEAR;
-        texture.magFilter = graphicGL.Texture.LINEAR;
-        texture.dirty();
-      }
-    });
+    const texture = material.get('diffuseMap');
+    if (texture && texture.useMipmap !== false) {
+      texture.useMipmap = false;
+      texture.minFilter = graphicGL.Texture.LINEAR;
+      texture.magFilter = graphicGL.Texture.LINEAR;
+      texture.dirty();
+    }
+  } catch {
+    // Internal APIs may change; ignore if unavailable.
+  }
+}
+
+function syncCoastlineDepth() {
+  if (!chart) {
+    return;
+  }
+
+  try {
+    // echarts-gl shrinks the earth mesh to 0.99 * globeRadius to avoid
+    // z-fighting, while lines3D coastlines are generated at full radius.
+    // Scale the lines just a hair above the mesh surface so they are clearly
+    // in front without visibly floating.
+    const seriesModel = chart.getModel().getSeriesByType('lines3D')[0];
+    const view = seriesModel && chart.getViewOfSeriesModel(seriesModel);
+    if (view && view.groupGL) {
+      view.groupGL.scale.set(COASTLINE_SCALE, COASTLINE_SCALE, COASTLINE_SCALE);
+    }
   } catch {
     // Internal APIs may change; ignore if unavailable.
   }
@@ -578,6 +600,11 @@ function applyThemeToGlobe() {
 
   chart.setOption(getGlobeOption(), { notMerge: true });
   sharpenGlobeTextures();
+
+  // setOption with notMerge may recreate the GL view and its OrbitControl.
+  // Drop the cached reference so marker updates attach to the new control.
+  orbitControl = null;
+  applyAutoRotateState();
   attachMarkerUpdateListener();
 }
 
@@ -1250,6 +1277,9 @@ function initChart() {
     chart.setOption(getGlobeOption(), { notMerge: true });
     sharpenGlobeTextures();
 
+    chart.on('finished', syncCoastlineDepth);
+    syncCoastlineDepth();
+
     getOrbitControl();
 
     chartContainer.value.addEventListener('click', handleContainerClick);
@@ -1263,7 +1293,7 @@ function initChart() {
     const control = getOrbitControl();
     if (control) {
       control.autoRotate = currentAutoRotate.value;
-      control.autoRotateSpeed = props.rotateSpeed * 20;
+      control.autoRotateSpeed = props.rotateSpeed * AUTO_ROTATE_SPEED_MULTIPLIER;
 
       if (markerLayer.value) {
         markerLayer.value.addEventListener('click', handleMarkerClick, true);
@@ -1317,7 +1347,7 @@ watch(() => props.autoRotate, () => {
 
 watch(() => props.rotateSpeed, (value) => {
   if (orbitControl) {
-    orbitControl.autoRotateSpeed = value * 20;
+    orbitControl.autoRotateSpeed = value * AUTO_ROTATE_SPEED_MULTIPLIER;
   }
 });
 

@@ -1,7 +1,7 @@
 import { getLandPolygonsData } from './globe-land-polygons.js';
 
-const TEXTURE_WIDTH = 4096;
-const TEXTURE_HEIGHT = 2048;
+const TEXTURE_WIDTH = 6144;
+const TEXTURE_HEIGHT = 3072;
 const BUMP_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_HEIGHT = 1024;
 
@@ -41,12 +41,12 @@ const BASE_LAND_COLORS = {
   dark: '#a7b2c2',
 };
 
-const THEME_COLORS = {
+export const THEME_COLORS = {
   light: {
     oceanBase: '#d0e6fa',
     land: '#eef6ff',
-    coastline: 'rgba(100, 135, 180, 0.45)',
-    coastlineWidth: 1.35,
+    coastline: 'rgba(130, 165, 205, 0.30)',
+    coastlineWidth: 1.5,
   },
   dark: {
     oceanBase: '#061221',
@@ -55,8 +55,8 @@ const THEME_COLORS = {
     oceanEdge: '#0b2843',
     oceanLimb: '#0d304f',
     land: brighten(BASE_LAND_COLORS.dark, LAND_BRIGHTEN_PERCENT),
-    coastline: 'rgba(116, 152, 184, 0.22)',
-    coastlineWidth: 1.45,
+    coastline: 'rgba(120, 160, 195, 0.30)',
+    coastlineWidth: 1.5,
   },
 };
 
@@ -111,26 +111,24 @@ export function createGlobeBumpMap() {
 function drawLightOcean(ctx) {
   const { width, height } = ctx.canvas;
 
-  const bodyGradient = ctx.createRadialGradient(
-    width * 0.44,
-    height * 0.38,
-    height * 0.04,
-    width * 0.5,
-    height * 0.5,
-    height * 0.82,
-  );
-  bodyGradient.addColorStop(0, '#e0f0ff');
-  bodyGradient.addColorStop(0.45, '#d4e8f9');
-  bodyGradient.addColorStop(0.85, '#bddbf5');
-  bodyGradient.addColorStop(1, '#b0d3f2');
-  ctx.fillStyle = bodyGradient;
+  // Use a centered, subtle radial gradient so the sphere looks uniformly
+  // round without visible seams or directional shadows when mapped onto the
+  // globe with `shading: 'color'`.
+  ctx.fillStyle = '#d6e9f8';
   ctx.fillRect(0, 0, width, height);
 
-  const shadow = ctx.createLinearGradient(0, 0, width, height);
-  shadow.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
-  shadow.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
-  shadow.addColorStop(1, 'rgba(0, 0, 0, 0.06)');
-  ctx.fillStyle = shadow;
+  const bodyGradient = ctx.createRadialGradient(
+    width * 0.5,
+    height * 0.5,
+    height * 0.05,
+    width * 0.5,
+    height * 0.5,
+    height * 0.85,
+  );
+  bodyGradient.addColorStop(0, '#e8f4ff');
+  bodyGradient.addColorStop(0.55, '#dcedfa');
+  bodyGradient.addColorStop(1, '#beddf5');
+  ctx.fillStyle = bodyGradient;
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -138,44 +136,24 @@ function drawDarkOcean(ctx) {
   const colors = THEME_COLORS.dark;
   const { width, height } = ctx.canvas;
 
+  // Centered radial gradient for a uniform, flat sphere look without
+  // directional light/shadow seams.
   ctx.fillStyle = colors.oceanBase;
   ctx.fillRect(0, 0, width, height);
 
   const bodyGradient = ctx.createRadialGradient(
-    width * 0.44,
-    height * 0.38,
-    height * 0.04,
     width * 0.5,
     height * 0.5,
-    height * 0.82,
+    height * 0.05,
+    width * 0.5,
+    height * 0.5,
+    height * 0.85,
   );
   bodyGradient.addColorStop(0, colors.oceanCenter);
-  bodyGradient.addColorStop(0.38, colors.oceanMid);
-  bodyGradient.addColorStop(0.72, '#0e1620');
-  bodyGradient.addColorStop(0.9, colors.oceanEdge);
+  bodyGradient.addColorStop(0.45, colors.oceanMid);
+  bodyGradient.addColorStop(0.8, colors.oceanEdge);
   bodyGradient.addColorStop(1, colors.oceanLimb);
   ctx.fillStyle = bodyGradient;
-  ctx.fillRect(0, 0, width, height);
-
-  const keyLight = ctx.createRadialGradient(
-    width * 0.62,
-    height * 0.32,
-    0,
-    width * 0.62,
-    height * 0.32,
-    height * 0.72,
-  );
-  keyLight.addColorStop(0, 'rgba(200, 220, 240, 0.025)');
-  keyLight.addColorStop(0.45, 'rgba(90, 120, 160, 0.008)');
-  keyLight.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = keyLight;
-  ctx.fillRect(0, 0, width, height);
-
-  const shadow = ctx.createLinearGradient(0, 0, width, height);
-  shadow.addColorStop(0, 'rgba(255, 255, 255, 0.03)');
-  shadow.addColorStop(0.45, 'rgba(0, 0, 0, 0)');
-  shadow.addColorStop(1, 'rgba(0, 0, 0, 0.10)');
-  ctx.fillStyle = shadow;
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -255,21 +233,6 @@ function drawLandColor(ctx, width, height, color) {
   });
 }
 
-function drawLandCoastline(ctx, width, height, color, lineWidth) {
-  const polygons = getLandPolygonsData();
-
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  polygons.forEach((polygon) => {
-    traceLandPath(ctx, width, height, polygon);
-    ctx.stroke();
-  });
-  ctx.restore();
-}
-
 /** 生成海洋 + 陆地的球面纹理；陆地直接绘制在纹理上以获得平滑光照 */
 export function createGlobeOceanMap(theme = 'dark') {
   const canvas = document.createElement('canvas');
@@ -287,13 +250,9 @@ export function createGlobeOceanMap(theme = 'dark') {
   }
 
   drawLandColor(ctx, canvas.width, canvas.height, THEME_COLORS[theme].land);
-  drawLandCoastline(
-    ctx,
-    canvas.width,
-    canvas.height,
-    THEME_COLORS[theme].coastline,
-    THEME_COLORS[theme].coastlineWidth,
-  );
+
+  // Coastlines are rendered separately as a screen-space constant-width
+  // lines3D overlay so they stay crisp at any zoom level.
 
   return canvas;
 }
