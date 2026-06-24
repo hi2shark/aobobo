@@ -10,7 +10,8 @@
       },
     ]"
   >
-    <div ref="globeContainer" class="globe-container" />
+    <div ref="chartContainer" class="globe-container" />
+    <div ref="markerLayer" class="marker-layer" />
 
     <div
       v-if="hoveredMarker && !isMobile"
@@ -85,6 +86,7 @@
 </template>
 
 <script setup>
+/* eslint-disable no-use-before-define */
 import {
   computed,
   nextTick,
@@ -96,17 +98,14 @@ import {
   ref,
   watch,
 } from 'vue';
-import * as THREE from 'three';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import Globe from 'globe.gl';
-import createGlobeMaps, { createSceneBackgroundTexture } from '@/utils/globe-textures';
-import { getLandPolygonsData } from '@/utils/globe-land-polygons';
+import * as echarts from 'echarts';
+import 'echarts-gl';
+import graphicGL from 'echarts-gl/lib/util/graphicGL';
 import {
-  createRimAtmosphereGroup,
-  disposeRimAtmosphereGroup,
-  updateRimAtmosphereGroup,
-  GLOW_LAYERS_LIGHT,
-} from '@/utils/globe-atmosphere';
+  createGlobeOceanMap,
+  createGlobeBumpMap,
+} from '@/utils/globe-textures';
+import { projectLatLngToScreen } from '@/utils/globe-projection';
 import { formatLocationLocalTime } from '@/utils/location-time';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
@@ -115,36 +114,29 @@ import IconEarth from '@/components/icons/icon-earth.vue';
 const INITIAL_POINT_OF_VIEW = {
   lat: 24.5,
   lng: 114,
-  altitude: 1.75,
+  altitude: 1.92,
 };
 
 const GLOBE_RADIUS = 100;
 const CAMERA_FOV = 50;
-const FIT_PADDING = 0.12;
-const INVISIBLE_POLYGON_MATERIAL = new THREE.MeshBasicMaterial({
-  colorWrite: false,
-  depthWrite: false,
-  transparent: true,
-  opacity: 0,
-  side: THREE.DoubleSide,
-});
+const DEFAULT_FILL_RATIO = 0.8;
 
 function computeFitAltitude(width, height) {
   const aspect = width / height;
-  const vFovRad = THREE.MathUtils.degToRad(CAMERA_FOV);
+  const vFovRad = (CAMERA_FOV * Math.PI) / 180;
   const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
-  const minFov = Math.min(vFovRad, hFovRad) * (1 - FIT_PADDING);
-  const maxAngularRadius = minFov / 2;
-  const distance = GLOBE_RADIUS / Math.tan(maxAngularRadius);
-  return Math.max(distance / GLOBE_RADIUS - 1, 0.1);
+  const minHalfFov = Math.min(vFovRad, hFovRad) / 2;
+  const targetHalfAngle = minHalfFov * DEFAULT_FILL_RATIO;
+  const centerDistance = GLOBE_RADIUS / Math.sin(targetHalfAngle);
+  return Math.max(centerDistance / GLOBE_RADIUS - 1, 0.1);
 }
 
 const MOBILE_BREAKPOINT = 768;
 const POPUP_PADDING = 16;
 const POPUP_OFFSET = 20;
-const MARKER_HTML_TRANSITION_DURATION = 320;
-const INTERACTION_SETTLE_DELAY = 120;
 const FOCUS_ANIMATION_DURATION = 920;
+const INTERACTION_SETTLE_DELAY = 120;
+const MARKER_HTML_TRANSITION_DURATION = 320;
 
 const props = defineProps({
   locations: {
@@ -172,7 +164,8 @@ const props = defineProps({
 const emit = defineEmits(['marker-click', 'select-server']);
 
 const rootRef = ref(null);
-const globeContainer = ref(null);
+const chartContainer = ref(null);
+const markerLayer = ref(null);
 const popupWrapper = ref(null);
 const tooltipWrapper = ref(null);
 const focusBubbleWrapper = ref(null);
@@ -209,37 +202,26 @@ const focusBubbleState = reactive({
   placement: 'top',
 });
 
-let globe = null;
-let controlsStartHandler = null;
-let controlsEndHandler = null;
-let zoomHandler = null;
-let markerClickHandler = null;
-let markerPointerDownHandler = null;
-let markerPointerUpHandler = null;
+let chart = null;
+let orbitControl = null;
 let ignoreNextGlobeClick = false;
 let tapHandled = false;
 let pendingTap = null;
 let interactionSettleTimer = null;
 let focusBubbleTimer = null;
 let localTimeInterval = null;
-const GLOBE_TEXTURE_VERSION = 28;
-const BLOOM_CONFIG = {
-  strength: 0.28,
-  radius: 0.42,
-  threshold: 0.30,
-};
-const globeTextureCache = { light: null, dark: null };
-let rimAtmosphereGroup = null;
-let rimAtmosphereTheme = null;
-let bloomPass = null;
-let cameraKeyLight = null;
-let sceneBackgroundTexture = null;
 let resizeObserver = null;
 let pendingResizeRaf = null;
 let fitAltitude = INITIAL_POINT_OF_VIEW.altitude;
 let visibilityHandler = null;
-let contextLostHandler = null;
-let contextRestoredHandler = null;
+let markerUpdateHandler = null;
+let cachedContainerRect = null;
+
+const globeTextureCache = {};
+
+const currentTargetCoord = ref([INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat]);
+const currentDistance = ref(GLOBE_RADIUS * INITIAL_POINT_OF_VIEW.altitude);
+const currentAutoRotate = ref(props.autoRotate);
 
 function readThemeToken(name, fallback) {
   if (typeof window === 'undefined') {
@@ -254,26 +236,7 @@ function getThemePalette(theme) {
   if (theme === 'light') {
     return {
       ocean: '#e8f4ff',
-      oceanEmissive: '#ffffff',
-      oceanSpecular: '#ffffff',
-      land: '#e8eef4',
-      landEmissive: '#f5f8fb',
-      coastline: 'rgba(150, 170, 190, 0.28)',
-      landSide: 'rgba(140, 160, 180, 0.18)',
       atmosphere: '#f0f8ff',
-      atmosphereAltitude: 0.045,
-      polygonAltitude: 0.003,
-      polygonCurvature: 2,
-      fog: '#f5f9ff',
-      fogDensity: 0.00035,
-      ambient: '#ffffff',
-      ambientIntensity: 1.0,
-      keyLight: '#ffffff',
-      keyLightIntensity: 0.45,
-      fillLight: '#f5f9ff',
-      fillLightIntensity: 0.2,
-      rimLight: '#ffffff',
-      rimLightIntensity: 0.25,
       markerOnline: readThemeToken('--globe-marker-active', '#ffc853'),
       markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(255, 200, 83, 0.26)'),
       markerOffline: readThemeToken('--globe-marker-muted', '#9aa3af'),
@@ -284,28 +247,7 @@ function getThemePalette(theme) {
 
   return {
     ocean: '#061221',
-    oceanEmissive: '#000000',
-    oceanSpecular: '#1a2d40',
-    land: '#b6c3d5',
-    landEmissive: '#1c2128',
-    landEmissiveIntensity: 0,
-    landSpecular: '#6a7a8c',
-    coastline: 'rgba(190, 230, 255, 0.12)',
-    landSide: '#252e38',
     atmosphere: '#89c3eb',
-    atmosphereAltitude: 0.018,
-    polygonAltitude: 0.0008,
-    polygonCurvature: 8,
-    fog: '#05070c',
-    fogDensity: 0.00028,
-    ambient: '#c8d8e8',
-    ambientIntensity: 0.58,
-    keyLight: '#e8f4ff',
-    keyLightIntensity: 0.80,
-    fillLight: '#151e28',
-    fillLightIntensity: 0.20,
-    rimLight: '#5eaeff',
-    rimLightIntensity: 0.20,
     markerOnline: readThemeToken('--globe-marker-active', '#2ecfff'),
     markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(46, 207, 255, 0.30)'),
     markerOffline: readThemeToken('--globe-marker-muted', '#6d7888'),
@@ -315,87 +257,45 @@ function getThemePalette(theme) {
 }
 
 function getGlobeMaps(theme) {
-  const cacheKey = `${theme}-v${GLOBE_TEXTURE_VERSION}`;
+  const cacheKey = `${theme}`;
   if (!globeTextureCache[cacheKey]) {
-    globeTextureCache[cacheKey] = createGlobeMaps(theme);
+    globeTextureCache[cacheKey] = {
+      colorMap: createGlobeOceanMap(theme).toDataURL(),
+      bumpMap: createGlobeBumpMap().toDataURL(),
+    };
   }
   return globeTextureCache[cacheKey];
 }
 
-function getRimAtmosphereOptions(theme) {
-  return theme === 'light'
-    ? { innerStrengthScale: 0.32, glowIntensityScale: 0.32, layers: GLOW_LAYERS_LIGHT }
-    : { innerStrengthScale: 1.18, glowIntensityScale: 1.12 };
-}
-
-function disposeCurrentRimAtmosphere(scene) {
-  if (!rimAtmosphereGroup) {
-    return;
-  }
-
-  scene?.remove(rimAtmosphereGroup);
-  disposeRimAtmosphereGroup(rimAtmosphereGroup);
-  rimAtmosphereGroup = null;
-  rimAtmosphereTheme = null;
-}
-
-function syncRimAtmosphere(palette) {
-  const scene = globe?.scene?.();
-  if (!scene) {
-    return;
-  }
-
-  if (!rimAtmosphereGroup || rimAtmosphereTheme !== props.theme) {
-    disposeCurrentRimAtmosphere(scene);
-    rimAtmosphereGroup = createRimAtmosphereGroup(
-      palette.atmosphere,
-      getRimAtmosphereOptions(props.theme),
-    );
-    rimAtmosphereTheme = props.theme;
-    scene.add(rimAtmosphereGroup);
-    return;
-  }
-
-  updateRimAtmosphereGroup(rimAtmosphereGroup, palette.atmosphere);
-}
-
-function syncSceneBackground() {
-  const scene = globe?.scene?.();
-  if (!scene) {
-    return;
-  }
-
-  if (sceneBackgroundTexture) {
-    sceneBackgroundTexture.dispose();
-    sceneBackgroundTexture = null;
-  }
-
-  if (props.theme !== 'dark') {
-    scene.background = null;
-    return;
-  }
-
-  sceneBackgroundTexture = createSceneBackgroundTexture();
-  scene.background = sceneBackgroundTexture;
-}
-
 function getMarkerDimensions(count) {
   if (count > 9) {
-    return { visualSize: 22, hitSize: 38, dotSize: 0, isLarge: true, ringMaxR: 2.6 };
+    return {
+      visualSize: 26, hitSize: 40, dotSize: 8, isLarge: true, ringMaxR: 2.6,
+    };
   }
   if (count >= 7) {
-    return { visualSize: 20, hitSize: 36, dotSize: 5, isLarge: false, ringMaxR: 1.8 };
+    return {
+      visualSize: 22, hitSize: 36, dotSize: 7, isLarge: false, ringMaxR: 1.8,
+    };
   }
   if (count >= 5) {
-    return { visualSize: 18, hitSize: 34, dotSize: 5, isLarge: false, ringMaxR: 1.7 };
+    return {
+      visualSize: 20, hitSize: 34, dotSize: 7, isLarge: false, ringMaxR: 1.7,
+    };
   }
   if (count >= 3) {
-    return { visualSize: 16, hitSize: 32, dotSize: 5, isLarge: false, ringMaxR: 1.5 };
+    return {
+      visualSize: 18, hitSize: 32, dotSize: 6, isLarge: false, ringMaxR: 1.5,
+    };
   }
   if (count === 2) {
-    return { visualSize: 14, hitSize: 30, dotSize: 5, isLarge: false, ringMaxR: 1.4 };
+    return {
+      visualSize: 16, hitSize: 30, dotSize: 6, isLarge: false, ringMaxR: 1.4,
+    };
   }
-  return { visualSize: 10, hitSize: 26, dotSize: 5, isLarge: false, ringMaxR: 1.2 };
+  return {
+    visualSize: 12, hitSize: 26, dotSize: 6, isLarge: false, ringMaxR: 1.2,
+  };
 }
 
 const markerData = computed(() => {
@@ -405,9 +305,14 @@ const markerData = computed(() => {
     const servers = location.servers || [];
     const totalCount = servers.length;
     const onlineCount = servers.filter((server) => server.online === 1).length;
-    const offlineCount = totalCount - onlineCount;
     const hasOnline = onlineCount > 0;
-    const { visualSize, hitSize, dotSize, isLarge, ringMaxR } = getMarkerDimensions(totalCount);
+    const {
+      visualSize,
+      hitSize,
+      dotSize,
+      isLarge,
+      ringMaxR,
+    } = getMarkerDimensions(totalCount);
 
     return {
       key: location.key || location.code || `${location.lat}-${location.lng}-${index}`,
@@ -422,7 +327,7 @@ const markerData = computed(() => {
       hasOnline,
       totalCount,
       onlineCount,
-      offlineCount,
+      offlineCount: totalCount - onlineCount,
       visualSize,
       hitSize,
       dotSize,
@@ -434,39 +339,6 @@ const markerData = computed(() => {
       markerOfflineColor: palette.markerOffline,
     };
   });
-});
-
-const ringData = computed(() => {
-  const palette = getThemePalette(props.theme);
-  const isDark = props.theme === 'dark';
-
-  return markerData.value
-    .filter((marker) => marker.hasOnline)
-    .flatMap((marker) => {
-      const rings = [{
-        lat: marker.lat,
-        lng: marker.lng,
-        maxR: marker.ringMaxR,
-        propagationSpeed: isDark ? 0.16 : 0.22,
-        repeatPeriod: isDark ? 3600 : 2700,
-        colorRgb: palette.onlineRing,
-        opacity: isDark ? 0.18 : 0.26,
-      }];
-
-      if (marker.totalCount >= 6) {
-        rings.push({
-          lat: marker.lat,
-          lng: marker.lng,
-          maxR: marker.ringMaxR + (isDark ? 0.5 : 0.65),
-          propagationSpeed: isDark ? 0.13 : 0.18,
-          repeatPeriod: isDark ? 4200 : 3400,
-          colorRgb: palette.onlineRing,
-          opacity: isDark ? 0.12 : 0.18,
-        });
-      }
-
-      return rings;
-    });
 });
 
 const popupInlineStyle = computed(() => {
@@ -524,120 +396,6 @@ function stopLocalTimeTicker() {
   }
 }
 
-function configureRenderer() {
-  const renderer = globe?.renderer?.();
-  if (!renderer) {
-    return;
-  }
-
-  const { devicePixelRatio = 1 } = window;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-
-  if (props.theme === 'dark') {
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
-  } else {
-    renderer.toneMapping = THREE.NoToneMapping;
-    renderer.toneMappingExposure = 1.0;
-  }
-}
-
-function getGlobeDimensions() {
-  if (!globeContainer.value) {
-    return { width: 1, height: 1 };
-  }
-
-  const { clientWidth: width, clientHeight: height } = globeContainer.value;
-  return { width, height };
-}
-
-function disposeBloomPass() {
-  if (!bloomPass) {
-    return;
-  }
-
-  const composer = globe?.postProcessingComposer?.();
-  if (composer) {
-    composer.removePass(bloomPass);
-  }
-
-  bloomPass.dispose();
-  bloomPass = null;
-}
-
-function configureBloom() {
-  const composer = globe?.postProcessingComposer?.();
-  if (!composer) {
-    return;
-  }
-
-  if (props.theme !== 'dark') {
-    disposeBloomPass();
-    return;
-  }
-
-  const { width, height } = getGlobeDimensions();
-
-  if (!bloomPass) {
-    bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(width, height),
-      BLOOM_CONFIG.strength,
-      BLOOM_CONFIG.radius,
-      BLOOM_CONFIG.threshold,
-    );
-    composer.addPass(bloomPass);
-    return;
-  }
-
-  bloomPass.setSize(width, height);
-  bloomPass.strength = BLOOM_CONFIG.strength;
-  bloomPass.radius = BLOOM_CONFIG.radius;
-  bloomPass.threshold = BLOOM_CONFIG.threshold;
-}
-
-function configureSceneAndLights() {
-  const palette = getThemePalette(props.theme);
-  const scene = globe?.scene?.();
-  if (scene) {
-    scene.fog = props.theme === 'dark'
-      ? null
-      : new THREE.FogExp2(palette.fog, palette.fogDensity);
-  }
-
-  const ambientLight = new THREE.AmbientLight(
-    palette.ambient,
-    palette.ambientIntensity,
-  );
-
-  const fillLight = new THREE.DirectionalLight(
-    palette.fillLight,
-    palette.fillLightIntensity,
-  );
-  fillLight.position.set(150, -55, 125);
-
-  const rimLight = new THREE.DirectionalLight(
-    palette.rimLight,
-    palette.rimLightIntensity,
-  );
-  rimLight.position.set(36, 30, -220);
-
-  globe.lights([ambientLight, fillLight, rimLight]);
-
-  const camera = globe?.camera?.();
-  if (camera) {
-    if (cameraKeyLight) {
-      camera.remove(cameraKeyLight);
-      cameraKeyLight.dispose?.();
-    }
-    cameraKeyLight = new THREE.DirectionalLight(
-      palette.keyLight,
-      palette.keyLightIntensity,
-    );
-    cameraKeyLight.position.set(80, 120, 180);
-    camera.add(cameraKeyLight);
-  }
-}
-
 function setHoveredMarker(key) {
   hoveredMarkerKey.value = key;
 }
@@ -646,27 +404,6 @@ function clearHoveredMarker(key) {
   if (!key || hoveredMarkerKey.value === key) {
     hoveredMarkerKey.value = null;
   }
-}
-
-function syncMarkerElementState() {
-  if (!globeContainer.value) {
-    return;
-  }
-
-  globeContainer.value.querySelectorAll('.globe-marker').forEach((element) => {
-    const marker = element.__data__;
-    const key = marker?.key || element.dataset.key;
-    if (marker?.key && element.dataset.key !== marker.key) {
-      element.dataset.key = marker.key;
-    }
-    element.classList.toggle('is-hovered', hoveredMarkerKey.value === key);
-    element.classList.toggle('is-selected', selectedMarker.value?.key === key);
-    element.setAttribute('aria-pressed', selectedMarker.value?.key === key ? 'true' : 'false');
-  });
-}
-
-function getActiveRingData() {
-  return isMarkerAnimationSuspended.value ? [] : ringData.value;
 }
 
 function clearInteractionSettleTimer() {
@@ -679,17 +416,32 @@ function clearInteractionSettleTimer() {
 function setMarkerAnimationSuspended(suspended) {
   isMarkerAnimationSuspended.value = suspended;
 
-  if (!globe) {
-    return;
+  if (markerLayer.value) {
+    markerLayer.value.style.setProperty(
+      '--marker-transition-duration',
+      suspended ? '0ms' : `${MARKER_HTML_TRANSITION_DURATION}ms`,
+    );
+  }
+}
+
+function getOrbitControl() {
+  if (orbitControl) {
+    return orbitControl;
   }
 
-  globe
-    .htmlTransitionDuration(suspended ? 0 : MARKER_HTML_TRANSITION_DURATION)
-    .ringsData(getActiveRingData());
+  const views = chart?._componentsViews;
+  if (!Array.isArray(views)) {
+    return null;
+  }
+
+  const globeView = views.find((view) => view && view._control);
+  orbitControl = globeView?._control || null;
+  return orbitControl;
 }
 
 function applyAutoRotateState() {
-  if (!globe) {
+  const control = getOrbitControl();
+  if (!control) {
     return;
   }
 
@@ -702,21 +454,366 @@ function applyAutoRotateState() {
       || focusBubbleMarker.value,
   );
 
-  globe.controls().autoRotate = props.autoRotate && !shouldPause;
+  const nextAutoRotate = props.autoRotate && !shouldPause;
+  if (currentAutoRotate.value !== nextAutoRotate) {
+    currentAutoRotate.value = nextAutoRotate;
+    control.autoRotate = nextAutoRotate;
+  }
 }
 
-function focusLocation(location) {
-  if (!globe || !location) {
-    return false;
+function getViewDistanceOptions() {
+  const fitDistance = GLOBE_RADIUS * fitAltitude;
+  return {
+    distance: currentDistance.value,
+    minDistance: 120,
+    maxDistance: Math.max(360, fitDistance * 1.5),
+  };
+}
+
+function getGlobeOption() {
+  const isLight = props.theme === 'light';
+  const maps = getGlobeMaps(props.theme);
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      show: false,
+    },
+    globe: {
+      show: true,
+      baseTexture: maps.colorMap,
+      heightTexture: maps.bumpMap,
+      displacementScale: 0,
+      displacementQuality: 'medium',
+      globeRadius: GLOBE_RADIUS,
+      globeOuterRadius: GLOBE_RADIUS,
+      shading: 'lambert',
+      environment: 'none',
+      light: isLight
+        ? {
+          ambient: {
+            intensity: 0.75,
+            color: '#ffffff',
+          },
+          main: {
+            intensity: 0.7,
+            alpha: 30,
+            beta: 20,
+            color: '#fff8e8',
+          },
+        }
+        : {
+          ambient: {
+            intensity: 0.22,
+            color: '#4a5c70',
+          },
+          main: {
+            intensity: 1.0,
+            shadow: true,
+            shadowQuality: 'medium',
+            alpha: 25,
+            beta: 20,
+            color: '#d8ecff',
+          },
+        },
+      atmosphere: {
+        show: false,
+      },
+      postEffect: {
+        enable: false,
+      },
+      temporalSuperSampling: {
+        enable: true,
+      },
+      viewControl: {
+        autoRotate: currentAutoRotate.value,
+        autoRotateSpeed: props.rotateSpeed * 20,
+        autoRotateDirection: 'ccw',
+        autoRotateAfterStill: 3,
+        rotateSensitivity: 1,
+        zoomSensitivity: 1,
+        panSensitivity: 0,
+        damping: 0.8,
+        targetCoord: [...currentTargetCoord.value],
+        ...getViewDistanceOptions(),
+        animation: false,
+      },
+    },
+    series: [],
+  };
+}
+
+function sharpenGlobeTextures() {
+  if (!chart) {
+    return;
   }
 
-  globe.pointOfView({
-    lat: location.lat,
-    lng: location.lng,
-    altitude: isMobile.value ? 1.72 : 1.58,
-  }, FOCUS_ANIMATION_DURATION);
+  try {
+    const globeModel = chart.getModel().getComponent('globe');
+    const globeView = globeModel && chart.getViewOfComponentModel(globeModel);
+    const earthMesh = globeView && globeView._earthMesh;
+    const material = earthMesh && earthMesh.material;
+    if (!material) {
+      return;
+    }
 
-  return true;
+    ['diffuseMap', 'bumpMap'].forEach((name) => {
+      const texture = material.get(name);
+      if (texture && texture.useMipmap !== false) {
+        texture.useMipmap = false;
+        texture.minFilter = graphicGL.Texture.LINEAR;
+        texture.magFilter = graphicGL.Texture.LINEAR;
+        texture.dirty();
+      }
+    });
+  } catch {
+    // Internal APIs may change; ignore if unavailable.
+  }
+}
+
+function applyThemeToGlobe() {
+  if (!chart) {
+    return;
+  }
+
+  chart.setOption(getGlobeOption(), { notMerge: true });
+  sharpenGlobeTextures();
+  attachMarkerUpdateListener();
+}
+
+function resolveMarkerFromElement(element) {
+  return element?.__data__
+    || markerData.value.find((m) => m.key === element?.dataset?.key);
+}
+
+function handleMarkerClick(event) {
+  if (tapHandled) {
+    return;
+  }
+
+  const markerElement = event.target.closest('.globe-marker');
+  const currentMarker = resolveMarkerFromElement(markerElement);
+  if (!currentMarker) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+  selectMarker(currentMarker);
+}
+
+function handleMarkerPointerDown(event) {
+  const markerElement = event.target.closest('.globe-marker');
+  if (!markerElement) {
+    pendingTap = null;
+    return;
+  }
+
+  pendingTap = {
+    x: event.clientX,
+    y: event.clientY,
+    marker: resolveMarkerFromElement(markerElement),
+  };
+}
+
+function handleMarkerPointerUp(event) {
+  if (!pendingTap?.marker) {
+    return;
+  }
+
+  const dx = event.clientX - pendingTap.x;
+  const dy = event.clientY - pendingTap.y;
+  const { marker } = pendingTap;
+  pendingTap = null;
+
+  if (Math.sqrt(dx * dx + dy * dy) > 8) {
+    return;
+  }
+
+  tapHandled = true;
+  window.setTimeout(() => {
+    tapHandled = false;
+  }, 50);
+
+  event.preventDefault();
+  event.stopPropagation();
+  selectMarker(marker);
+}
+
+function createMarkerElement(marker) {
+  const element = document.createElement('button');
+  element.type = 'button';
+  element.className = `globe-marker ${marker.hasOnline ? 'is-online' : 'is-offline'}`;
+  element.dataset.key = marker.key;
+  element.setAttribute('aria-label', `${marker.label}，${marker.totalCount}台服务器`);
+  element.__data__ = marker;
+
+  let badgeHTML;
+  if (marker.isLarge) {
+    badgeHTML = '<span class="marker-cluster marker-cluster--large" aria-hidden="true"></span>';
+  } else if (marker.totalCount > 6) {
+    const centerServer = marker.servers[0];
+    const centerIsOffline = !centerServer || centerServer.online !== 1;
+    const centerOfflineClass = centerIsOffline ? ' is-offline' : '';
+    const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
+    const surroundingCount = marker.totalCount - 1;
+    const dots = Array.from({ length: surroundingCount }, (_, index) => {
+      const server = marker.servers[index + 1];
+      const isOffline = !server || server.online !== 1;
+      const offlineClass = isOffline ? ' is-offline' : '';
+      const angle = (Math.PI * 2 * index) / surroundingCount - (Math.PI / 2);
+      const x = Math.round(Math.cos(angle) * radius * 100) / 100;
+      const y = Math.round(Math.sin(angle) * radius * 100) / 100;
+      return `<span class="marker-dot${offlineClass}" style="transform: translate(${x}px, ${y}px)"></span>`;
+    }).join('');
+    badgeHTML = `
+      <span class="marker-dots" aria-hidden="true">
+        <span class="marker-dot marker-dot--single${centerOfflineClass}"></span>
+        ${dots}
+      </span>
+    `;
+  } else if (marker.totalCount > 1) {
+    const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
+    const dots = Array.from({ length: marker.totalCount }, (_, index) => {
+      const server = marker.servers[index];
+      const isOffline = !server || server.online !== 1;
+      const offlineClass = isOffline ? ' is-offline' : '';
+      const angle = (Math.PI * 2 * index) / marker.totalCount - (Math.PI / 2);
+      const x = Math.round(Math.cos(angle) * radius * 100) / 100;
+      const y = Math.round(Math.sin(angle) * radius * 100) / 100;
+      return `<span class="marker-dot${offlineClass}" style="transform: translate(${x}px, ${y}px)"></span>`;
+    }).join('');
+    badgeHTML = `<span class="marker-dots" aria-hidden="true">${dots}</span>`;
+  } else {
+    const server = marker.servers[0];
+    const isOffline = !server || server.online !== 1;
+    const offlineClass = isOffline ? ' is-offline' : '';
+    badgeHTML = `<span class="marker-dot marker-dot--single${offlineClass}" aria-hidden="true"></span>`;
+  }
+
+  element.innerHTML = `
+    <span class="marker-hit">
+      ${marker.hasOnline ? '<span class="marker-pulse"></span>' : ''}
+      ${badgeHTML}
+    </span>
+  `;
+
+  element.style.setProperty('--marker-visual-size', `${marker.visualSize}px`);
+  element.style.setProperty('--marker-hit-size', `${marker.hitSize}px`);
+  element.style.setProperty('--marker-dot-size', `${marker.dotSize}px`);
+  element.style.setProperty('--marker-core-color', marker.markerColor);
+  element.style.setProperty('--marker-shell-color', marker.markerColorSoft);
+  element.style.setProperty('--marker-shadow-color', marker.markerColorSoft);
+  element.style.setProperty('--marker-offline-color', marker.markerOfflineColor);
+
+  element.addEventListener('pointerenter', () => setHoveredMarker(marker.key));
+  element.addEventListener('pointerleave', () => clearHoveredMarker(marker.key));
+  element.addEventListener('focus', () => setHoveredMarker(marker.key));
+  element.addEventListener('blur', () => clearHoveredMarker(marker.key));
+
+  return element;
+}
+
+function syncMarkerElementState() {
+  if (!markerLayer.value) {
+    return;
+  }
+
+  markerLayer.value.querySelectorAll('.globe-marker').forEach((element) => {
+    const marker = element.__data__;
+    const key = marker?.key || element.dataset.key;
+    if (marker?.key && element.dataset.key !== marker.key) {
+      element.dataset.key = marker.key;
+    }
+    element.classList.toggle('is-hovered', hoveredMarkerKey.value === key);
+    element.classList.toggle('is-selected', selectedMarker.value?.key === key);
+    const isPressed = selectedMarker.value?.key === key ? 'true' : 'false';
+    element.setAttribute('aria-pressed', isPressed);
+  });
+}
+
+function updateMarkerPositions() {
+  if (!chart || !markerLayer.value) {
+    return;
+  }
+
+  const container = chartContainer.value;
+  if (!container) {
+    return;
+  }
+
+  if (!cachedContainerRect) {
+    cachedContainerRect = container.getBoundingClientRect();
+  }
+
+  const rect = cachedContainerRect;
+
+  markerLayer.value.querySelectorAll('.globe-marker').forEach((element) => {
+    const marker = element.__data__;
+    if (!marker) {
+      return;
+    }
+
+    const position = projectLatLngToScreen(
+      chart,
+      rect,
+      marker.lng,
+      marker.lat,
+      marker.altitude,
+    );
+    if (!position) {
+      element.classList.add('is-hidden');
+      return;
+    }
+
+    const size = marker.hitSize;
+    const x = position.x - size / 2;
+    const y = position.y - size / 2;
+    element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+
+    if (position.visible) {
+      element.classList.remove('is-hidden');
+    } else {
+      element.classList.add('is-hidden');
+    }
+  });
+}
+
+function attachMarkerUpdateListener() {
+  const control = getOrbitControl();
+  if (!control) {
+    return;
+  }
+
+  if (markerUpdateHandler) {
+    control.off('update', markerUpdateHandler);
+  }
+
+  markerUpdateHandler = () => updateMarkerPositions();
+  control.on('update', markerUpdateHandler);
+}
+
+function renderMarkers() {
+  if (!markerLayer.value) {
+    return;
+  }
+
+  markerLayer.value.innerHTML = '';
+  markerData.value.forEach((marker) => {
+    const element = createMarkerElement(marker);
+    markerLayer.value.appendChild(element);
+  });
+
+  syncMarkerElementState();
+  updateMarkerPositions();
+}
+
+function clearMarkers() {
+  if (!markerLayer.value) {
+    return;
+  }
+
+  markerLayer.value.innerHTML = '';
 }
 
 function clearFocusBubble() {
@@ -738,7 +835,8 @@ function updateFocusBubblePosition() {
     return;
   }
 
-  const element = globeContainer.value?.querySelector(`.globe-marker[data-key="${focusBubbleMarker.value.key}"]`);
+  const selector = `.globe-marker[data-key="${focusBubbleMarker.value.key}"]`;
+  const element = markerLayer.value?.querySelector(selector);
   if (!element || !focusBubbleWrapper.value || !rootRef.value) {
     return;
   }
@@ -762,69 +860,11 @@ function updateFocusBubblePosition() {
   const maxTop = rootRect.height - bubbleRect.height - POPUP_PADDING;
   left = Math.max(POPUP_PADDING, Math.min(left, maxLeft));
   top = Math.max(POPUP_PADDING, Math.min(top, maxTop));
+
   focusBubbleState.left = left;
   focusBubbleState.top = top;
   focusBubbleState.placement = placement;
   focusBubbleState.visible = true;
-}
-
-function focusLocationWithHighlight(location, serverName) {
-  return new Promise((resolve) => {
-    if (!globe || !location) {
-      resolve(false);
-      return;
-    }
-
-    clearFocusBubble();
-
-    globe.pointOfView({
-      lat: location.lat,
-      lng: location.lng,
-      altitude: isMobile.value ? 1.72 : 1.58,
-    }, FOCUS_ANIMATION_DURATION);
-
-    if (isMobile.value) {
-      resolve(true);
-      return;
-    }
-
-    const marker = markerData.value.find((m) => m.key === location.key);
-    if (!marker) {
-      resolve(false);
-      return;
-    }
-
-    // 留一点缓冲，等地球旋转动画和控制阻尼完全稳定后再显示气泡
-    const bubbleShowDelay = FOCUS_ANIMATION_DURATION + 180;
-
-    focusBubbleTimer = window.setTimeout(() => {
-      focusBubbleMarker.value = marker;
-      focusBubbleServerName.value = serverName || marker.label;
-
-      syncMarkerElementState();
-      applyAutoRotateState();
-
-      let positionAttempts = 0;
-      const maxPositionAttempts = 40;
-
-      const tryUpdatePosition = () => {
-        positionAttempts += 1;
-        syncMarkerElementState();
-        updateFocusBubblePosition();
-        if (focusBubbleState.visible) {
-          resolve(true);
-        } else if (positionAttempts >= maxPositionAttempts) {
-          resolve(false);
-        } else {
-          focusBubbleTimer = window.setTimeout(tryUpdatePosition, 80);
-        }
-      };
-
-      nextTick(() => {
-        window.requestAnimationFrame(tryUpdatePosition);
-      });
-    }, bubbleShowDelay);
-  });
 }
 
 function clearSelection(shouldEmit = true) {
@@ -833,7 +873,6 @@ function clearSelection(shouldEmit = true) {
   isPopupHovered.value = false;
   popupState.visible = false;
   popupState.placement = 'top';
-  syncMarkerElementState();
   applyAutoRotateState();
 
   if (shouldEmit) {
@@ -877,7 +916,8 @@ function updateTooltipPosition() {
     return;
   }
 
-  const element = globeContainer.value?.querySelector(`.globe-marker[data-key="${hoveredMarker.value.key}"]`);
+  const selector = `.globe-marker[data-key="${hoveredMarker.value.key}"]`;
+  const element = markerLayer.value?.querySelector(selector);
   if (!element || !tooltipWrapper.value || !rootRef.value) {
     return;
   }
@@ -951,247 +991,158 @@ function selectMarker(marker) {
   });
 }
 
-function resolveMarkerFromElement(element) {
-  return element?.__data__
-    || markerData.value.find((m) => m.key === element?.dataset?.key);
+function normalizeLng(delta) {
+  return ((delta + 540) % 360) - 180;
 }
 
-function handleMarkerClick(event) {
-  if (tapHandled) {
-    return;
-  }
+function animateView({ targetCoord, distance, duration = FOCUS_ANIMATION_DURATION }) {
+  return new Promise((resolve) => {
+    const control = getOrbitControl();
+    if (!control) {
+      resolve();
+      return;
+    }
 
-  const markerElement = event.target.closest('.globe-marker');
-  const currentMarker = resolveMarkerFromElement(markerElement);
-  if (!currentMarker) {
-    return;
-  }
+    const startCoord = [...currentTargetCoord.value];
+    const startDistance = currentDistance.value;
+    const startTime = performance.now();
 
-  event.preventDefault();
-  event.stopPropagation();
-  selectMarker(currentMarker);
+    const lngDelta = normalizeLng(targetCoord[0] - startCoord[0]);
+    const latDelta = targetCoord[1] - startCoord[1];
+    const distanceDelta = distance - startDistance;
+
+    function frame(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - (1 - progress) ** 3;
+
+      currentTargetCoord.value = [
+        startCoord[0] + lngDelta * eased,
+        startCoord[1] + latDelta * eased,
+      ];
+      currentDistance.value = startDistance + distanceDelta * eased;
+
+      const alpha = currentTargetCoord.value[1];
+      const beta = currentTargetCoord.value[0] + 90;
+      const centerDistance = GLOBE_RADIUS + currentDistance.value;
+      control.setAlpha(alpha);
+      control.setBeta(beta);
+      control.setDistance(centerDistance);
+      control._needsUpdate = true;
+
+      updateMarkerPositions();
+
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        resolve();
+      }
+    }
+
+    requestAnimationFrame(frame);
+  });
 }
 
-function handleMarkerPointerDown(event) {
-  const markerElement = event.target.closest('.globe-marker');
-  if (!markerElement) {
-    pendingTap = null;
-    return;
+function focusLocation(location) {
+  if (!chart || !location) {
+    return false;
   }
 
-  pendingTap = {
-    x: event.clientX,
-    y: event.clientY,
-    marker: resolveMarkerFromElement(markerElement),
-  };
+  animateView({
+    targetCoord: [location.lng, location.lat],
+    distance: GLOBE_RADIUS * (isMobile.value ? 2.6 : 2.4),
+  });
+
+  return true;
 }
 
-function handleMarkerPointerUp(event) {
-  if (!pendingTap?.marker) {
-    return;
-  }
+function focusLocationWithHighlight(location, serverName) {
+  return new Promise((resolve) => {
+    if (!chart || !location) {
+      resolve(false);
+      return;
+    }
 
-  const dx = event.clientX - pendingTap.x;
-  const dy = event.clientY - pendingTap.y;
-  const { marker } = pendingTap;
-  pendingTap = null;
+    clearFocusBubble();
 
-  if (Math.sqrt(dx * dx + dy * dy) > 8) {
-    return;
-  }
+    animateView({
+      targetCoord: [location.lng, location.lat],
+      distance: GLOBE_RADIUS * (isMobile.value ? 2.6 : 2.4),
+    }).then(() => {
+      if (isMobile.value) {
+        resolve(true);
+        return;
+      }
 
-  tapHandled = true;
-  window.setTimeout(() => {
-    tapHandled = false;
-  }, 50);
+      const marker = markerData.value.find((m) => m.key === location.key);
+      if (!marker) {
+        resolve(false);
+        return;
+      }
 
-  event.preventDefault();
-  event.stopPropagation();
-  selectMarker(marker);
-}
+      focusBubbleTimer = window.setTimeout(() => {
+        focusBubbleMarker.value = marker;
+        focusBubbleServerName.value = serverName || marker.label;
 
-function applyThemeToGlobe() {
-  if (!globe) {
-    return;
-  }
+        syncMarkerElementState();
+        applyAutoRotateState();
 
-  const palette = getThemePalette(props.theme);
-  const isLight = props.theme === 'light';
-  const { colorMap } = getGlobeMaps(props.theme);
-  const renderer = globe?.renderer?.();
-  const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || 16;
-  colorMap.anisotropy = maxAnisotropy;
+        let positionAttempts = 0;
+        const maxPositionAttempts = 40;
 
-  const oceanMaterial = isLight
-    ? new THREE.MeshBasicMaterial({
-      map: colorMap,
-      color: '#ffffff',
-    })
-    : new THREE.MeshPhongMaterial({
-      map: colorMap,
+        const tryUpdatePosition = () => {
+          positionAttempts += 1;
+          syncMarkerElementState();
+          updateFocusBubblePosition();
+          if (focusBubbleState.visible) {
+            resolve(true);
+          } else if (positionAttempts >= maxPositionAttempts) {
+            resolve(false);
+          } else {
+            focusBubbleTimer = window.setTimeout(tryUpdatePosition, 80);
+          }
+        };
 
-      color: '#ebf6f7',
-      emissive: palette.oceanEmissive,
-      emissiveIntensity: 0,
-      shininess: 10,
-      specular: palette.oceanSpecular,
+        nextTick(() => {
+          window.requestAnimationFrame(tryUpdatePosition);
+        });
+      }, 180);
     });
-
-  globe
-    .globeMaterial(oceanMaterial)
-    .showAtmosphere(isLight)
-    .showGraticules(false)
-    .globeCurvatureResolution(4)
-    .atmosphereColor(palette.atmosphere)
-    .atmosphereAltitude(isLight ? palette.atmosphereAltitude : 0)
-    .pathsData([])
-    .polygonsData(getLandPolygonsData())
-    .polygonGeoJsonGeometry((d) => d.geometry)
-    .polygonCapMaterial(() => INVISIBLE_POLYGON_MATERIAL)
-    .polygonSideMaterial(() => INVISIBLE_POLYGON_MATERIAL)
-    .polygonStrokeColor(() => palette.coastline)
-    .polygonAltitude(palette.polygonAltitude)
-    .polygonCapCurvatureResolution(5)
-    .polygonsTransitionDuration(0);
-
-  syncRimAtmosphere(palette);
-  syncSceneBackground();
-  configureRenderer();
-  configureBloom();
-  configureSceneAndLights();
-}
-
-function createMarkerElement(marker) {
-  const element = document.createElement('button');
-  element.type = 'button';
-  element.className = `globe-marker ${marker.hasOnline ? 'is-online' : 'is-offline'}`;
-  element.dataset.key = marker.key;
-  element.setAttribute('aria-label', `${marker.label}，${marker.totalCount}台服务器`);
-
-  let badgeHTML;
-  if (marker.isLarge) {
-    badgeHTML = '<span class="marker-cluster marker-cluster--large" aria-hidden="true"></span>';
-  } else if (marker.totalCount > 6) {
-    const centerServer = marker.servers[0];
-    const centerIsOffline = !centerServer || centerServer.online !== 1;
-    const centerOfflineClass = centerIsOffline ? ' is-offline' : '';
-    const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
-    const surroundingCount = marker.totalCount - 1;
-    const dots = Array.from({ length: surroundingCount }, (_, index) => {
-      const server = marker.servers[index + 1];
-      const isOffline = !server || server.online !== 1;
-      const offlineClass = isOffline ? ' is-offline' : '';
-      const angle = (Math.PI * 2 * index) / surroundingCount - (Math.PI / 2);
-      const x = Math.round(Math.cos(angle) * radius * 100) / 100;
-      const y = Math.round(Math.sin(angle) * radius * 100) / 100;
-      return `<span class="marker-dot${offlineClass}" style="transform: translate(${x}px, ${y}px)"></span>`;
-    }).join('');
-    badgeHTML = `
-      <span class="marker-dots" aria-hidden="true">
-        <span class="marker-dot marker-dot--single${centerOfflineClass}"></span>
-        ${dots}
-      </span>
-    `;
-  } else if (marker.totalCount > 1) {
-    const radius = (marker.visualSize - marker.dotSize) / 2 - 1;
-    const dots = Array.from({ length: marker.totalCount }, (_, index) => {
-      const server = marker.servers[index];
-      const isOffline = !server || server.online !== 1;
-      const offlineClass = isOffline ? ' is-offline' : '';
-      const angle = (Math.PI * 2 * index) / marker.totalCount - (Math.PI / 2);
-      const x = Math.round(Math.cos(angle) * radius * 100) / 100;
-      const y = Math.round(Math.sin(angle) * radius * 100) / 100;
-      return `<span class="marker-dot${offlineClass}" style="transform: translate(${x}px, ${y}px)"></span>`;
-    }).join('');
-    badgeHTML = `<span class="marker-dots" aria-hidden="true">${dots}</span>`;
-  } else {
-    const server = marker.servers[0];
-    const isOffline = !server || server.online !== 1;
-    const offlineClass = isOffline ? ' is-offline' : '';
-    badgeHTML = `<span class="marker-dot marker-dot--single${offlineClass}" aria-hidden="true"></span>`;
-  }
-
-  element.innerHTML = `
-    <span class="marker-hit">
-      ${marker.hasOnline ? '<span class="marker-pulse"></span>' : ''}
-      ${badgeHTML}
-    </span>
-  `;
-
-  element.style.setProperty('--marker-visual-size', `${marker.visualSize}px`);
-  element.style.setProperty('--marker-hit-size', `${marker.hitSize}px`);
-  element.style.setProperty('--marker-dot-size', `${marker.dotSize}px`);
-  element.style.setProperty('--marker-core-color', marker.markerColor);
-  element.style.setProperty('--marker-shell-color', marker.markerColorSoft);
-  element.style.setProperty('--marker-shadow-color', marker.markerColorSoft);
-  element.style.setProperty('--marker-offline-color', marker.markerOfflineColor);
-
-  element.addEventListener('pointerenter', () => setHoveredMarker(marker.key));
-  element.addEventListener('pointerleave', () => clearHoveredMarker(marker.key));
-  element.addEventListener('focus', () => setHoveredMarker(marker.key));
-  element.addEventListener('blur', () => clearHoveredMarker(marker.key));
-
-  syncMarkerElementState();
-  return element;
-}
-
-function updateLayers() {
-  if (!globe) {
-    return;
-  }
-
-  globe
-    .htmlElementsData(markerData.value)
-    .ringsData(getActiveRingData());
-
-  syncMarkerElementState();
-}
-
-function configureControls() {
-  const controls = globe.controls();
-  controls.autoRotateSpeed = props.rotateSpeed * 0.16;
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.enablePan = false;
-  const fitDistance = GLOBE_RADIUS * (1 + fitAltitude);
-  controls.minDistance = 145;
-  controls.maxDistance = Math.max(285, fitDistance * 1.1);
-  controls.rotateSpeed = 0.42;
-
-  controlsStartHandler = () => {
-    isUserInteracting.value = true;
-    suspendMarkerAnimations();
-  };
-  controlsEndHandler = () => {
-    isUserInteracting.value = false;
-    scheduleMarkerAnimationResume();
-    nextTick(() => {
-      updatePopupPosition();
-    });
-  };
-
-  controls.addEventListener('start', controlsStartHandler);
-  controls.addEventListener('end', controlsEndHandler);
-  applyAutoRotateState();
-}
-
-function updateZoomLimits() {
-  if (!globe) {
-    return;
-  }
-
-  const controls = globe.controls();
-  const fitDistance = GLOBE_RADIUS * (1 + fitAltitude);
-  controls.minDistance = 145;
-  controls.maxDistance = Math.max(285, fitDistance * 1.1);
+  });
 }
 
 function resetView() {
-  if (!globe) {
+  if (!chart) {
     return;
   }
 
-  globe.pointOfView(INITIAL_POINT_OF_VIEW, 1100);
+  animateView({
+    targetCoord: [INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat],
+    distance: GLOBE_RADIUS * INITIAL_POINT_OF_VIEW.altitude,
+    duration: 1100,
+  });
+}
+
+function handleContainerClick() {
+  if (ignoreNextGlobeClick) {
+    ignoreNextGlobeClick = false;
+    return;
+  }
+
+  clearSelection();
+}
+
+function handleContainerPointerDown() {
+  isUserInteracting.value = true;
+  suspendMarkerAnimations();
+}
+
+function handleContainerPointerUp() {
+  isUserInteracting.value = false;
+  scheduleMarkerAnimationResume();
+  nextTick(() => {
+    updatePopupPosition();
+  });
 }
 
 function handlePopupEnter() {
@@ -1213,19 +1164,24 @@ function updateViewportMode() {
 function handleResize() {
   updateViewportMode();
 
-  if (!globe || !globeContainer.value) {
+  if (!chart || !chartContainer.value) {
     return;
   }
 
-  const { clientWidth: width, clientHeight: height } = globeContainer.value;
+  const { clientWidth: width, clientHeight: height } = chartContainer.value;
   fitAltitude = computeFitAltitude(width, height);
-  updateZoomLimits();
+  cachedContainerRect = chartContainer.value.getBoundingClientRect();
+  chart.resize();
 
-  globe.width(width).height(height);
+  chart.setOption({
+    globe: {
+      viewControl: {
+        ...getViewDistanceOptions(),
+      },
+    },
+  });
 
-  if (bloomPass) {
-    bloomPass.setSize(width, height);
-  }
+  attachMarkerUpdateListener();
 
   nextTick(() => {
     updatePopupPosition();
@@ -1245,164 +1201,78 @@ function scheduleHandleResize() {
 }
 
 function handleVisibilityChange() {
-  if (!globe) {
+  if (!chart) {
     return;
   }
 
   if (document.hidden) {
-    globe.pauseAnimation?.();
     return;
   }
 
   nextTick(() => {
-    globe.resumeAnimation?.();
+    chart.resize();
     scheduleHandleResize();
     applyThemeToGlobe();
-    updateLayers();
+    renderMarkers();
   });
 }
 
-function handleContextLost(event) {
-  event.preventDefault();
-  if (globe) {
-    globe.pauseAnimation?.();
-  }
-}
-
-function handleContextRestored() {
-  if (!globe) {
-    return;
-  }
-
-  // WebGL context 恢复后，旧的 GPU 纹理已失效，需要重新生成
-  Object.keys(globeTextureCache).forEach((key) => {
-    globeTextureCache[key] = null;
-  });
-
-  nextTick(() => {
-    configureRenderer();
-    applyThemeToGlobe();
-    updateLayers();
-    configureBloom();
-    configureSceneAndLights();
-    syncRimAtmosphere(getThemePalette(props.theme));
-    syncSceneBackground();
-    scheduleHandleResize();
-    globe.resumeAnimation?.();
-  });
-}
-
-function attachRendererLifecycleListeners() {
+function attachLifecycleListeners() {
   if (visibilityHandler) {
     document.removeEventListener('visibilitychange', visibilityHandler);
   }
   visibilityHandler = handleVisibilityChange;
   document.addEventListener('visibilitychange', visibilityHandler);
-
-  const renderer = globe?.renderer?.();
-  const canvas = renderer?.domElement;
-  if (!canvas) {
-    return;
-  }
-
-  if (contextLostHandler) {
-    canvas.removeEventListener('webglcontextlost', contextLostHandler);
-  }
-  if (contextRestoredHandler) {
-    canvas.removeEventListener('webglcontextrestored', contextRestoredHandler);
-  }
-
-  contextLostHandler = handleContextLost;
-  contextRestoredHandler = handleContextRestored;
-  canvas.addEventListener('webglcontextlost', contextLostHandler);
-  canvas.addEventListener('webglcontextrestored', contextRestoredHandler);
 }
 
-function detachRendererLifecycleListeners() {
+function detachLifecycleListeners() {
   if (visibilityHandler) {
     document.removeEventListener('visibilitychange', visibilityHandler);
     visibilityHandler = null;
   }
-
-  const renderer = globe?.renderer?.();
-  const canvas = renderer?.domElement;
-  if (!canvas) {
-    return;
-  }
-
-  if (contextLostHandler) {
-    canvas.removeEventListener('webglcontextlost', contextLostHandler);
-    contextLostHandler = null;
-  }
-  if (contextRestoredHandler) {
-    canvas.removeEventListener('webglcontextrestored', contextRestoredHandler);
-    contextRestoredHandler = null;
-  }
 }
 
-function initGlobe() {
-  if (!globeContainer.value) {
+function initChart() {
+  if (!chartContainer.value) {
     return;
   }
 
   try {
-    const { clientWidth: width, clientHeight: height } = globeContainer.value;
+    const { clientWidth: width, clientHeight: height } = chartContainer.value;
     fitAltitude = computeFitAltitude(width, height);
-    globe = Globe()(globeContainer.value);
+    currentDistance.value = GLOBE_RADIUS * INITIAL_POINT_OF_VIEW.altitude;
+    currentTargetCoord.value = [INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat];
 
-    zoomHandler = () => {
-      if (isUserInteracting.value || interactionSettleTimer) {
-        suspendMarkerAnimations();
-        scheduleMarkerAnimationResume();
+    chart = echarts.init(chartContainer.value, null, {
+      renderer: 'canvas',
+    });
+
+    chart.setOption(getGlobeOption(), { notMerge: true });
+    sharpenGlobeTextures();
+
+    getOrbitControl();
+
+    chartContainer.value.addEventListener('click', handleContainerClick);
+    chartContainer.value.addEventListener('pointerdown', handleContainerPointerDown, true);
+    chartContainer.value.addEventListener('pointerup', handleContainerPointerUp, true);
+
+    attachLifecycleListeners();
+
+    renderMarkers();
+
+    const control = getOrbitControl();
+    if (control) {
+      control.autoRotate = currentAutoRotate.value;
+      control.autoRotateSpeed = props.rotateSpeed * 20;
+
+      if (markerLayer.value) {
+        markerLayer.value.addEventListener('click', handleMarkerClick, true);
+        markerLayer.value.addEventListener('pointerdown', handleMarkerPointerDown, true);
+        markerLayer.value.addEventListener('pointerup', handleMarkerPointerUp, true);
       }
-      updatePopupPosition();
-      updateTooltipPosition();
-      updateFocusBubblePosition();
-    };
+    }
 
-    globe
-      .width(width)
-      .height(height)
-      .globeOffset([0, 0])
-      .backgroundColor('rgba(0,0,0,0)')
-      .pointOfView(INITIAL_POINT_OF_VIEW)
-      .htmlLat('lat')
-      .htmlLng('lng')
-      .htmlAltitude('altitude')
-      .htmlElement((marker) => createMarkerElement(marker))
-      .htmlTransitionDuration(MARKER_HTML_TRANSITION_DURATION)
-      .htmlElementVisibilityModifier((element, visible) => {
-        element.classList.toggle('is-hidden', !visible);
-      })
-      .onGlobeClick(() => {
-        if (ignoreNextGlobeClick) {
-          ignoreNextGlobeClick = false;
-          return;
-        }
-        clearSelection();
-      })
-      .onZoom(zoomHandler)
-      .ringsData(ringData.value)
-      .ringLat('lat')
-      .ringLng('lng')
-      .ringColor((ring) => (time) => `rgba(${ring.colorRgb}, ${Math.max(0, ring.opacity * (1 - time))})`)
-      .ringMaxRadius('maxR')
-      .ringPropagationSpeed('propagationSpeed')
-      .ringRepeatPeriod('repeatPeriod');
-
-    markerClickHandler = (event) => handleMarkerClick(event);
-    markerPointerDownHandler = (event) => handleMarkerPointerDown(event);
-    markerPointerUpHandler = (event) => handleMarkerPointerUp(event);
-    globeContainer.value.addEventListener('click', markerClickHandler, true);
-    globeContainer.value.addEventListener('pointerdown', markerPointerDownHandler, true);
-    globeContainer.value.addEventListener('pointerup', markerPointerUpHandler, true);
-
-    globe.globeMaterial(new THREE.MeshPhongMaterial());
-    configureRenderer();
-    applyThemeToGlobe();
-    updateLayers();
-    configureControls();
-    attachRendererLifecycleListeners();
+    attachMarkerUpdateListener();
 
     isReady.value = true;
   } catch (error) {
@@ -1412,7 +1282,7 @@ function initGlobe() {
 }
 
 watch(markerData, (nextMarkers) => {
-  if (!globe) {
+  if (!chart) {
     return;
   }
 
@@ -1434,7 +1304,7 @@ watch(markerData, (nextMarkers) => {
     }
   }
 
-  updateLayers();
+  renderMarkers();
   nextTick(() => {
     updatePopupPosition();
     updateFocusBubblePosition();
@@ -1446,16 +1316,14 @@ watch(() => props.autoRotate, () => {
 });
 
 watch(() => props.rotateSpeed, (value) => {
-  if (!globe) {
-    return;
+  if (orbitControl) {
+    orbitControl.autoRotateSpeed = value * 20;
   }
-
-  globe.controls().autoRotateSpeed = value * 0.16;
 });
 
 watch(() => props.theme, () => {
   applyThemeToGlobe();
-  updateLayers();
+  renderMarkers();
   nextTick(() => {
     updatePopupPosition();
   });
@@ -1516,12 +1384,12 @@ defineExpose({
 onMounted(() => {
   updateViewportMode();
   startLocalTimeTicker();
-  initGlobe();
+  initChart();
   window.addEventListener('resize', handleResize);
 
-  if (typeof ResizeObserver !== 'undefined' && globeContainer.value) {
+  if (typeof ResizeObserver !== 'undefined' && chartContainer.value) {
     resizeObserver = new ResizeObserver(() => scheduleHandleResize());
-    resizeObserver.observe(globeContainer.value);
+    resizeObserver.observe(chartContainer.value);
   }
 });
 
@@ -1532,16 +1400,17 @@ onActivated(() => {
   nextTick(() => {
     scheduleHandleResize();
 
-    if (!globeContainer.value) {
+    if (!chartContainer.value) {
       return;
     }
 
-    const { clientWidth, clientHeight } = globeContainer.value;
-    if (clientWidth > 0 && clientHeight > 0 && globe) {
-      const currentPov = globe.pointOfView();
-      globe.pointOfView(currentPov, 0);
+    const { clientWidth, clientHeight } = chartContainer.value;
+    if (clientWidth > 0 && clientHeight > 0 && chart) {
+      chart.resize();
       applyThemeToGlobe();
-      updateLayers();
+      renderMarkers();
+      updatePopupPosition();
+      updateFocusBubblePosition();
     }
   });
 });
@@ -1555,7 +1424,7 @@ onDeactivated(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   stopLocalTimeTicker();
-  detachRendererLifecycleListeners();
+  detachLifecycleListeners();
 
   if (pendingResizeRaf) {
     cancelAnimationFrame(pendingResizeRaf);
@@ -1570,41 +1439,31 @@ onUnmounted(() => {
   clearInteractionSettleTimer();
   clearFocusBubble();
 
-  const controls = globe?.controls?.();
-  if (controls && controlsStartHandler) {
-    controls.removeEventListener('start', controlsStartHandler);
-  }
-  if (controls && controlsEndHandler) {
-    controls.removeEventListener('end', controlsEndHandler);
-  }
-  if (zoomHandler) {
-    globe?.onZoom?.(() => {});
-  }
-  if (markerClickHandler && globeContainer.value) {
-    globeContainer.value.removeEventListener('click', markerClickHandler, true);
-  }
-  if (markerPointerDownHandler && globeContainer.value) {
-    globeContainer.value.removeEventListener('pointerdown', markerPointerDownHandler, true);
-  }
-  if (markerPointerUpHandler && globeContainer.value) {
-    globeContainer.value.removeEventListener('pointerup', markerPointerUpHandler, true);
+  if (markerUpdateHandler && orbitControl) {
+    orbitControl.off('update', markerUpdateHandler);
+    markerUpdateHandler = null;
   }
 
-  disposeCurrentRimAtmosphere(globe?.scene?.());
-
-  if (cameraKeyLight) {
-    globe?.camera?.()?.remove(cameraKeyLight);
-    cameraKeyLight.dispose?.();
-    cameraKeyLight = null;
+  if (markerLayer.value) {
+    markerLayer.value.removeEventListener('click', handleMarkerClick, true);
+    markerLayer.value.removeEventListener('pointerdown', handleMarkerPointerDown, true);
+    markerLayer.value.removeEventListener('pointerup', handleMarkerPointerUp, true);
   }
 
-  if (sceneBackgroundTexture) {
-    sceneBackgroundTexture.dispose();
-    sceneBackgroundTexture = null;
+  if (chartContainer.value) {
+    chartContainer.value.removeEventListener('click', handleContainerClick);
+    chartContainer.value.removeEventListener('pointerdown', handleContainerPointerDown, true);
+    chartContainer.value.removeEventListener('pointerup', handleContainerPointerUp, true);
   }
 
-  disposeBloomPass();
-  globe = null;
+  clearMarkers();
+
+  if (chart) {
+    chart.dispose();
+    chart = null;
+  }
+
+  orbitControl = null;
 });
 </script>
 
@@ -1618,47 +1477,30 @@ onUnmounted(() => {
 .globe-earth::before {
   content: '';
   position: absolute;
-  inset: 14% 16% auto;
-  height: 32%;
+  top: 50%;
+  left: 50%;
+  width: min(86%, 86vh);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
   border-radius: 50%;
   background:
     radial-gradient(circle at center, var(--globe-orb-glow), transparent 70%);
   filter: blur(28px);
-  opacity: 0.88;
+  opacity: 0.6;
   pointer-events: none;
   z-index: 0;
 }
 
 .globe-earth.theme-dark::before {
-  inset: -18%;
-  height: 136%;
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-      rgba(72, 140, 255, 0.09) 0%,
-      rgba(72, 140, 255, 0.045) 30%,
-      rgba(72, 140, 255, 0.016) 50%,
-      rgba(72, 140, 255, 0.006) 64%,
-      transparent 84%
-    );
-  filter: blur(92px);
-  opacity: 0.76;
+  --globe-orb-glow: rgba(72, 148, 255, 0.55);
+  filter: blur(36px);
+  opacity: 0.55;
 }
 
 .globe-earth.theme-light::before {
-  inset: -16%;
-  height: 132%;
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-      rgba(177, 219, 255, 0.16) 0%,
-      rgba(177, 219, 255, 0.08) 30%,
-      rgba(177, 219, 255, 0.03) 50%,
-      rgba(177, 219, 255, 0.01) 64%,
-      transparent 84%
-    );
-  filter: blur(84px);
-  opacity: 0.88;
+  --globe-orb-glow: rgba(160, 210, 255, 0.42);
+  filter: blur(30px);
+  opacity: 0.42;
 }
 
 .globe-container {
@@ -1671,6 +1513,14 @@ onUnmounted(() => {
     display: block;
     outline: none;
   }
+}
+
+.marker-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .popup-layer {
@@ -1780,6 +1630,9 @@ onUnmounted(() => {
 }
 
 :deep(.globe-marker) {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: var(--marker-hit-size);
   height: var(--marker-hit-size);
   display: inline-flex;
@@ -1793,21 +1646,23 @@ onUnmounted(() => {
   outline: none;
   pointer-events: auto;
   touch-action: none;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
+  will-change: transform;
+  transition: opacity 0.12s ease;
 
   &.is-hidden {
     opacity: 0;
     pointer-events: none;
+    transition: none;
   }
 
   &.is-hovered {
     transform: scale(1.15);
+    transition: transform 0.15s ease, opacity 0.12s ease;
   }
 
   &.is-selected {
     transform: scale(1.22);
+    transition: transform 0.15s ease, opacity 0.12s ease;
   }
 }
 

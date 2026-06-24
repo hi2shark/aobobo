@@ -3,8 +3,7 @@ import worldLandData from '@/assets/globe/world-land.json';
 let cachedPolygons = null;
 
 /**
- * 将 MultiPolygon 拆为独立 Polygon，供 globe.gl 矢量层渲染。
- * 放大时由曲面三角剖分保持海岸清晰，不依赖纹理分辨率。
+ * 将 MultiPolygon 拆为独立 Polygon，供地球纹理绘制使用。
  */
 export function getLandPolygonsData() {
   if (cachedPolygons) {

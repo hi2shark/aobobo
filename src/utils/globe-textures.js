@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { getLandPolygonsData } from './globe-land-polygons.js';
 
 const TEXTURE_WIDTH = 4096;
@@ -44,10 +43,10 @@ const BASE_LAND_COLORS = {
 
 const THEME_COLORS = {
   light: {
-    oceanBase: '#d9edff',
-    land: BASE_LAND_COLORS.light,
-    coastline: 'rgba(112, 137, 168, 0.34)',
-    coastlineWidth: 1.25,
+    oceanBase: '#d0e6fa',
+    land: '#eef6ff',
+    coastline: 'rgba(100, 135, 180, 0.45)',
+    coastlineWidth: 1.35,
   },
   dark: {
     oceanBase: '#061221',
@@ -60,28 +59,6 @@ const THEME_COLORS = {
     coastlineWidth: 1.45,
   },
 };
-
-function createColorTexture(canvas) {
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function createBumpTexture(canvas) {
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.anisotropy = 8;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  return texture;
-}
 
 function projectGeoToCanvas(lng, lat, width, height) {
   const x = ((lng + 180) / 360) * width;
@@ -128,14 +105,32 @@ export function createGlobeBumpMap() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   drawLandForBump(ctx, canvas.width, canvas.height);
 
-  return createBumpTexture(canvas);
+  return canvas;
 }
 
 function drawLightOcean(ctx) {
-  const colors = THEME_COLORS.light;
   const { width, height } = ctx.canvas;
 
-  ctx.fillStyle = colors.oceanBase;
+  const bodyGradient = ctx.createRadialGradient(
+    width * 0.44,
+    height * 0.38,
+    height * 0.04,
+    width * 0.5,
+    height * 0.5,
+    height * 0.82,
+  );
+  bodyGradient.addColorStop(0, '#e0f0ff');
+  bodyGradient.addColorStop(0.45, '#d4e8f9');
+  bodyGradient.addColorStop(0.85, '#bddbf5');
+  bodyGradient.addColorStop(1, '#b0d3f2');
+  ctx.fillStyle = bodyGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const shadow = ctx.createLinearGradient(0, 0, width, height);
+  shadow.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+  shadow.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+  shadow.addColorStop(1, 'rgba(0, 0, 0, 0.06)');
+  ctx.fillStyle = shadow;
   ctx.fillRect(0, 0, width, height);
 }
 
@@ -300,7 +295,7 @@ export function createGlobeOceanMap(theme = 'dark') {
     THEME_COLORS[theme].coastlineWidth,
   );
 
-  return createColorTexture(canvas);
+  return canvas;
 }
 
 const SCENE_BG_SIZE = 1024;
@@ -363,12 +358,7 @@ export function createSceneBackgroundTexture(theme = 'dark') {
   ctx.fillStyle = centerGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
-  return texture;
+  return canvas;
 }
 
 export function createGlobeMaps(theme = 'dark') {
