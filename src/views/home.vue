@@ -324,7 +324,6 @@ import {
   serverSortHandler,
   defaultServerSortConfig,
 } from '@/composables/server-sort';
-// eslint-disable-next-line no-unused-vars
 import CurrentTime from '@/components/current-time.vue';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
@@ -555,8 +554,8 @@ const detailServerInfo = computed(() => {
   if (!detailServerId.value) return null;
   return serverList.value.find((s) => String(s.ID) === String(detailServerId.value)) || null;
 });
-const currentTime = computed(() => store.state.serverTime || Date.now());
-provide('currentTime', currentTime);
+const serverCurrentTime = computed(() => store.state.serverTime || Date.now());
+provide('currentTime', serverCurrentTime);
 
 watch(
   [filterOnline, () => serverCount.value?.online, () => serverCount.value?.offline],

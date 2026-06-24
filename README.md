@@ -1,18 +1,19 @@
 # AoBoBo
 
-AoBoBo 是一个为 [哪吒监控](https://nezha.wiki/) 设计的纯前端 3D 可视化主题，基于 **Vue 3 + Vite + globe.gl** 构建，在全球 3D 地球上直观展示各地 VPS 的实时运行状态。
+AoBoBo 是一个为 [哪吒监控](https://nezha.wiki/) 设计的纯前端 3D 可视化主题，基于 **Vue 3 + Vite + echarts-gl** 构建，在全球 3D 地球上直观展示各地 VPS 的实时运行状态。
 
 > AoBoBo 仅包含前端展示，不包含哪吒 Dashboard 或 Agent。
 
 ## 特性
 
-- **3D 地球可视化** — 使用 globe.gl 渲染真实地球，VPS 位置以脉冲光点标注。
+- **3D 地球可视化** — 使用 echarts-gl 渲染地球，自定义海洋/陆地纹理与大气轮廓光晕；VPS 位置以脉冲光点、聚合簇、离线灰点等样式标注。
+- **原生 HTML 标点叠加** — 通过自定义投影将标记点精确叠加在 3D 地球表面，保留原有脉冲、聚合、离线等视觉风格。
+- **深浅双主题** — 支持浅色 / 深色主题切换，运行时通过 `config.js` 或主题切换按钮切换。
 - **哪吒探针双版本兼容** — 支持哪吒 v0（页面抓取 + WS）和 v1（REST API + WS），构建时可通过环境变量指定默认版本，运行时也允许通过 `config.js` 切换。
 - **实时状态更新** — WebSocket 推送，数据秒级同步。
 - **服务器列表** — 展示状态 / 名称 / 地区 / 系统 / 规格 / 在线时长 / 网速 / 流量 / 连接 / 负载 / CPU / 内存 / 硬盘。
 - **服务器详情页** — 支持进度条 / 文本两种状态展示，支持监控图表与周期流量卡片。
 - **响应式布局** — 大屏左右分栏、小屏纵向堆叠，适配桌面 / 平板 / 手机。
-- **深色主题** — 沉浸式暗色界面，护眼且具科技感。
 - **运行时配置** — 通过 `config.js` 修改标题、接口路径、监控图表类型等，无需重新打包。
 - **自定义样式** — 通过 `style.css` 覆盖背景图、主题色、局部样式。
 
@@ -126,7 +127,7 @@ NEZHA_HOST=http://your-nezha-host:8080
 | `npm run build` | 构建生产版本（默认自动探测哪吒版本） |
 | `npm run build:v0` | 构建默认指向哪吒 v0 的版本 |
 | `npm run build:v1` | 构建默认指向哪吒 v1 的版本 |
-| `npm run build:nazhua` | 构建 v0 同域 `/aobobo/` 子目录版本 |
+| `npm run build:aobobo` | 构建 v0 同域 `/aobobo/` 子目录版本 |
 | `npm run preview` | 预览生产构建 |
 | `npm run lint` | 运行 ESLint |
 | `npm run lint:fix` | 自动修复 ESLint 问题 |
@@ -142,10 +143,8 @@ src/
 │   ├── icons/            # 图标组件
 │   ├── server/           # 服务器通用组件
 │   ├── server-detail/    # 服务器详情页组件
-│   ├── server-globe/     # 地球与服务器联动组件
 │   ├── server-list/      # 服务器列表
-│   ├── server-panel/     # 服务器面板
-│   └── ui/               # UI 基础组件
+│   └── server-panel/     # 服务器面板
 ├── views/                # 页面
 │   ├── home.vue          # 主页面（地球 + 列表）
 │   └── detail.vue        # 服务器详情页
@@ -153,6 +152,8 @@ src/
 ├── store/                # Vuex 状态管理
 ├── ws/                   # WebSocket 入口与服务
 ├── utils/                # 请求、数据转换、工具函数
+│   ├── globe-projection.js  # 经纬度到屏幕坐标投影
+│   └── globe-textures.js    # 自定义地球纹理生成
 ├── data/                 # 地理位置码表
 ├── config/               # 运行时默认配置
 ├── router/               # 路由配置
