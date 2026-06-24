@@ -294,6 +294,18 @@ function getGlobeMaps(theme) {
   return globeTextureCache[cacheKey];
 }
 
+function getSceneEnvironment(theme) {
+  if (theme === 'light') {
+    return 'none';
+  }
+
+  return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: '#07162b' },
+    { offset: 0.48, color: '#031020' },
+    { offset: 1, color: '#010814' },
+  ]);
+}
+
 function getCoastlineSeriesData(theme) {
   if (coastlineDataCache[theme]) {
     return coastlineDataCache[theme];
@@ -519,7 +531,7 @@ function getGlobeOption() {
   const maps = getGlobeMaps(props.theme);
 
   return {
-    backgroundColor: 'transparent',
+    backgroundColor: isLight ? 'transparent' : '#020a16',
     tooltip: {
       show: false,
     },
@@ -529,7 +541,7 @@ function getGlobeOption() {
       globeRadius: GLOBE_RADIUS,
       globeOuterRadius: GLOBE_RADIUS,
       shading: 'color',
-      environment: 'none',
+      environment: getSceneEnvironment(props.theme),
       atmosphere: isLight ? {
         show: true,
         offset: 2,

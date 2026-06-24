@@ -67,12 +67,12 @@ html[data-theme='dark'] {
   --status-online-glow: 0 0 10px rgba(var(--accent-success-rgb), 0.42);
   --status-offline-glow: 0 0 8px rgba(var(--accent-danger-rgb), 0.26);
   --globe-stage-bg:
-    radial-gradient(circle at 50% 50%, rgba(45, 154, 255, 0.08), transparent 38%),
-    radial-gradient(circle at 50% 28%, rgba(45, 154, 255, 0.16), transparent 34%),
-    radial-gradient(circle at 50% 60%, rgba(18, 48, 112, 0.16), transparent 46%),
-    linear-gradient(180deg, #060e19 0%, #03070d 48%, #010306 100%);
+    radial-gradient(circle at 50% 24%, rgba(56, 128, 220, 0.12), transparent 38%),
+    radial-gradient(circle at 26% 42%, rgba(25, 74, 150, 0.1), transparent 44%),
+    radial-gradient(circle at 78% 72%, rgba(28, 132, 140, 0.045), transparent 46%),
+    linear-gradient(160deg, #07162b 0%, #031020 50%, #010814 100%);
   --globe-stage-vignette:
-    radial-gradient(circle at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.22) 82%, rgba(0, 0, 0, 0.62) 100%);
+    radial-gradient(circle at 50% 50%, transparent 50%, rgba(3, 14, 30, 0.34) 80%, rgba(0, 6, 16, 0.72) 100%);
   --globe-orb-glow: rgba(45, 154, 255, 0.11);
   --globe-stage-border: rgba(110, 140, 178, 0.14);
   --globe-stage-shadow: 0 32px 72px rgba(2, 6, 18, 0.48);

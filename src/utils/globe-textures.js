@@ -239,9 +239,9 @@ export function createSceneBackgroundTexture(theme = 'dark') {
   const ctx = canvas.getContext('2d');
 
   const base = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  base.addColorStop(0, '#081221');
-  base.addColorStop(0.48, '#03080f');
-  base.addColorStop(1, '#010306');
+  base.addColorStop(0, '#07162b');
+  base.addColorStop(0.48, '#031020');
+  base.addColorStop(1, '#010814');
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -253,9 +253,9 @@ export function createSceneBackgroundTexture(theme = 'dark') {
     canvas.height * 0.30,
     canvas.height * 0.92,
   );
-  topGlow.addColorStop(0, 'rgba(45, 154, 255, 0.32)');
-  topGlow.addColorStop(0.42, 'rgba(45, 154, 255, 0.10)');
-  topGlow.addColorStop(1, 'rgba(45, 154, 255, 0)');
+  topGlow.addColorStop(0, 'rgba(56, 128, 220, 0.16)');
+  topGlow.addColorStop(0.46, 'rgba(56, 128, 220, 0.06)');
+  topGlow.addColorStop(1, 'rgba(56, 128, 220, 0)');
   ctx.fillStyle = topGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -267,8 +267,8 @@ export function createSceneBackgroundTexture(theme = 'dark') {
     canvas.height * 0.74,
     canvas.height * 0.78,
   );
-  bottomGlow.addColorStop(0, 'rgba(22, 60, 140, 0.22)');
-  bottomGlow.addColorStop(1, 'rgba(22, 60, 140, 0)');
+  bottomGlow.addColorStop(0, 'rgba(25, 74, 150, 0.12)');
+  bottomGlow.addColorStop(1, 'rgba(25, 74, 150, 0)');
   ctx.fillStyle = bottomGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -280,9 +280,9 @@ export function createSceneBackgroundTexture(theme = 'dark') {
     canvas.height * 0.50,
     canvas.height * 0.80,
   );
-  centerGlow.addColorStop(0, 'rgba(45, 154, 255, 0.05)');
-  centerGlow.addColorStop(0.55, 'rgba(45, 154, 255, 0.02)');
-  centerGlow.addColorStop(1, 'rgba(45, 154, 255, 0)');
+  centerGlow.addColorStop(0, 'rgba(28, 132, 140, 0.035)');
+  centerGlow.addColorStop(0.58, 'rgba(56, 128, 220, 0.014)');
+  centerGlow.addColorStop(1, 'rgba(56, 128, 220, 0)');
   ctx.fillStyle = centerGlow;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
