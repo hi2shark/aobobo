@@ -5,7 +5,7 @@ const TEXTURE_HEIGHT = 3072;
 const BUMP_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_HEIGHT = 1024;
 
-const LAND_BRIGHTEN_PERCENT = 10;
+const LAND_BRIGHTEN_PERCENT = -30;
 
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);

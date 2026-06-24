@@ -1758,9 +1758,7 @@ onUnmounted(() => {
 
 .globe-earth.theme-dark {
   :deep(.marker-dot) {
-    box-shadow:
-      0 0 0 1px rgba(255, 250, 224, 0.15),
-      0 0 6px color-mix(in srgb, var(--marker-core-color) 60%, transparent);
+    box-shadow: none;
   }
 
   :deep(.marker-cluster--large) {
