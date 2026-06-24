@@ -265,7 +265,7 @@ function getThemePalette(theme) {
     return {
       ocean: '#e8f4ff',
       atmosphere: '#f0f8ff',
-      markerOnline: readThemeToken('--globe-marker-active', '#ffc853'),
+      markerOnline: readThemeToken('--globe-marker-active', '#ffae00'),
       markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(255, 200, 83, 0.26)'),
       markerOffline: readThemeToken('--globe-marker-muted', '#9aa3af'),
       markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(154, 163, 175, 0.2)'),
@@ -276,7 +276,7 @@ function getThemePalette(theme) {
   return {
     ocean: '#061221',
     atmosphere: '#89c3eb',
-    markerOnline: readThemeToken('--globe-marker-active', '#2ecfff'),
+    markerOnline: readThemeToken('--globe-marker-active', '#eaf4fc'),
     markerOnlineSoft: readThemeToken('--globe-marker-active-soft', 'rgba(46, 207, 255, 0.30)'),
     markerOffline: readThemeToken('--globe-marker-muted', '#6d7888'),
     markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(109, 120, 136, 0.22)'),
@@ -539,7 +539,7 @@ function getGlobeOption() {
       } : {
         show: true,
         offset: 4,
-        color: '#59b9c6',
+        color: '#9bd2ff',
         glowPower: 6,
         innerGlowPower: 2,
       },
@@ -554,7 +554,7 @@ function getGlobeOption() {
         autoRotateSpeed: props.rotateSpeed * AUTO_ROTATE_SPEED_MULTIPLIER,
         autoRotateDirection: 'ccw',
         autoRotateAfterStill: 3,
-        rotateSensitivity: 1.25,
+        rotateSensitivity: 1.5,
         zoomSensitivity: 1.5,
         panSensitivity: 0,
         damping: 0.5,

@@ -5,46 +5,15 @@ const TEXTURE_HEIGHT = 2048;
 const BUMP_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_HEIGHT = 1024;
 
-const LAND_BRIGHTEN_PERCENT = -30;
-
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16),
-    }
-    : null;
-}
-
-function rgbToHex(r, g, b) {
-  return `#${[r, g, b]
-    .map((channel) => {
-      const hex = Math.round(Math.max(0, Math.min(255, channel))).toString(16);
-      return hex.length === 1 ? `0${hex}` : hex;
-    })
-    .join('')}`;
-}
-
-function brighten(hex, percent) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) {
-    return hex;
-  }
-  const factor = 1 + percent / 100;
-  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
-}
-
 const BASE_LAND_COLORS = {
-  light: '#f3f6fa',
-  dark: '#a7b2c2',
+  light: '#eef6ff',
+  dark: '#6b798f',
 };
 
 export const THEME_COLORS = {
   light: {
     oceanBase: '#d0e6fa',
-    land: '#eef6ff',
+    land: BASE_LAND_COLORS.light,
     coastline: 'rgba(130, 165, 205, 0.30)',
     coastlineWidth: 1.5,
   },
@@ -54,7 +23,7 @@ export const THEME_COLORS = {
     oceanMid: '#092035',
     oceanEdge: '#0b2843',
     oceanLimb: '#0d304f',
-    land: brighten(BASE_LAND_COLORS.dark, LAND_BRIGHTEN_PERCENT),
+    land: BASE_LAND_COLORS.dark,
     coastline: 'rgba(120, 160, 195, 0.30)',
     coastlineWidth: 1.5,
   },
