@@ -319,12 +319,12 @@ function getMarkerDimensions(count) {
   }
   if (count >= 7) {
     return {
-      visualSize: 22, hitSize: 36, dotSize: 7, isLarge: false, ringMaxR: 1.8,
+      visualSize: 22, hitSize: 36, dotSize: 6, isLarge: false, ringMaxR: 1.8,
     };
   }
   if (count >= 5) {
     return {
-      visualSize: 20, hitSize: 34, dotSize: 7, isLarge: false, ringMaxR: 1.7,
+      visualSize: 20, hitSize: 34, dotSize: 6, isLarge: false, ringMaxR: 1.7,
     };
   }
   if (count >= 3) {
@@ -338,7 +338,7 @@ function getMarkerDimensions(count) {
     };
   }
   return {
-    visualSize: 12, hitSize: 26, dotSize: 6, isLarge: false, ringMaxR: 1.2,
+    visualSize: 12, hitSize: 26, dotSize: 8, isLarge: false, ringMaxR: 1.2,
   };
 }
 
