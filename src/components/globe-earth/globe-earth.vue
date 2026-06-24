@@ -10,7 +10,14 @@
       },
     ]"
   >
-    <div ref="chartContainer" class="globe-container" />
+    <div
+      ref="chartContainer"
+      class="globe-container"
+      :style="{
+        opacity: isGlobeVisible ? 1 : 0,
+        transition: 'opacity 0.25s ease',
+      }"
+    />
     <div ref="markerLayer" class="marker-layer" />
 
     <div
@@ -120,8 +127,8 @@ const INITIAL_POINT_OF_VIEW = {
 
 const GLOBE_RADIUS = 100;
 const CAMERA_FOV = 50;
-const DEFAULT_FILL_RATIO = 0.8;
-const AUTO_ROTATE_SPEED_MULTIPLIER = 4;
+const DEFAULT_FILL_RATIO = 0.92;
+const AUTO_ROTATE_SPEED_MULTIPLIER = 2;
 // Slightly above the shrunken earth mesh to avoid z-fighting flicker.
 const COASTLINE_SURFACE_OFFSET = 0.1;
 const COASTLINE_SCALE = (GLOBE_RADIUS * 0.99 + COASTLINE_SURFACE_OFFSET) / GLOBE_RADIUS;
@@ -175,6 +182,7 @@ const popupWrapper = ref(null);
 const tooltipWrapper = ref(null);
 const focusBubbleWrapper = ref(null);
 const isReady = ref(false);
+const isGlobeVisible = ref(false);
 const initError = ref(false);
 const isMobile = ref(false);
 const selectedMarker = ref(null);
@@ -493,6 +501,7 @@ function getViewDistanceOptions() {
 }
 
 function getGlobeOption() {
+  const isLight = props.theme === 'light';
   const maps = getGlobeMaps(props.theme);
 
   return {
@@ -507,8 +516,18 @@ function getGlobeOption() {
       globeOuterRadius: GLOBE_RADIUS,
       shading: 'color',
       environment: 'none',
-      atmosphere: {
-        show: false,
+      atmosphere: isLight ? {
+        show: true,
+        offset: 2,
+        color: '#a8d8ff',
+        glowPower: 4,
+        innerGlowPower: 3,
+      } : {
+        show: true,
+        offset: 3,
+        color: '#4fa8ff',
+        glowPower: 6,
+        innerGlowPower: 2,
       },
       postEffect: {
         enable: false,
@@ -1197,6 +1216,7 @@ function handleResize() {
 
   const { clientWidth: width, clientHeight: height } = chartContainer.value;
   fitAltitude = computeFitAltitude(width, height);
+  currentDistance.value = GLOBE_RADIUS * fitAltitude;
   cachedContainerRect = chartContainer.value.getBoundingClientRect();
   chart.resize();
 
@@ -1267,7 +1287,7 @@ function initChart() {
   try {
     const { clientWidth: width, clientHeight: height } = chartContainer.value;
     fitAltitude = computeFitAltitude(width, height);
-    currentDistance.value = GLOBE_RADIUS * INITIAL_POINT_OF_VIEW.altitude;
+    currentDistance.value = GLOBE_RADIUS * fitAltitude;
     currentTargetCoord.value = [INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat];
 
     chart = echarts.init(chartContainer.value, null, {
@@ -1278,6 +1298,15 @@ function initChart() {
     sharpenGlobeTextures();
 
     chart.on('finished', syncCoastlineDepth);
+    chart.on('finished', () => {
+      isReady.value = true;
+      isGlobeVisible.value = true;
+    });
+    // Fallback: show the globe even if finished doesn't fire as expected.
+    setTimeout(() => {
+      isReady.value = true;
+      isGlobeVisible.value = true;
+    }, 2000);
     syncCoastlineDepth();
 
     getOrbitControl();
@@ -1303,8 +1332,6 @@ function initChart() {
     }
 
     attachMarkerUpdateListener();
-
-    isReady.value = true;
   } catch (error) {
     console.error('Globe initialization failed:', error);
     initError.value = true;
@@ -1502,35 +1529,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   position: relative;
-}
-
-.globe-earth::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(86%, 86vh);
-  aspect-ratio: 1 / 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at center, var(--globe-orb-glow), transparent 70%);
-  filter: blur(28px);
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.globe-earth.theme-dark::before {
-  --globe-orb-glow: rgba(72, 148, 255, 0.55);
-  filter: blur(36px);
-  opacity: 0.55;
-}
-
-.globe-earth.theme-light::before {
-  --globe-orb-glow: rgba(160, 210, 255, 0.42);
-  filter: blur(30px);
-  opacity: 0.42;
 }
 
 .globe-container {

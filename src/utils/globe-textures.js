@@ -1,7 +1,7 @@
 import { getLandPolygonsData } from './globe-land-polygons.js';
 
-const TEXTURE_WIDTH = 6144;
-const TEXTURE_HEIGHT = 3072;
+const TEXTURE_WIDTH = 4096;
+const TEXTURE_HEIGHT = 2048;
 const BUMP_TEXTURE_WIDTH = 2048;
 const BUMP_TEXTURE_HEIGHT = 1024;
 
