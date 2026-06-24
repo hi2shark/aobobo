@@ -10,6 +10,8 @@
       },
     ]"
   >
+    <div v-if="!isReady" class="globe-stage-fallback" aria-hidden="true" />
+
     <div
       ref="chartContainer"
       class="globe-container"
@@ -79,16 +81,18 @@
       </div>
     </transition>
 
-    <div v-if="!isReady" class="globe-loading">
-      <template v-if="!initError">
-        <icon-loading class="spin empty-icon" />
-        <span>加载地球中...</span>
-      </template>
-      <template v-else>
-        <icon-earth class="empty-icon" />
-        <span>地球初始化失败，请刷新重试</span>
-      </template>
-    </div>
+    <transition name="globe-loading-fade">
+      <div v-if="!isReady" class="globe-loading">
+        <template v-if="!initError">
+          <icon-loading class="spin empty-icon" />
+          <span>加载地球中...</span>
+        </template>
+        <template v-else>
+          <icon-earth class="empty-icon" />
+          <span>地球初始化失败，请刷新重试</span>
+        </template>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -149,6 +153,15 @@ const POPUP_OFFSET = 20;
 const FOCUS_ANIMATION_DURATION = 920;
 const INTERACTION_SETTLE_DELAY = 120;
 const MARKER_HTML_TRANSITION_DURATION = 320;
+// Extra animation frames to keep waiting after the globe texture first reports
+// ready. The ocean texture is a base64 data URL that decodes asynchronously and
+// needs a few frames on the GPU before the textured earth is actually painted;
+// lifting the loading mask too early exposes the blank canvas as a white flash.
+const READY_FRAME_BUFFER = 4;
+// Delay between starting the canvas fade-in and marking the globe ready (which
+// lifts the loading mask). The mask stays on top until the dark earth is fully
+// painted underneath, so no blank-canvas frame is ever visible.
+const GLOBE_REVEAL_DELAY = 260;
 
 const props = defineProps({
   locations: {
@@ -229,6 +242,7 @@ let fitAltitude = INITIAL_POINT_OF_VIEW.altitude;
 let visibilityHandler = null;
 let markerUpdateHandler = null;
 let cachedContainerRect = null;
+let revealTimer = null;
 
 const globeTextureCache = {};
 const coastlineDataCache = {};
@@ -612,11 +626,16 @@ function syncCoastlineDepth() {
   }
 }
 
-function showGlobeWhenReady() {
+function clearRevealTimer() {
+  if (revealTimer) {
+    window.clearTimeout(revealTimer);
+    revealTimer = null;
+  }
+}
+
+function isGlobeTextureReady() {
   if (!chart) {
-    isReady.value = true;
-    isGlobeVisible.value = true;
-    return;
+    return true;
   }
 
   try {
@@ -624,20 +643,42 @@ function showGlobeWhenReady() {
     const globeView = globeModel && chart.getViewOfComponentModel(globeModel);
     const material = globeView && globeView._earthMesh && globeView._earthMesh.material;
     const texture = material && material.get('diffuseMap');
-    if (texture && texture.isRenderable && texture.isRenderable()) {
-      // Wait one more frame so the GPU can actually render with the texture
-      // before we remove the loading mask and fade in.
-      requestAnimationFrame(() => {
-        isReady.value = true;
-        isGlobeVisible.value = true;
-      });
-      return;
-    }
+    return Boolean(texture && texture.isRenderable && texture.isRenderable());
   } catch {
-    // Internal APIs may change; ignore.
+    // Internal APIs may change; treat as not ready so we keep polling.
+    return false;
+  }
+}
+
+function showGlobeWhenReady(bufferFrames) {
+  if (!chart) {
+    isGlobeVisible.value = true;
+    isReady.value = true;
+    return;
   }
 
-  requestAnimationFrame(showGlobeWhenReady);
+  // Keep polling each frame until the ocean texture has decoded and uploaded.
+  if (!isGlobeTextureReady()) {
+    requestAnimationFrame(() => showGlobeWhenReady(READY_FRAME_BUFFER));
+    return;
+  }
+
+  // Texture is ready — burn a few more frames so the GPU actually paints the
+  // textured earth before we reveal anything.
+  if (bufferFrames > 0) {
+    requestAnimationFrame(() => showGlobeWhenReady(bufferFrames - 1));
+    return;
+  }
+
+  // Reveal in two steps: fade the canvas in first, and only after that fade
+  // finishes lift the loading mask. The dark mask covers the canvas throughout,
+  // so the untextured/blank canvas is never exposed as a white flash.
+  isGlobeVisible.value = true;
+  clearRevealTimer();
+  revealTimer = window.setTimeout(() => {
+    revealTimer = null;
+    isReady.value = true;
+  }, GLOBE_REVEAL_DELAY);
 }
 
 function applyThemeToGlobe() {
@@ -646,7 +687,7 @@ function applyThemeToGlobe() {
   }
 
   chart.setOption(getGlobeOption(), { notMerge: true });
-  showGlobeWhenReady();
+  showGlobeWhenReady(READY_FRAME_BUFFER);
   sharpenGlobeTextures();
 
   // setOption with notMerge may recreate the GL view and its OrbitControl.
@@ -1327,11 +1368,12 @@ function initChart() {
     sharpenGlobeTextures();
 
     chart.on('finished', syncCoastlineDepth);
-    showGlobeWhenReady();
+    showGlobeWhenReady(READY_FRAME_BUFFER);
     // Fallback: show the globe even if texture readiness cannot be detected.
     setTimeout(() => {
-      isReady.value = true;
+      clearRevealTimer();
       isGlobeVisible.value = true;
+      isReady.value = true;
     }, 2000);
     syncCoastlineDepth();
 
@@ -1501,12 +1543,14 @@ onActivated(() => {
 onDeactivated(() => {
   stopLocalTimeTicker();
   clearInteractionSettleTimer();
+  clearRevealTimer();
   clearFocusBubble();
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   stopLocalTimeTicker();
+  clearRevealTimer();
   detachLifecycleListeners();
 
   if (pendingResizeRaf) {
@@ -1569,6 +1613,18 @@ onUnmounted(() => {
   }
 }
 
+// Dark stage-coloured backdrop shown only before the globe is ready. It sits
+// beneath the canvas so the briefly blank/untextured canvas never reveals a
+// white page; once ready it is removed together with the loading mask, leaving
+// the real stage background untouched.
+.globe-stage-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--globe-stage-bg);
+  pointer-events: none;
+}
+
 .marker-layer {
   position: absolute;
   inset: 0;
@@ -1619,6 +1675,14 @@ onUnmounted(() => {
   .spin {
     animation: spin 1s linear infinite;
   }
+}
+
+.globe-loading-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.globe-loading-fade-leave-to {
+  opacity: 0;
 }
 
 .globe-popup-fade-enter-active,
