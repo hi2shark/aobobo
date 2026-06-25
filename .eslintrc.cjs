@@ -22,6 +22,7 @@ module.exports = {
     'no-param-reassign': ['error', { props: false }],
     'no-underscore-dangle': 'off',
     'max-len': ['warn', { code: 150 }],
+    'vue/max-len': ['warn', { code: 150 }],
     'vuejs-accessibility/click-events-have-key-events': 'off',
     'vuejs-accessibility/anchor-has-content': 'off',
     'object-property-newline': 'off',
@@ -29,6 +30,7 @@ module.exports = {
     'vue/singleline-html-element-content-newline': 'off',
     'vue/multiline-html-element-content-newline': 'off',
     'func-names': 'off',
+    'no-use-before-define': ['error', { functions: false, classes: false }],
   },
   globals: {
     window: true,

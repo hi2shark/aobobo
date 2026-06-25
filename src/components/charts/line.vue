@@ -42,9 +42,17 @@ const props = defineProps({
     type: [Boolean, String],
     default: true,
   },
+  chartConfig: {
+    type: Object,
+    default: () => ({}),
+  },
   mode: {
     type: String,
     default: 'dark',
+  },
+  minSize: {
+    type: [Number, String],
+    default: null,
   },
 });
 
@@ -88,6 +96,7 @@ const option = computed(() => {
       dateList: props.dateList,
       valueList: props.valueList,
       connectNulls: props.connectNulls,
+      chartConfig: props.chartConfig,
       mode: props.mode,
       themeColors: themeColors.value,
     });
@@ -98,6 +107,9 @@ const boxStyle = computed(() => {
   const style = {};
   if (props.size > 0) {
     style.height = `${props.size}px`;
+  }
+  if (props.minSize > 0) {
+    style.minHeight = `${props.minSize}px`;
   }
   return style;
 });

@@ -26,6 +26,7 @@
       <div class="detail-stack">
         <server-detail-header :info="info" class="stack-item stack-item--header" />
         <server-detail-status :info="info" class="stack-item stack-item--status" />
+        <server-detail-resource-history :info="info" class="stack-item stack-item--resource-history" />
         <server-detail-cycle-transfer :info="info" class="stack-item stack-item--cycle" />
         <server-detail-info :info="info" class="stack-item stack-item--info" />
         <server-detail-monitor :info="info" class="stack-item stack-item--monitor" />
@@ -52,6 +53,7 @@ import V1DashboardBtn from '@/components/v1-dashboard-btn.vue';
 import AppFooter from '@/components/app-footer.vue';
 import ServerDetailHeader from '@/components/server-detail/server-detail-header.vue';
 import ServerDetailStatus from '@/components/server-detail/server-detail-status.vue';
+import ServerDetailResourceHistory from '@/components/server-detail/server-detail-resource-history.vue';
 import ServerDetailCycleTransfer from '@/components/server-detail/server-detail-cycle-transfer.vue';
 import ServerDetailInfo from '@/components/server-detail/server-detail-info.vue';
 import ServerDetailMonitor from '@/components/server-detail/server-detail-monitor.vue';

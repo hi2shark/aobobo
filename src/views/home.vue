@@ -283,6 +283,7 @@
           <div class="detail-drawer__stack">
             <server-detail-header :info="detailServerInfo" class="stack-item stack-item--header" />
             <server-detail-status :info="detailServerInfo" class="stack-item stack-item--status" />
+            <server-detail-resource-history :info="detailServerInfo" class="stack-item stack-item--resource-history" />
             <server-detail-cycle-transfer :info="detailServerInfo" class="stack-item stack-item--cycle" />
             <server-detail-info :info="detailServerInfo" class="stack-item stack-item--info" />
             <server-detail-monitor :info="detailServerInfo" class="stack-item stack-item--monitor" />
@@ -338,6 +339,7 @@ import IconEarth from '@/components/icons/icon-earth.vue';
 import StatsDetailModal from '@/components/stats-detail-modal.vue';
 import ServerDetailHeader from '@/components/server-detail/server-detail-header.vue';
 import ServerDetailStatus from '@/components/server-detail/server-detail-status.vue';
+import ServerDetailResourceHistory from '@/components/server-detail/server-detail-resource-history.vue';
 import ServerDetailCycleTransfer from '@/components/server-detail/server-detail-cycle-transfer.vue';
 import ServerDetailInfo from '@/components/server-detail/server-detail-info.vue';
 import ServerDetailMonitor from '@/components/server-detail/server-detail-monitor.vue';

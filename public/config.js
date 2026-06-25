@@ -40,6 +40,7 @@ window.$$aoboboConfig = {
   // nezhaV0ConfigType: 'servers',
 
   // v1 接口路径配置（一般无需修改）
+  // v1ApiMetricsPath: '/api/v1/server/{id}/metrics',
   // v1ApiMonitorPath: '/api/v1/server/{id}/service',
   // v1ApiMonitorPathFallback: '/api/v1/service/{id}',
   // v1ApiServicePath: '/api/v1/service',

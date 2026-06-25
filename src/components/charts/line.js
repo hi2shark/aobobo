@@ -49,8 +49,17 @@ export default (options) => {
     valueList,
     mode = 'dark',
     connectNulls = true,
+    chartConfig = {},
     themeColors = {},
   } = options || {};
+  const {
+    showDataZoom = true,
+    grid: gridConfig = {},
+    xAxis: xAxisConfig = {},
+    yAxis: yAxisConfig = {},
+    tooltip: tooltipConfig = {},
+    series: seriesConfig = {},
+  } = chartConfig;
 
   const isDark = mode === 'dark';
   const {
@@ -85,6 +94,17 @@ export default (options) => {
   const tooltipShadow = isDark
     ? '0 22px 48px rgba(2, 7, 19, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.04)'
     : '0 24px 48px rgba(160, 177, 203, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.78)';
+  const tooltipValueFormatter = tooltipConfig.valueFormatter;
+  const tooltipTimeFormatter = tooltipConfig.timeFormatter;
+  const yAxisLabelFormatter = yAxisConfig.formatter;
+  const xAxisLabelFormatter = xAxisConfig.formatter;
+  const baseGrid = {
+    top: 12,
+    left: 6,
+    right: 10,
+    bottom: showDataZoom ? 52 : 24,
+    containLabel: true,
+  };
 
   const option = {
     darkMode: isDark,
@@ -102,7 +122,10 @@ export default (options) => {
         },
       },
       formatter: (params) => {
-        const time = dayjs(parseInt(params[0].axisValue, 10)).format('YYYY.MM.DD HH:mm');
+        const axisValue = parseInt(params?.[0]?.axisValue, 10);
+        const time = tooltipTimeFormatter
+          ? tooltipTimeFormatter(axisValue, params)
+          : dayjs(axisValue).format('YYYY.MM.DD HH:mm');
         const itemStyle = 'display:flex;align-items:center;gap:7px;margin:4px 0;line-height:1.35;';
         const labelStyle = `color:${textSecondary};max-width:180px;`
           + 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
@@ -112,10 +135,15 @@ export default (options) => {
         let res = `<p style='${timeStyle}'>${time}</p>`;
         if (params.length < 10) {
           params.forEach((i) => {
-            res += i.value[1]
+            const pointValue = Array.isArray(i.value) ? i.value[1] : undefined;
+            const hasValue = pointValue !== null && pointValue !== undefined && !Number.isNaN(pointValue);
+            const content = tooltipValueFormatter
+              ? tooltipValueFormatter(pointValue, i)
+              : `${pointValue}ms`;
+            res += hasValue
               ? `<div style='${itemStyle}'>${i.marker}`
                 + `<span style='${labelStyle}'>${i.seriesName}:</span>`
-                + `<span style='${valueStyle}'>${i.value[1]}ms</span></div>`
+                + `<span style='${valueStyle}'>${content}</span></div>`
               : '';
           });
         } else {
@@ -125,10 +153,15 @@ export default (options) => {
             if (index % 2 === 0) {
               res += '<tr>';
             }
-            res += i.value[1]
+            const pointValue = Array.isArray(i.value) ? i.value[1] : undefined;
+            const hasValue = pointValue !== null && pointValue !== undefined && !Number.isNaN(pointValue);
+            const content = tooltipValueFormatter
+              ? tooltipValueFormatter(pointValue, i)
+              : `${pointValue}ms`;
+            res += hasValue
               ? `<td style='padding:2px 8px 2px 0;'>${i.marker} `
                 + `<span style='${labelStyle}'>${i.seriesName}:</span> `
-                + `<span style='${valueStyle}'>${i.value[1]}ms</span></td>`
+                + `<span style='${valueStyle}'>${content}</span></td>`
               : "<td style='padding:2px 8px 2px 0;'></td>";
             if (index % 2 === 1) {
               res += '</tr>';
@@ -158,13 +191,10 @@ export default (options) => {
       `,
     },
     grid: {
-      top: 12,
-      left: 6,
-      right: 10,
-      bottom: 52,
-      containLabel: true,
+      ...baseGrid,
+      ...gridConfig,
     },
-    dataZoom: [{
+    dataZoom: showDataZoom ? [{
       id: 'dataZoomX',
       type: 'slider',
       xAxisIndex: [0],
@@ -214,9 +244,12 @@ export default (options) => {
           color: accentPrimary,
         },
       },
-    }],
+    }] : [],
     yAxis: {
       type: 'value',
+      min: yAxisConfig.min,
+      max: yAxisConfig.max,
+      interval: yAxisConfig.interval,
       splitLine: {
         lineStyle: {
           color: gridLine,
@@ -233,11 +266,14 @@ export default (options) => {
         color: textSecondary,
         fontSize: 11,
         fontFamily: 'var(--font-mono)',
+        formatter: yAxisLabelFormatter,
       },
     },
     xAxis: {
       type: 'time',
       data: dateList,
+      min: xAxisConfig.min,
+      max: xAxisConfig.max,
       axisLine: {
         lineStyle: {
           color: axisLine,
@@ -253,6 +289,7 @@ export default (options) => {
         },
         color: textSecondary,
         fontFamily: 'var(--font-mono)',
+        formatter: xAxisLabelFormatter,
       },
       splitLine: {
         show: false,
@@ -261,22 +298,22 @@ export default (options) => {
     series: valueList.map((i) => ({
       ...i,
       type: 'line',
-      smooth: true,
+      smooth: seriesConfig.smooth ?? true,
       connectNulls,
       legendHoverLink: false,
       symbol: 'none',
       sampling: 'lttb',
       lineStyle: {
-        width: 1.8,
+        width: seriesConfig.lineWidth ?? 1.8,
         shadowBlur: 4,
         shadowColor: alphaColor(i.itemStyle?.color || i.lineStyle?.color, 0.12, 'transparent'),
         ...(i.lineStyle || {}),
       },
       areaStyle: {
-        opacity: 1,
+        opacity: seriesConfig.areaOpacity ?? 1,
         color: alphaColor(
           i.itemStyle?.color || i.lineStyle?.color || accentPrimary,
-          isDark ? 0.1 : 0.08,
+          seriesConfig.areaAlpha ?? (isDark ? 0.1 : 0.08),
           panelBg,
         ),
       },

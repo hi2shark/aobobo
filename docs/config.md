@@ -57,6 +57,7 @@ AoBoBo 通过 `config.js` 注入运行时常量，部署时只需替换该文件
 
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `v1ApiMetricsPath` | `string` | `'/api/v1/server/{id}/metrics'` | v1 服务器指标历史接口路径，`{id}` 为服务器 ID 占位符。 |
 | `v1ApiMonitorPath` | `string` | `'/api/v1/server/{id}/service'` | v1 监控数据接口路径，`{id}` 为服务器 ID 占位符。 |
 | `v1ApiMonitorPathFallback` | `string` | `'/api/v1/service/{id}'` | v1 监控数据兜底路径，当主路径不可用或兼容旧版本时回退使用。 |
 | `v1ApiServicePath` | `string` | `'/api/v1/service'` | v1 周期流量与服务信息接口路径。 |
@@ -108,6 +109,7 @@ window.$$aoboboConfig = {
   v0ServicePath: null,
   nezhaV0ConfigType: 'servers',
 
+  v1ApiMetricsPath: '/api/v1/server/{id}/metrics',
   v1ApiMonitorPath: '/api/v1/server/{id}/service',
   v1ApiMonitorPathFallback: '/api/v1/service/{id}',
   v1ApiServicePath: '/api/v1/service',
