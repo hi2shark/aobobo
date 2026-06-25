@@ -36,44 +36,53 @@
         :key="card.key"
         class="history-card"
       >
-        <div class="history-card__head">
+        <div
+          class="history-card__head"
+          :class="`history-card__head--${card.headMode}`"
+        >
           <h3 class="history-card__title">
             {{ card.title }}
           </h3>
-          <div class="history-card__meta">
-            <span
-              v-if="card.summaryValue"
-              class="history-card__summary"
-            >
-              {{ card.summaryValue }}
-            </span>
+          <div
+            class="history-card__meta"
+            :class="`history-card__meta--${card.headMode}`"
+          >
             <div
-              v-if="card.legendList.length"
-              class="history-card__legend-group"
+              v-if="card.headMode === 'summary'"
+              class="history-card__summary-stack"
             >
+              <span class="history-card__summary">
+                {{ card.summaryValue }}
+              </span>
               <span
-                v-for="legendItem in card.legendList"
-                :key="`${card.key}_${legendItem.key}`"
-                class="history-card__legend-item"
-                :style="{ '--legend-color': legendItem.color }"
+                v-if="card.summaryDetail"
+                class="history-card__summary-detail"
               >
-                <span class="history-card__legend-dot" />
-                <span class="history-card__legend-label">{{ legendItem.label }}</span>
-                <span class="history-card__legend-value">{{ legendItem.value }}</span>
+                {{ card.summaryDetail }}
               </span>
             </div>
 
             <div
-              v-if="card.stats.length"
-              class="history-card__stats"
+              v-else
+              class="history-card__metrics"
             >
-              <span
-                v-for="(statItem, statIndex) in card.stats"
-                :key="`${card.key}_stat_${statIndex}`"
-                class="history-card__stat-item"
+              <div
+                v-for="metricRow in card.metricRows"
+                :key="`${card.key}_${metricRow.key}`"
+                class="history-card__metric-row"
+                :class="{ 'is-muted': metricRow.muted }"
+                :style="{ '--metric-color': metricRow.color }"
               >
-                {{ statItem }}
-              </span>
+                <span class="history-card__metric-dot" />
+                <span class="history-card__metric-label">{{ metricRow.label }}</span>
+                <span class="history-card__metric-value">{{ metricRow.value }}</span>
+                <span
+                  v-if="metricRow.detail"
+                  class="history-card__metric-detail"
+                >
+                  {{ metricRow.detail }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -173,6 +182,7 @@ let loadMetricsTimer = null;
 let requestSerial = 0;
 
 const historyCards = computed(() => {
+  const hasSwap = props.info?.Host?.SwapTotal > 0;
   const memSwapSeries = buildAlignedSeries([{
     metric: 'memory',
     name: '内存',
@@ -221,7 +231,7 @@ const historyCards = computed(() => {
     calcPercent(props.info?.State?.MemUsed, props.info?.Host?.MemTotal),
     latestMetricValue('memory'),
   );
-  const currentSwapPercent = props.info?.Host?.SwapTotal > 0
+  const currentSwapPercent = hasSwap
     ? firstFinite(
       calcPercent(props.info?.State?.SwapUsed, props.info?.Host?.SwapTotal),
       latestMetricValue('swap'),
@@ -252,90 +262,88 @@ const historyCards = computed(() => {
     latestMetricValue('udp_conn'),
   );
 
-  return [{
+  return [createSummaryCard({
     key: 'cpu',
     title: 'CPU',
     summaryValue: formatPercent(currentCpu),
-    legendList: [],
-    stats: [],
-    ...cpuSeries,
+    series: cpuSeries,
     chartConfig: getPercentChartConfig(),
-  }, {
+  }), createMetricCard({
     key: 'memory_swap',
     title: '内存 / 交换',
-    summaryValue: '',
-    legendList: [{
-      key: 'memory',
-      label: '内存',
-      value: formatPercent(currentMemPercent),
-      color: SERIES_COLORS.memory,
-    }, {
-      key: 'swap',
-      label: '交换',
-      value: props.info?.Host?.SwapTotal > 0 ? formatPercent(currentSwapPercent) : NO_SWAP_TEXT,
-      color: SERIES_COLORS.swap,
-    }],
-    stats: [
-      `${formatBinaryText(props.info?.State?.MemUsed)} / ${formatBinaryText(props.info?.Host?.MemTotal)}`,
-      props.info?.Host?.SwapTotal > 0
-        ? `${formatBinaryText(props.info?.State?.SwapUsed)} / ${formatBinaryText(props.info?.Host?.SwapTotal)}`
-        : NO_SWAP_TEXT,
+    metricRows: [
+      createMetricRow({
+        key: 'memory',
+        label: '内存',
+        value: formatPercent(currentMemPercent),
+        detail: formatBinaryRatio(props.info?.State?.MemUsed, props.info?.Host?.MemTotal),
+        color: SERIES_COLORS.memory,
+      }),
+      createMetricRow({
+        key: 'swap',
+        label: '交换',
+        value: hasSwap ? formatPercent(currentSwapPercent) : NO_SWAP_TEXT,
+        detail: hasSwap
+          ? formatBinaryRatio(props.info?.State?.SwapUsed, props.info?.Host?.SwapTotal)
+          : '',
+        color: SERIES_COLORS.swap,
+        muted: !hasSwap,
+      }),
     ],
-    ...memSwapSeries,
+    series: memSwapSeries,
     chartConfig: getPercentChartConfig(),
-  }, {
+  }), createSummaryCard({
     key: 'disk',
     title: '磁盘',
     summaryValue: formatPercent(currentDiskPercent),
-    legendList: [],
-    stats: [`${formatBinaryText(props.info?.State?.DiskUsed)} / ${formatBinaryText(props.info?.Host?.DiskTotal)}`],
-    ...diskSeries,
+    summaryDetail: formatBinaryRatio(props.info?.State?.DiskUsed, props.info?.Host?.DiskTotal),
+    series: diskSeries,
     chartConfig: getPercentChartConfig(),
-  }, {
+  }), createSummaryCard({
     key: 'process_count',
     title: '进程数',
     summaryValue: formatCount(currentProcessCount),
-    legendList: [],
-    stats: [],
-    ...processSeries,
+    series: processSeries,
     chartConfig: getCountChartConfig(),
-  }, {
+  }), createMetricCard({
     key: 'net_speed',
     title: '上传 / 下载',
-    summaryValue: '',
-    legendList: [{
-      key: 'net_in_speed',
-      label: '上传',
-      value: formatSpeedText(currentNetInSpeed),
-      color: SERIES_COLORS.net_in_speed,
-    }, {
-      key: 'net_out_speed',
-      label: '下载',
-      value: formatSpeedText(currentNetOutSpeed),
-      color: SERIES_COLORS.net_out_speed,
-    }],
-    stats: [],
-    ...netSpeedSeries,
+    metricRows: [
+      createMetricRow({
+        key: 'net_in_speed',
+        label: '上传',
+        value: formatSpeedText(currentNetInSpeed),
+        color: SERIES_COLORS.net_in_speed,
+      }),
+      createMetricRow({
+        key: 'net_out_speed',
+        label: '下载',
+        value: formatSpeedText(currentNetOutSpeed),
+        color: SERIES_COLORS.net_out_speed,
+      }),
+    ],
+    series: netSpeedSeries,
     chartConfig: getSpeedChartConfig(),
-  }, {
+  }), createMetricCard({
     key: 'connections',
     title: 'TCP / UDP',
-    summaryValue: '',
-    legendList: [{
-      key: 'tcp_conn',
-      label: 'TCP',
-      value: formatCount(currentTcpCount),
-      color: SERIES_COLORS.tcp_conn,
-    }, {
-      key: 'udp_conn',
-      label: 'UDP',
-      value: formatCount(currentUdpCount),
-      color: SERIES_COLORS.udp_conn,
-    }],
-    stats: [],
-    ...connSeries,
+    metricRows: [
+      createMetricRow({
+        key: 'tcp_conn',
+        label: 'TCP',
+        value: formatCount(currentTcpCount),
+        color: SERIES_COLORS.tcp_conn,
+      }),
+      createMetricRow({
+        key: 'udp_conn',
+        label: 'UDP',
+        value: formatCount(currentUdpCount),
+        color: SERIES_COLORS.udp_conn,
+      }),
+    ],
+    series: connSeries,
     chartConfig: getCountChartConfig(),
-  }];
+  })];
 });
 
 const hasRenderableData = computed(() => historyCards.value.some((card) => card.hasData));
@@ -579,6 +587,63 @@ function formatCount(value) {
   return value == null ? '-' : `${Math.round(Number(value))}`;
 }
 
+function createSummaryCard({
+  key,
+  title,
+  summaryValue,
+  summaryDetail = '',
+  series,
+  chartConfig,
+}) {
+  return {
+    key,
+    title,
+    headMode: 'summary',
+    summaryValue,
+    summaryDetail,
+    metricRows: [],
+    ...series,
+    chartConfig,
+  };
+}
+
+function createMetricCard({
+  key,
+  title,
+  metricRows,
+  series,
+  chartConfig,
+}) {
+  return {
+    key,
+    title,
+    headMode: 'metrics',
+    summaryValue: '',
+    summaryDetail: '',
+    metricRows,
+    ...series,
+    chartConfig,
+  };
+}
+
+function createMetricRow({
+  key,
+  label,
+  value,
+  detail = '',
+  color,
+  muted = false,
+}) {
+  return {
+    key,
+    label,
+    value,
+    detail,
+    color,
+    muted,
+  };
+}
+
 function formatCompactNumber(value) {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
@@ -607,6 +672,15 @@ function formatSpeedText(bytes) {
     return '-';
   }
   return formatBinaryText(bytes, { perSecond: true });
+}
+
+function formatBinaryRatio(usedBytes, totalBytes) {
+  const usedText = formatBinaryText(usedBytes);
+  const totalText = formatBinaryText(totalBytes);
+  if (usedText === '-' && totalText === '-') {
+    return '-';
+  }
+  return `${usedText} / ${totalText}`;
 }
 
 function formatBinaryParts(bytes, options = {}) {
@@ -853,8 +927,8 @@ function createEmptyMetricMap() {
 
 .history-card {
   display: grid;
-  grid-template-rows: 56px 180px;
-  gap: 10px;
+  grid-template-rows: 52px 180px;
+  gap: 8px;
   min-width: 0;
   padding: 12px;
   border-radius: var(--radius-md);
@@ -865,9 +939,10 @@ function createEmptyMetricMap() {
 
 .history-card__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 52px;
   min-width: 0;
 }
 
@@ -885,13 +960,34 @@ function createEmptyMetricMap() {
 }
 
 .history-card__meta {
+  min-width: 0;
+}
+
+.history-card__meta--summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  flex: 0 1 auto;
+  max-width: 62%;
+}
+
+.history-card__meta--metrics {
+  display: flex;
+  justify-content: flex-end;
+  align-self: center;
+  flex: 0 1 248px;
+  max-width: 68%;
+}
+
+.history-card__summary-stack {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
-  flex: 0 1 auto;
-  max-width: 60%;
+  justify-content: center;
+  gap: 2px;
   min-width: 0;
+  height: 100%;
 }
 
 .history-card__summary {
@@ -906,57 +1002,81 @@ function createEmptyMetricMap() {
   text-overflow: ellipsis;
 }
 
-.history-card__legend-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px 10px;
-}
-
-.history-card__legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
+.history-card__summary-detail {
+  max-width: 100%;
   color: var(--text-secondary);
   font-size: 11px;
-  line-height: 1.3;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.history-card__legend-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--legend-color);
+.history-card__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.history-card__metric-row {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-chip-border);
+  background: var(--panel-chip-bg);
+  box-shadow: inset 0 1px 0 var(--surface-highlight);
+  overflow: hidden;
+}
+
+.history-card__metric-row.is-muted {
+  opacity: 0.78;
+}
+
+.history-card__metric-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--metric-color);
   box-shadow: 0 0 0 3px var(--surface-subtle);
 }
 
-.history-card__legend-label {
+.history-card__metric-label {
   color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.history-card__legend-value {
+.history-card__metric-value {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.history-card__stats {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px 10px;
+.history-card__metric-detail {
+  min-width: 0;
+  justify-self: end;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  line-height: 1.3;
-}
-
-.history-card__stat-item {
-  min-width: 0;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .history-card__chart-shell {
@@ -1011,25 +1131,56 @@ function createEmptyMetricMap() {
   .history-card {
     grid-template-rows: 50px 140px;
     padding: 10px;
-    gap: 8px;
+    gap: 7px;
   }
 
   .history-card__head {
-    gap: 8px;
+    gap: 10px;
+    min-height: 50px;
   }
 
-  .history-card__title,
+  .history-card__title {
+    font-size: 15px;
+  }
+
+  .history-card__meta--summary {
+    max-width: 64%;
+  }
+
+  .history-card__meta--metrics {
+    max-width: 72%;
+  }
+
   .history-card__summary {
-    font-size: 14px;
+    font-size: 15px;
   }
 
-  .history-card__meta {
-    gap: 2px;
+  .history-card__summary-detail,
+  .history-card__metric-label,
+  .history-card__metric-value {
+    font-size: 10px;
+  }
+
+  .history-card__metric-row {
+    min-height: 20px;
+    padding: 0 7px;
+    column-gap: 5px;
+  }
+
+  .history-card__metric-detail {
+    font-size: 9px;
   }
 
   .history-card__chart-shell {
     height: 140px;
     min-height: 0;
+  }
+}
+
+@media screen and (max-width: 420px) {
+  .history-card__summary-detail,
+  .history-card__metric-detail {
+    display: none;
   }
 }
 </style>
