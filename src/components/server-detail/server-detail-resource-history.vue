@@ -16,14 +16,14 @@
           <span class="time-range-label">最近</span>
           <div class="time-range-options">
             <button
-              v-for="periodItem in availablePeriods"
-              :key="periodItem.value"
+              v-for="timeRangeItem in availableTimeRanges"
+              :key="timeRangeItem.value"
               type="button"
               class="time-range-item"
-              :class="{ active: periodItem.value === period }"
-              @click="setPeriod(periodItem.value)"
+              :class="{ active: timeRangeItem.value === timeRange }"
+              @click="setTimeRange(timeRangeItem.value)"
             >
-              {{ periodItem.label }}
+              {{ timeRangeItem.label }}
             </button>
           </div>
         </div>
@@ -102,6 +102,12 @@
           >
             暂无历史数据
           </div>
+          <div
+            v-if="loading"
+            class="history-card__loading"
+          >
+            <icon-loading class="spin history-card__loading-icon" />
+          </div>
         </div>
       </article>
     </div>
@@ -121,6 +127,7 @@ import request from '@/utils/request';
 import { hasTsdb, isTsdbEnabled } from '@/utils/tsdb';
 import LineChart from '@/components/charts/line.vue';
 import DetailPanel from '@/components/server-detail/detail-panel.vue';
+import IconLoading from '@/components/icons/icon-loading.vue';
 
 const props = defineProps({
   info: {
@@ -142,15 +149,40 @@ const METRIC_KEYS = [
   'tcp_conn',
   'udp_conn',
 ];
-const PERIOD_OPTIONS = [{
+const TIME_RANGE_OPTIONS = [{
+  label: '30分钟',
+  value: 30,
+  period: '1d',
+}, {
+  label: '1小时',
+  value: 60,
+  period: '1d',
+}, {
+  label: '3小时',
+  value: 180,
+  period: '1d',
+  hideWhenLong: true,
+}, {
+  label: '6小时',
+  value: 360,
+  period: '1d',
+  hideWhenLong: true,
+}, {
+  label: '12小时',
+  value: 720,
+  period: '1d',
+}, {
   label: '24小时',
-  value: '1d',
+  value: 1440,
+  period: '1d',
 }, {
   label: '7天',
-  value: '7d',
+  value: 10080,
+  period: '7d',
 }, {
   label: '30天',
-  value: '30d',
+  value: 43200,
+  period: '30d',
 }];
 const SERIES_COLORS = {
   cpu: '#4e90ff',
@@ -170,13 +202,15 @@ const userLogin = computed(() => store.state.profile?.username);
 const serverId = computed(() => props.info?.ID);
 const tsdbEnabled = computed(() => isTsdbEnabled(store));
 const canUseLongPeriods = computed(() => !!userLogin.value && hasTsdb(store));
-const availablePeriods = computed(() => PERIOD_OPTIONS.filter((item) => {
-  if (item.value === '1d') return true;
-  return canUseLongPeriods.value;
+const availableTimeRanges = computed(() => TIME_RANGE_OPTIONS.filter((item) => {
+  if (item.period !== '1d') return canUseLongPeriods.value;
+  if (item.hideWhenLong && canUseLongPeriods.value) return false;
+  return true;
 }));
 const isSupported = computed(() => config.aobobo.nezhaVersion === 'v1' && tsdbEnabled.value);
-const period = ref(readStoredPeriod());
+const timeRange = ref(readStoredTimeRange());
 const metricHistory = ref(createEmptyMetricMap());
+const loading = ref(false);
 
 let loadMetricsTimer = null;
 let requestSerial = 0;
@@ -349,24 +383,24 @@ const historyCards = computed(() => {
 const hasRenderableData = computed(() => historyCards.value.some((card) => card.hasData));
 const isModuleVisible = computed(() => isSupported.value && hasRenderableData.value);
 
-watch(availablePeriods, (options) => {
-  if (options.some((item) => item.value === period.value)) {
+watch(availableTimeRanges, (options) => {
+  if (options.some((item) => item.value === timeRange.value)) {
     return;
   }
-  period.value = options[0]?.value || '1d';
+  timeRange.value = options[0]?.value || 1440;
 }, {
   immediate: true,
 });
 
-watch(period, (value) => {
-  writeStoredPeriod(value);
+watch(timeRange, (value) => {
+  writeStoredTimeRange(value);
 });
 
 watch(
-  [serverId, period, isSupported],
-  ([nextServerId, nextPeriod, supported]) => {
+  [serverId, timeRange, isSupported],
+  ([nextServerId, nextTimeRange, supported]) => {
     clearLoadTimer();
-    if (!supported || !nextServerId || !nextPeriod) {
+    if (!supported || !nextServerId || !nextTimeRange) {
       requestSerial += 1;
       metricHistory.value = createEmptyMetricMap();
       return;
@@ -380,26 +414,35 @@ onUnmounted(() => {
   clearLoadTimer();
 });
 
-function setPeriod(value) {
-  if (value === period.value) {
+function setTimeRange(value) {
+  if (value === timeRange.value) {
     return;
   }
-  period.value = value;
+  timeRange.value = value;
 }
 
-function readStoredPeriod() {
+function readStoredTimeRange() {
   if (typeof window === 'undefined') {
-    return '1d';
+    return 1440;
   }
   const storedValue = window.localStorage.getItem(RESOURCE_HISTORY_PERIOD_KEY);
-  return PERIOD_OPTIONS.some((item) => item.value === storedValue) ? storedValue : '1d';
+  const legacyMap = {
+    '1d': 1440,
+    '7d': 10080,
+    '30d': 43200,
+  };
+  if (legacyMap[storedValue]) {
+    return legacyMap[storedValue];
+  }
+  const numericValue = Number(storedValue);
+  return TIME_RANGE_OPTIONS.some((item) => item.value === numericValue) ? numericValue : 1440;
 }
 
-function writeStoredPeriod(value) {
+function writeStoredTimeRange(value) {
   if (typeof window === 'undefined') {
     return;
   }
-  window.localStorage.setItem(RESOURCE_HISTORY_PERIOD_KEY, value);
+  window.localStorage.setItem(RESOURCE_HISTORY_PERIOD_KEY, String(value));
 }
 
 function clearLoadTimer() {
@@ -411,7 +454,7 @@ function clearLoadTimer() {
 
 function scheduleAutoRefresh() {
   clearLoadTimer();
-  if (!isSupported.value || !serverId.value || period.value !== '1d') {
+  if (!isSupported.value || !serverId.value || timeRange.value > 1440) {
     return;
   }
   let refreshSeconds = parseInt(config.aobobo.monitorRefreshTime, 10);
@@ -422,11 +465,12 @@ function scheduleAutoRefresh() {
     return;
   }
   loadMetricsTimer = window.setTimeout(() => {
-    loadMetrics();
+    loadMetrics({ silent: true });
   }, Math.max(refreshSeconds, 10) * 1000);
 }
 
-async function loadMetrics() {
+async function loadMetrics(options = {}) {
+  const { silent = false } = options;
   const currentServerId = serverId.value;
   if (!currentServerId) {
     metricHistory.value = createEmptyMetricMap();
@@ -436,9 +480,14 @@ async function loadMetrics() {
   const serial = requestSerial + 1;
   requestSerial = serial;
 
+  if (!silent) {
+    loading.value = true;
+  }
+
   try {
+    const fetchPeriod = getFetchPeriod(timeRange.value);
     const metricEntries = await Promise.all(METRIC_KEYS.map(async (metricKey) => {
-      const history = await loadMetricHistory(currentServerId, metricKey, period.value);
+      const history = await loadMetricHistory(currentServerId, metricKey, fetchPeriod);
       return [metricKey, normalizeMetricHistory(metricKey, history)];
     }));
 
@@ -446,16 +495,44 @@ async function loadMetrics() {
       return;
     }
 
-    metricHistory.value = Object.fromEntries(metricEntries);
+    const normalizedHistory = Object.fromEntries(metricEntries);
+    metricHistory.value = timeRange.value <= 1440
+      ? filterHistoryByTimeRange(normalizedHistory, timeRange.value)
+      : normalizedHistory;
   } catch (error) {
     if (serial === requestSerial) {
       console.error('Failed to load resource history:', error);
     }
   } finally {
     if (serial === requestSerial) {
+      loading.value = false;
       scheduleAutoRefresh();
     }
   }
+}
+
+function getFetchPeriod(minutes) {
+  if (minutes === 10080) return '7d';
+  if (minutes === 43200) return '30d';
+  return '1d';
+}
+
+function filterHistoryByTimeRange(historyMap, minutes) {
+  let maxTs = -Infinity;
+  Object.values(historyMap).forEach((history) => {
+    if (history.length) {
+      maxTs = Math.max(maxTs, history[history.length - 1].ts);
+    }
+  });
+  if (!Number.isFinite(maxTs)) {
+    return historyMap;
+  }
+  const cutoff = maxTs - minutes * 60000;
+  const filtered = {};
+  Object.entries(historyMap).forEach(([metricKey, history]) => {
+    filtered[metricKey] = history.filter((item) => item.ts >= cutoff);
+  });
+  return filtered;
 }
 
 async function loadMetricHistory(id, metricKey, periodValue) {
@@ -870,7 +947,7 @@ function createEmptyMetricMap() {
     flex-wrap: nowrap;
     gap: 3px;
     padding: 3px;
-    max-width: min(100%, 320px);
+    max-width: min(100%, 420px);
     background: var(--panel-chip-bg);
     border: 1px solid var(--panel-chip-border);
     border-radius: 999px;
@@ -1080,6 +1157,7 @@ function createEmptyMetricMap() {
 }
 
 .history-card__chart-shell {
+  position: relative;
   display: flex;
   align-items: stretch;
   height: 180px;
@@ -1088,6 +1166,21 @@ function createEmptyMetricMap() {
   border: 1px solid var(--panel-stat-border);
   background: rgba(255, 255, 255, 0.016);
   overflow: hidden;
+}
+
+.history-card__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--resource-history-card-bg);
+  z-index: 2;
+}
+
+.history-card__loading-icon {
+  font-size: 24px;
+  color: var(--accent-primary);
 }
 
 .history-card__empty {

@@ -158,6 +158,7 @@
 import {
   ref,
   computed,
+  watch,
   onMounted,
   onUnmounted,
 } from 'vue';
@@ -184,6 +185,9 @@ const store = useStore();
 
 const userLogin = computed(() => store.state.profile?.username);
 const chartMode = computed(() => store.state.resolvedTheme || 'dark');
+const isV1 = computed(() => config.aobobo.nezhaVersion === 'v1');
+const canUseLongPeriods = computed(() => !!userLogin.value && hasTsdb(store));
+
 const minute = ref(1440);
 const baseMinutes = [{
   label: '30分钟',
@@ -205,11 +209,14 @@ const baseMinutes = [{
   value: 1440,
 }];
 const minutes = computed(() => {
-  if (!userLogin.value || !hasTsdb(store)) {
-    return baseMinutes;
+  const visibleBaseMinutes = canUseLongPeriods.value
+    ? baseMinutes.filter((item) => item.value !== 180 && item.value !== 360)
+    : baseMinutes;
+  if (!canUseLongPeriods.value) {
+    return visibleBaseMinutes;
   }
   return [
-    ...baseMinutes,
+    ...visibleBaseMinutes,
     {
       label: '7天',
       value: 10080,
@@ -219,6 +226,15 @@ const minutes = computed(() => {
       value: 43200,
     },
   ];
+});
+
+watch(minutes, (options) => {
+  if (options.some((item) => item.value === minute.value)) {
+    return;
+  }
+  minute.value = options[options.length - 1]?.value || 1440;
+}, {
+  immediate: true,
 });
 const localData = {
   peakShaving: window.localStorage.getItem('aobobo_monitor_peak_shaving'),
@@ -249,6 +265,7 @@ const monitorChartType = computed(() => {
 });
 
 const nowServerTime = computed(() => store.state.serverTime || Date.now());
+const isLongPeriod = computed(() => minute.value === 10080 || minute.value === 43200);
 const acceptShowTime = computed(() => {
   const minuteFloor = Math.floor(nowServerTime.value / 60000);
   return (minuteFloor - minute.value) * 60000;
@@ -276,7 +293,7 @@ const monitorChartData = computed(() => {
     const cateAcceptTimeMap = new Map();
     const cateCreateTime = new Set();
 
-    const isPeriodRange = minute.value === 10080 || minute.value === 43200;
+    const isPeriodRange = isLongPeriod.value;
 
     let earliestTimestamp = nowServerTime.value;
     createdAt.forEach((time, index) => {
@@ -418,7 +435,7 @@ function getTsdbPeriod() {
 
 async function loadMonitor() {
   let url;
-  if (config.aobobo.nezhaVersion === 'v1') {
+  if (isV1.value) {
     if (hasTsdb(store)) {
       url = config.aobobo.v1ApiMonitorPath.replace('{id}', props.info.ID);
       if (isTsdbEnabled(store)) {
@@ -433,7 +450,7 @@ async function loadMonitor() {
   }
   try {
     const res = await request({ url });
-    const list = config.aobobo.nezhaVersion === 'v1' ? res?.data?.data : res?.data?.result;
+    const list = isV1.value ? res?.data?.data : res?.data?.result;
     if (Array.isArray(list)) {
       monitorData.value = list;
     }
@@ -480,10 +497,19 @@ let loadMonitorTimer = null;
 async function setTimeLoadMonitor(force = false) {
   if (loadMonitorTimer) {
     clearTimeout(loadMonitorTimer);
+    loadMonitorTimer = null;
   }
+
+  const canAutoRefresh = !isLongPeriod.value;
+
   if (refreshData.value || force) {
     await loadMonitor();
   }
+
+  if (!canAutoRefresh) {
+    return;
+  }
+
   let monitorRefreshTime = parseInt(config.aobobo.monitorRefreshTime, 10);
   if (monitorRefreshTime === 0) {
     return;
