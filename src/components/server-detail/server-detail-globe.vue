@@ -35,6 +35,7 @@
 <script setup>
 import {
   computed,
+  nextTick,
   onActivated,
   onDeactivated,
   onMounted,
@@ -53,6 +54,10 @@ import {
   getGlobeRendererPixelRatio,
   getPreferredGlobeTextureSize,
 } from '@/utils/globe-textures';
+import {
+  getGlobeGLCanvas,
+  isGlobeGLContextLost,
+} from '@/utils/globe-gl';
 
 const props = defineProps({
   location: {
@@ -77,6 +82,23 @@ const chartRenderKey = ref(0);
 
 let resizeObserver = null;
 let resizeFrame = 0;
+
+// --- WebGL context-loss recovery ---
+// The mini globe is a plain (non-interactive) echarts-gl globe, but its WebGL
+// context is just as prone to being dropped by mobile browsers after
+// backgrounding. Recovery is simple here: bumping chartRenderKey forces the
+// <v-chart :key> to recreate the chart (and thus a fresh GL context).
+const CONTEXT_LOSS_CHECK_INTERVAL_MOBILE = 3000;
+const CONTEXT_LOSS_CHECK_INTERVAL_DESKTOP = 8000;
+const RECOVER_MIN_INTERVAL = 1500;
+let glCanvas = null;
+let contextLostHandler = null;
+let contextRestoredHandler = null;
+let healthCheckTimer = null;
+let lastRecoverAt = 0;
+let recoverPending = false;
+let guardsActive = false;
+let visibilityHandler = null;
 
 function normalizeCountryCode(code) {
   if (typeof code !== 'string') {
@@ -247,6 +269,113 @@ function scheduleChartRerender() {
   });
 }
 
+function getEchartsInstance() {
+  return chartRef.value?.chart || chartRef.value || null;
+}
+
+// Re-create the chart so a fresh WebGL context is allocated. The :key on
+// <v-chart> makes this a one-liner; debounced to avoid stacking with the
+// context events / health check / visibility handler firing together.
+function recoverGLContext(reason) {
+  if (recoverPending) {
+    return;
+  }
+  if (!ready.value || !globeTextureCanvas.value || !sizeReady.value) {
+    return;
+  }
+  recoverPending = true;
+  const now = performance.now();
+  const wait = Math.max(0, RECOVER_MIN_INTERVAL - (now - lastRecoverAt));
+  window.setTimeout(() => {
+    recoverPending = false;
+    if (!guardsActive || !ready.value || !globeTextureCanvas.value || !sizeReady.value) {
+      return;
+    }
+    const chart = getEchartsInstance();
+    const lost = chart ? isGlobeGLContextLost(chart) : true;
+    // On context-lost we always rebuild; otherwise only rebuild if still lost.
+    if (!lost && reason !== 'context-lost') {
+      return;
+    }
+    lastRecoverAt = performance.now();
+    chartRenderKey.value += 1;
+  }, wait);
+}
+
+function attachContextLossListeners() {
+  detachContextLossListeners();
+  const chart = getEchartsInstance();
+  if (!chart) {
+    return;
+  }
+  const canvas = getGlobeGLCanvas(chart);
+  if (!canvas) {
+    return;
+  }
+  glCanvas = canvas;
+  contextLostHandler = (event) => {
+    event.preventDefault();
+    recoverGLContext('context-lost');
+  };
+  contextRestoredHandler = () => {
+    recoverGLContext('context-restored');
+  };
+  canvas.addEventListener('webglcontextlost', contextLostHandler);
+  canvas.addEventListener('webglcontextrestored', contextRestoredHandler);
+}
+
+function detachContextLossListeners() {
+  if (glCanvas && contextLostHandler) {
+    glCanvas.removeEventListener('webglcontextlost', contextLostHandler);
+  }
+  if (glCanvas && contextRestoredHandler) {
+    glCanvas.removeEventListener('webglcontextrestored', contextRestoredHandler);
+  }
+  glCanvas = null;
+  contextLostHandler = null;
+  contextRestoredHandler = null;
+}
+
+function stopHealthCheck() {
+  if (healthCheckTimer) {
+    window.clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
+}
+
+function runHealthCheck() {
+  if (!guardsActive || document.hidden) {
+    return;
+  }
+  const chart = getEchartsInstance();
+  if (!chart || isGlobeGLContextLost(chart)) {
+    recoverGLContext('health-check');
+  }
+}
+
+function scheduleHealthCheck() {
+  stopHealthCheck();
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const mobile = typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 768px)').matches;
+  const interval = mobile
+    ? CONTEXT_LOSS_CHECK_INTERVAL_MOBILE
+    : CONTEXT_LOSS_CHECK_INTERVAL_DESKTOP;
+  healthCheckTimer = window.setInterval(runHealthCheck, interval);
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    return;
+  }
+  const chart = getEchartsInstance();
+  if (chart && isGlobeGLContextLost(chart)) {
+    recoverGLContext('visibility');
+  }
+}
+
 function setBoxSize(width, height, options = {}) {
   const nextSize = {
     width: Math.round(width),
@@ -388,7 +517,14 @@ watch(() => [
   immediate: true,
 });
 
+// Re-attach context-loss listeners whenever the chart is (re)created — the
+// offscreen GL canvas is replaced on each chartRenderKey bump.
+watch(chartRenderKey, () => {
+  nextTick(attachContextLossListeners);
+});
+
 onMounted(async () => {
+  guardsActive = true;
   updateBoxSize();
   if (typeof ResizeObserver !== 'undefined' && boxRef.value) {
     resizeObserver = new ResizeObserver((entries) => {
@@ -401,12 +537,23 @@ onMounted(async () => {
     resizeObserver.observe(boxRef.value);
   }
 
+  visibilityHandler = handleVisibilityChange;
+  document.addEventListener('visibilitychange', visibilityHandler);
+  scheduleHealthCheck();
+
   const geoJson = await import('@/data/world.geo.json');
   worldGeoJson.value = geoJson.default;
   loaded.value = true;
 });
 
 onUnmounted(() => {
+  guardsActive = false;
+  stopHealthCheck();
+  detachContextLossListeners();
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
   if (resizeObserver) {
     resizeObserver.disconnect();
     resizeObserver = null;
@@ -419,11 +566,21 @@ onUnmounted(() => {
 
 onActivated(() => {
   isDeactivated.value = false;
+  guardsActive = true;
   updateBoxSize({ rerender: true });
+  scheduleHealthCheck();
+  nextTick(() => {
+    const chart = getEchartsInstance();
+    if (chart && isGlobeGLContextLost(chart)) {
+      recoverGLContext('activated');
+    }
+  });
 });
 
 onDeactivated(() => {
   isDeactivated.value = true;
+  guardsActive = false;
+  stopHealthCheck();
   if (resizeFrame && typeof window !== 'undefined') {
     window.cancelAnimationFrame(resizeFrame);
     resizeFrame = 0;

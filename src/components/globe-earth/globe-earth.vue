@@ -121,6 +121,15 @@ import {
 import { getLandPolygonsData } from '@/utils/globe-land-polygons.js';
 import { projectLatLngToScreen } from '@/utils/globe-projection';
 import { formatLocationLocalTime } from '@/utils/location-time';
+import {
+  loadGlobeView,
+  persistGlobeView,
+  clearGlobeView,
+} from '@/utils/globe-view';
+import {
+  getGlobeGLCanvas,
+  isGlobeGLContextLost,
+} from '@/utils/globe-gl';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
@@ -156,6 +165,14 @@ const POPUP_OFFSET = 20;
 const FOCUS_ANIMATION_DURATION = 920;
 const INTERACTION_SETTLE_DELAY = 120;
 const MARKER_HTML_TRANSITION_DURATION = 320;
+// Periodic check that the WebGL context is still alive. Mobile browsers drop
+// the GL context after backgrounding / under memory pressure; a lost context
+// cannot be restored by re-optioning, so we recreate the whole echarts instance.
+const CONTEXT_LOSS_CHECK_INTERVAL_MOBILE = 2500;
+const CONTEXT_LOSS_CHECK_INTERVAL_DESKTOP = 6000;
+// Minimum gap between recovery attempts, to avoid reentry if the context-lost
+// event, the restored event and the health-check all fire close together.
+const REINIT_MIN_INTERVAL = 1500;
 // Extra animation frames to keep waiting after the globe texture first reports
 // ready. The ocean texture is a base64 data URL that decodes asynchronously and
 // needs a few frames on the GPU before the textured earth is actually painted;
@@ -247,6 +264,26 @@ let visibilityHandler = null;
 let markerUpdateHandler = null;
 let cachedContainerRect = null;
 let revealTimer = null;
+
+// --- Globe view persistence ---
+// Whether the current camera state should be written back to localStorage.
+// We only persist views the user actively chose (drag/zoom/focus), never the
+// drift produced by auto-rotate, so the saved position stays stable.
+let persistOnNextSettle = false;
+let persistFlushTimer = null;
+const PERSIST_DEBOUNCE_MS = 800;
+
+// --- WebGL context-loss recovery ---
+let glCanvas = null;
+let contextLostHandler = null;
+let contextRestoredHandler = null;
+let healthCheckTimer = null;
+let lastReinitAt = 0;
+let reinitPending = false;
+// The component is alive (between onMounted/onActivated and onDeactivated/
+// onUnmounted). Health checks only run while active so a backgrounded tab does
+// not churn recreating the GL context.
+let contextLossGuardsActive = false;
 
 const globeTextureCache = {};
 const coastlineDataCache = {};
@@ -799,6 +836,9 @@ function applyThemeToGlobe() {
   orbitControl = null;
   applyAutoRotateState();
   attachMarkerUpdateListener();
+  // The offscreen GL canvas is also recreated, so re-attach the context-loss
+  // listeners onto the new canvas.
+  attachContextLossListeners();
 }
 
 function resolveMarkerFromElement(element) {
@@ -1009,7 +1049,15 @@ function attachMarkerUpdateListener() {
     control.off('update', markerUpdateHandler);
   }
 
-  markerUpdateHandler = () => updateMarkerPositions();
+  markerUpdateHandler = () => {
+    // Keep the reactive camera refs in sync with the live OrbitControl so that
+    // any GL-view rebuild (theme switch / visibility change) reproduces the view
+    // the user actually sees instead of a stale value.
+    syncCameraStateToRefs();
+    updateMarkerPositions();
+    // Persist the user's last manual view after they stop interacting.
+    schedulePersistGlobeView();
+  };
   control.on('update', markerUpdateHandler);
 }
 
@@ -1215,6 +1263,222 @@ function normalizeLng(delta) {
   return ((delta + 540) % 360) - 180;
 }
 
+// Read the live camera angles back from the OrbitControl into the reactive refs.
+// Without this, currentTargetCoord/currentDistance go stale whenever the user
+// drags/zooms (or while auto-rotating), and the next time the GL view is
+// rebuilt (theme switch / visibility change) the globe snaps back to a stale
+// position. Returns null when the control is unavailable.
+function syncCameraStateToRefs() {
+  const control = getOrbitControl();
+  if (!control) {
+    return null;
+  }
+  const lat = control.getAlpha();
+  const lng = normalizeLng(control.getBeta() - 90);
+  const distance = control.getDistance() - GLOBE_RADIUS;
+  currentTargetCoord.value = [lng, lat];
+  currentDistance.value = distance;
+  return { lat, lng, distance };
+}
+
+function clearPersistFlushTimer() {
+  if (persistFlushTimer) {
+    window.clearTimeout(persistFlushTimer);
+    persistFlushTimer = null;
+  }
+}
+
+// Persist (debounced) the current camera view to localStorage. Only meaningful
+// when persistOnNextSettle is true (i.e. the user just finished interacting);
+// auto-rotate drift never triggers a write.
+function schedulePersistGlobeView() {
+  if (!persistOnNextSettle) {
+    return;
+  }
+  clearPersistFlushTimer();
+  persistFlushTimer = window.setTimeout(() => {
+    persistFlushTimer = null;
+    const view = syncCameraStateToRefs();
+    if (view) {
+      persistGlobeView(view);
+    }
+    persistOnNextSettle = false;
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+// Persist immediately (e.g. right before unmounting). No-op unless a user-driven
+// view change is pending.
+function flushPersistGlobeView() {
+  clearPersistFlushTimer();
+  if (!persistOnNextSettle) {
+    return;
+  }
+  const view = syncCameraStateToRefs();
+  if (view) {
+    persistGlobeView(view);
+  }
+  persistOnNextSettle = false;
+}
+
+// Compute the default globe center from the supplied locations: the first
+// marker with valid coordinates. Because serverLocations is built from the
+// DisplayIndex-descending server list, that first marker corresponds to the
+// location of the highest-sort server — i.e. "排序值降序第 1 个的地点".
+function getDefaultTargetCoord() {
+  const first = props.locations?.find(
+    (loc) => Number.isFinite(loc?.lat) && Number.isFinite(loc?.lng),
+  );
+  if (first) {
+    return [first.lng, first.lat];
+  }
+  return [INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat];
+}
+
+// --- WebGL context-loss recovery ---
+// Mobile browsers reclaim the WebGL context after backgrounding / under memory
+// pressure. Once lost it cannot be restored with a plain setOption, so the only
+// reliable fix is to dispose the echarts instance and recreate it (which spins
+// up a fresh GL context). The persisted view is restored from localStorage, so
+// the user lands back exactly where they were.
+
+function attachContextLossListeners() {
+  detachContextLossListeners();
+  if (!chart) {
+    return;
+  }
+  const canvas = getGlobeGLCanvas(chart);
+  if (!canvas) {
+    return;
+  }
+  glCanvas = canvas;
+  contextLostHandler = (event) => {
+    event.preventDefault();
+    scheduleReinit('context-lost');
+  };
+  contextRestoredHandler = () => {
+    scheduleReinit('context-restored');
+  };
+  canvas.addEventListener('webglcontextlost', contextLostHandler);
+  canvas.addEventListener('webglcontextrestored', contextRestoredHandler);
+}
+
+function detachContextLossListeners() {
+  if (glCanvas && contextLostHandler) {
+    glCanvas.removeEventListener('webglcontextlost', contextLostHandler);
+  }
+  if (glCanvas && contextRestoredHandler) {
+    glCanvas.removeEventListener('webglcontextrestored', contextRestoredHandler);
+  }
+  glCanvas = null;
+  contextLostHandler = null;
+  contextRestoredHandler = null;
+}
+
+function stopHealthCheck() {
+  if (healthCheckTimer) {
+    window.clearInterval(healthCheckTimer);
+    healthCheckTimer = null;
+  }
+}
+
+function runHealthCheck() {
+  if (!contextLossGuardsActive || !chart || !isReady.value) {
+    return;
+  }
+  // Skip while the user is actively dragging/zooming to avoid tearing the globe
+  // out from under them, and while the tab is hidden (no point recovering a
+  // surface that is not visible — visibilitychange handles re-entry).
+  if (isUserInteracting.value || document.hidden) {
+    return;
+  }
+  if (isGlobeGLContextLost(chart)) {
+    scheduleReinit('health-check');
+  }
+}
+
+function scheduleHealthCheck() {
+  stopHealthCheck();
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const interval = isMobile.value
+    ? CONTEXT_LOSS_CHECK_INTERVAL_MOBILE
+    : CONTEXT_LOSS_CHECK_INTERVAL_DESKTOP;
+  healthCheckTimer = window.setInterval(runHealthCheck, interval);
+}
+
+function teardownChartInstance() {
+  detachContextLossListeners();
+  clearRevealTimer();
+  clearInteractionSettleTimer();
+
+  if (markerUpdateHandler && orbitControl) {
+    orbitControl.off('update', markerUpdateHandler);
+    markerUpdateHandler = null;
+  }
+
+  if (markerLayer.value) {
+    markerLayer.value.removeEventListener('click', handleMarkerClick, true);
+    markerLayer.value.removeEventListener('pointerdown', handleMarkerPointerDown, true);
+    markerLayer.value.removeEventListener('pointerup', handleMarkerPointerUp, true);
+  }
+
+  if (chartContainer.value) {
+    chartContainer.value.removeEventListener('click', handleContainerClick);
+    chartContainer.value.removeEventListener('pointerdown', handleContainerPointerDown, true);
+    chartContainer.value.removeEventListener('pointerup', handleContainerPointerUp, true);
+  }
+
+  clearMarkers();
+
+  if (chart) {
+    chart.dispose();
+    chart = null;
+  }
+
+  orbitControl = null;
+}
+
+// Recreate the echarts instance to recover from a lost WebGL context. Idempotent
+// and debounced: overlapping triggers (lost event + restored event + health
+// check) collapse into a single rebuild.
+function scheduleReinit(reason) {
+  // A recovery is already queued — let it run and decide whether another pass
+  // is needed (health checks will catch a still-broken context afterwards).
+  if (reinitPending) {
+    return;
+  }
+  reinitPending = true;
+  const now = performance.now();
+  const wait = Math.max(0, REINIT_MIN_INTERVAL - (now - lastReinitAt));
+  window.setTimeout(() => {
+    reinitPending = false;
+    if (!contextLossGuardsActive) {
+      return;
+    }
+    // Still in a bad state (or proactively rebuilding on context-lost)?
+    const lost = chart ? isGlobeGLContextLost(chart) : true;
+    if (!lost && reason !== 'context-lost') {
+      return;
+    }
+    lastReinitAt = performance.now();
+    try {
+      // Preserve the current view across the recreate, then drop into the
+      // loading state so the canvas never shows a frozen/blank frame.
+      flushPersistGlobeView();
+      isReady.value = false;
+      isGlobeVisible.value = false;
+      initError.value = false;
+      teardownChartInstance();
+      initChart();
+    } catch (error) {
+      console.error('Globe context-loss recovery failed:', error);
+      initError.value = true;
+      isReady.value = true;
+    }
+  }, wait);
+}
+
 function animateView({ targetCoord, distance, duration = FOCUS_ANIMATION_DURATION }) {
   return new Promise((resolve) => {
     const control = getOrbitControl();
@@ -1271,6 +1535,10 @@ function focusLocation(location) {
   animateView({
     targetCoord: [location.lng, location.lat],
     distance: currentDistance.value,
+  }).then(() => {
+    // Persist the focus destination as the user's chosen view.
+    persistOnNextSettle = true;
+    flushPersistGlobeView();
   });
 
   return true;
@@ -1289,6 +1557,10 @@ function focusLocationWithHighlight(location, serverName) {
       targetCoord: [location.lng, location.lat],
       distance: currentDistance.value,
     }).then(() => {
+      // Persist the focus destination as the user's chosen view.
+      persistOnNextSettle = true;
+      flushPersistGlobeView();
+
       if (isMobile.value) {
         resolve(true);
         return;
@@ -1336,9 +1608,16 @@ function resetView() {
     return;
   }
 
+  // Reset to the default center (highest-sort server's location), dropping any
+  // saved view so a fresh load also lands here.
+  const defaultCoord = getDefaultTargetCoord();
+  clearPersistFlushTimer();
+  clearGlobeView();
+  persistOnNextSettle = false;
+
   animateView({
-    targetCoord: [INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat],
-    distance: GLOBE_RADIUS * INITIAL_POINT_OF_VIEW.altitude,
+    targetCoord: defaultCoord,
+    distance: GLOBE_RADIUS * fitAltitude,
     duration: 1100,
   });
 }
@@ -1360,6 +1639,11 @@ function handleContainerPointerDown() {
 function handleContainerPointerUp() {
   isUserInteracting.value = false;
   scheduleMarkerAnimationResume();
+  // The user just finished dragging/zooming — remember this view once it
+  // settles. Auto-rotate drift after release is excluded by the debounce
+  // (persistOnNextSettle is consumed on the first settle).
+  persistOnNextSettle = true;
+  schedulePersistGlobeView();
   nextTick(() => {
     updatePopupPosition();
   });
@@ -1390,7 +1674,20 @@ function handleResize() {
 
   const { clientWidth: width, clientHeight: height } = chartContainer.value;
   fitAltitude = computeFitAltitude(width, height);
-  currentDistance.value = GLOBE_RADIUS * fitAltitude;
+
+  // Capture the live camera state first so the user's rotation/zoom survives the
+  // re-option (the OrbitControl is not recreated here, but we still want the
+  // most up-to-date values), then clamp the distance into the new min/max range
+  // instead of resetting it to fit-to-screen and discarding the user's zoom.
+  syncCameraStateToRefs();
+  const fitDistance = GLOBE_RADIUS * fitAltitude;
+  const minDistance = isMobile.value ? MOBILE_MIN_VIEW_DISTANCE : GLOBE_RADIUS * 0.5;
+  const maxDistance = Math.max(360, fitDistance * 1.5);
+  currentDistance.value = Math.max(
+    Math.min(currentDistance.value, maxDistance),
+    minDistance,
+  );
+
   cachedContainerRect = chartContainer.value.getBoundingClientRect();
   chart.resize();
 
@@ -1431,6 +1728,14 @@ function handleVisibilityChange() {
     return;
   }
 
+  // Coming back from the background is the most common trigger for a mobile GL
+  // context loss. Detect it first and rebuild the instance; re-optioning a dead
+  // context only produces a blank frame.
+  if (isGlobeGLContextLost(chart)) {
+    scheduleReinit('visibility');
+    return;
+  }
+
   nextTick(() => {
     chart.resize();
     scheduleHandleResize();
@@ -1462,8 +1767,20 @@ function initChart() {
   try {
     const { clientWidth: width, clientHeight: height } = chartContainer.value;
     fitAltitude = computeFitAltitude(width, height);
-    currentDistance.value = GLOBE_RADIUS * fitAltitude;
-    currentTargetCoord.value = [INITIAL_POINT_OF_VIEW.lng, INITIAL_POINT_OF_VIEW.lat];
+
+    // Restore the last user-driven view from storage; otherwise fall back to the
+    // default center (location of the highest-sort server) with a fit-to-screen
+    // distance. This also covers the keep-alive remount triggered by globeKey++.
+    const saved = loadGlobeView();
+    if (saved) {
+      currentTargetCoord.value = [saved.lng, saved.lat];
+      currentDistance.value = saved.distance;
+    } else {
+      currentTargetCoord.value = getDefaultTargetCoord();
+      currentDistance.value = GLOBE_RADIUS * fitAltitude;
+    }
+    persistOnNextSettle = false;
+    clearPersistFlushTimer();
 
     chart = echarts.init(chartContainer.value, null, {
       renderer: 'canvas',
@@ -1506,6 +1823,9 @@ function initChart() {
     }
 
     attachMarkerUpdateListener();
+    // Guard against the mobile-only WebGL context-loss case: listen for loss on
+    // the offscreen GL canvas and poll its health on an interval.
+    attachContextLossListeners();
   } catch (error) {
     console.error('Globe initialization failed:', error);
     initError.value = true;
@@ -1615,7 +1935,9 @@ defineExpose({
 onMounted(() => {
   updateViewportMode();
   startLocalTimeTicker();
+  contextLossGuardsActive = true;
   initChart();
+  scheduleHealthCheck();
   window.addEventListener('resize', handleResize);
 
   if (typeof ResizeObserver !== 'undefined' && chartContainer.value) {
@@ -1627,11 +1949,19 @@ onMounted(() => {
 onActivated(() => {
   updateViewportMode();
   startLocalTimeTicker();
+  contextLossGuardsActive = true;
 
   nextTick(() => {
     scheduleHandleResize();
 
     if (!chartContainer.value) {
+      return;
+    }
+
+    // Returning to the tab after backgrounding is the classic trigger for a
+    // mobile GL context loss — recover before touching the chart further.
+    if (chart && isGlobeGLContextLost(chart)) {
+      scheduleReinit('activated');
       return;
     }
 
@@ -1643,20 +1973,28 @@ onActivated(() => {
       updatePopupPosition();
       updateFocusBubblePosition();
     }
+    scheduleHealthCheck();
   });
 });
 
 onDeactivated(() => {
   stopLocalTimeTicker();
+  stopHealthCheck();
+  contextLossGuardsActive = false;
   clearInteractionSettleTimer();
   clearRevealTimer();
   clearFocusBubble();
 });
 
 onUnmounted(() => {
+  // Persist the current view before teardown so navigating away (e.g. into a
+  // server detail route) remembers the last position.
+  flushPersistGlobeView();
+
+  contextLossGuardsActive = false;
+  stopHealthCheck();
   window.removeEventListener('resize', handleResize);
   stopLocalTimeTicker();
-  clearRevealTimer();
   detachLifecycleListeners();
 
   if (pendingResizeRaf) {
@@ -1669,34 +2007,11 @@ onUnmounted(() => {
     resizeObserver = null;
   }
 
-  clearInteractionSettleTimer();
+  clearPersistFlushTimer();
+  // Tears down the chart, OrbitControl, marker/container listeners, context-loss
+  // listeners and markers in one place (shared with scheduleReinit).
+  teardownChartInstance();
   clearFocusBubble();
-
-  if (markerUpdateHandler && orbitControl) {
-    orbitControl.off('update', markerUpdateHandler);
-    markerUpdateHandler = null;
-  }
-
-  if (markerLayer.value) {
-    markerLayer.value.removeEventListener('click', handleMarkerClick, true);
-    markerLayer.value.removeEventListener('pointerdown', handleMarkerPointerDown, true);
-    markerLayer.value.removeEventListener('pointerup', handleMarkerPointerUp, true);
-  }
-
-  if (chartContainer.value) {
-    chartContainer.value.removeEventListener('click', handleContainerClick);
-    chartContainer.value.removeEventListener('pointerdown', handleContainerPointerDown, true);
-    chartContainer.value.removeEventListener('pointerup', handleContainerPointerUp, true);
-  }
-
-  clearMarkers();
-
-  if (chart) {
-    chart.dispose();
-    chart = null;
-  }
-
-  orbitControl = null;
 });
 </script>
 
