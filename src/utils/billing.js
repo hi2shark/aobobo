@@ -36,15 +36,33 @@ function chineseNumberToArabic(str) {
   return section + number;
 }
 
+const ONE_TIME_CYCLE_MARKS = new Set([
+  '一次性',
+  '一次性付费',
+  '一次性付款',
+  '一次性购买',
+  '买断',
+  'onetime',
+  'one-time',
+  'one time',
+]);
+
+function normalizeCycleString(cycle) {
+  if (cycle === null || cycle === undefined) {
+    return '';
+  }
+  return String(cycle).trim();
+}
+
 function getCycleMonths(cycle) {
-  if (cycle === null || cycle === undefined || cycle === '') {
+  const cycleStr = normalizeCycleString(cycle);
+  if (!cycleStr) {
     return 1;
   }
   // 兼容以数字表示的周期月数（如 1/3/6/12/36）
   if (typeof cycle === 'number' && Number.isFinite(cycle) && cycle > 0) {
     return cycle;
   }
-  const cycleStr = String(cycle).trim();
   const cycleNum = Number(cycleStr);
   if (String(cycleNum) === cycleStr && Number.isFinite(cycleNum) && cycleNum > 0) {
     return cycleNum;
@@ -138,6 +156,119 @@ function getCycleMonths(cycle) {
   }
 }
 
+function isOneTimeCycle(cycle) {
+  const cycleStr = normalizeCycleString(cycle);
+  if (!cycleStr) {
+    return false;
+  }
+  return ONE_TIME_CYCLE_MARKS.has(cycleStr.toLowerCase());
+}
+
+function getCycleLabel(cycle) {
+  const cycleStr = normalizeCycleString(cycle);
+  if (!cycleStr) {
+    return '';
+  }
+  if (isOneTimeCycle(cycleStr)) {
+    return cycleStr;
+  }
+
+  const lower = cycleStr.toLowerCase();
+  switch (lower) {
+    case '月':
+    case 'm':
+    case 'mo':
+    case 'month':
+    case 'monthly':
+      return '月';
+    case '年':
+    case 'y':
+    case 'yr':
+    case 'year':
+    case 'annual':
+      return '年';
+    case '季':
+    case 'quarterly':
+      return '季';
+    case '半':
+    case '半年':
+    case 'h':
+    case 'half':
+    case 'semi-annually':
+      return '半年';
+    default:
+      break;
+  }
+
+  const cycleNum = Number(cycleStr);
+  if (String(cycleNum) === cycleStr && Number.isFinite(cycleNum) && cycleNum > 0) {
+    switch (cycleNum) {
+      case 1:
+        return '月';
+      case 3:
+        return '季';
+      case 6:
+        return '半年';
+      case 12:
+        return '年';
+      default:
+        return cycleStr;
+    }
+  }
+
+  if (
+    /^(\d+(?:\.\d+)?)\s*(?:年|y(?:r)?|year(?:s)?|annual)(?:付)?$/i.test(cycleStr)
+    || /^(\d+(?:\.\d+)?)\s*年\s*半(?:付)?$/i.test(cycleStr)
+  ) {
+    return '年';
+  }
+  if (/^(\d+(?:\.\d+)?)\s*(?:季|quarter(?:ly)?)(?:付)?$/i.test(cycleStr)) {
+    return '季';
+  }
+  if (/^(\d+(?:\.\d+)?)\s*(?:半年|half|semi-annually)(?:付)?$/i.test(cycleStr)) {
+    return '半年';
+  }
+  if (/^(\d+(?:\.\d+)?)\s*(?:个?)(?:月|m(?:o)?|month(?:ly)?)(?:付)?$/i.test(cycleStr)) {
+    return '月';
+  }
+  if (/^([一二两三四五六七八九十百千万]+)\s*年(?:\s*半)?/.test(cycleStr)) {
+    return '年';
+  }
+  if (/^([一二两三四五六七八九十百千万]+)\s*(?:个?)月/.test(cycleStr)) {
+    return '月';
+  }
+
+  return cycleStr;
+}
+
+function isAutoRenewalEnabled(value) {
+  if (value === true || value === 1) {
+    return true;
+  }
+  if (value === false || value === 0 || value === null || value === undefined) {
+    return false;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  return [
+    '1',
+    'true',
+    'yes',
+    'on',
+    'enabled',
+  ].includes(normalized);
+}
+
+function isInfinityEndDate(endDate) {
+  if (endDate === null || endDate === undefined) {
+    return false;
+  }
+  return String(endDate).trim().startsWith('0000-00-00');
+}
+
 export default {
   getCycleMonths,
+  isOneTimeCycle,
+  getCycleLabel,
+  isAutoRenewalEnabled,
+  isInfinityEndDate,
 };

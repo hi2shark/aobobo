@@ -31,36 +31,7 @@ export function getBillAndPlanByServer(info) {
     if (validate.isSet(billingDataMod?.cycle)) {
       const cycleStr = String(billingDataMod.cycle).trim();
       months = billing.getCycleMonths(cycleStr);
-      switch (cycleStr.toLowerCase()) {
-        case '月':
-        case 'm':
-        case 'mo':
-        case 'month':
-        case 'monthly':
-          cycleLabel = '月';
-          break;
-        case '年':
-        case 'y':
-        case 'yr':
-        case 'year':
-        case 'annual':
-          cycleLabel = '年';
-          break;
-        case '季':
-        case 'quarterly':
-          cycleLabel = '季';
-          break;
-        case '半':
-        case '半年':
-        case 'h':
-        case 'half':
-        case 'semi-annually':
-          cycleLabel = '半年';
-          break;
-        default:
-          cycleLabel = cycleStr;
-          break;
-      }
+      cycleLabel = billing.getCycleLabel(cycleStr);
     }
     if (validate.isSet(billingDataMod?.amount)) {
       let isFree = false;
@@ -91,13 +62,13 @@ export function getBillAndPlanByServer(info) {
       } = billingDataMod;
       const nowTime = new Date().getTime();
       const endTime = dayjs(endDate).valueOf();
-      if (endDate.indexOf('0000-00-00') === 0) {
+      if (billing.isInfinityEndDate(endDate)) {
         obj.remainingTime = {
           label: '剩余',
           value: config.aobobo.infinityCycle || '长期有效',
           type: 'infinity',
         };
-      } else if (autoRenewal === '1') {
+      } else if (billing.isAutoRenewalEnabled(autoRenewal)) {
         // 自动续费时间计算，cycleType 为 1 时为月，为 12 时为年
         // 判断endDate是否超过当前时间，超过则显示剩余时间
         if (endTime > nowTime) {

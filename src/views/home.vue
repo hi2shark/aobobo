@@ -790,17 +790,7 @@ function getCostCycleMonths(cycle) {
   if (!cycleStr) {
     return 12;
   }
-  const oneTimeMarks = [
-    '一次性',
-    '一次性付费',
-    '一次性付款',
-    '一次性购买',
-    '买断',
-    'onetime',
-    'one-time',
-    'one time',
-  ];
-  if (oneTimeMarks.includes(cycleStr.toLowerCase())) {
+  if (billingUtils.isOneTimeCycle(cycleStr)) {
     return 12;
   }
   return billingUtils.getCycleMonths(cycleStr);
