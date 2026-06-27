@@ -10,46 +10,59 @@ on:
         description: 'Version to use for the Docker image'
         required: false
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Determine version
         id: determine_version
         run: |
-          if [ -z "${{ github.event.inputs.version }}" ]; then
-            echo "VERSION=$(node -p 'require("./package.json").version')" >> $GITHUB_ENV
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            raw_version="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            raw_version="${GITHUB_REF_NAME}"
           else
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            raw_version="$(node -p 'require("./package.json").version')"
           fi
 
+          version="${raw_version#v}"
+          image_name="ghcr.io/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${image_name}" >> "$GITHUB_OUTPUT"
+
       - name: Print version
-        run: echo "Version is $VERSION"
+        run: echo "Version is ${{ steps.determine_version.outputs.version }}"
 
       - name: Build production bundle
         run: npm run build
 
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ github.repository }}:$VERSION .
-
-      - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -t "${{ steps.determine_version.outputs.image_name }}:${{ steps.determine_version.outputs.version }}" .
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.repository }}:$VERSION
-          docker tag ghcr.io/${{ github.repository }}:$VERSION ghcr.io/${{ github.repository }}:latest
-          docker push ghcr.io/${{ github.repository }}:latest
+          docker push "${{ steps.determine_version.outputs.image_name }}:${{ steps.determine_version.outputs.version }}"
+          docker tag "${{ steps.determine_version.outputs.image_name }}:${{ steps.determine_version.outputs.version }}" "${{ steps.determine_version.outputs.image_name }}:latest"
+          docker push "${{ steps.determine_version.outputs.image_name }}:latest"

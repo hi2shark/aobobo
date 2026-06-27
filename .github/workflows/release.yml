@@ -10,59 +10,67 @@ on:
         description: 'Version to release'
         required: false
 
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 20
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Get version from package.json
-        id: get_version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          cache: npm
 
       - name: Determine version
         id: determine_version
         run: |
-          if [ "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            raw_version="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            raw_version="${GITHUB_REF_NAME}"
           else
-            echo "version=${{ steps.get_version.outputs.version }}" >> $GITHUB_OUTPUT
+            raw_version="$(node -p 'require("./package.json").version')"
           fi
 
+          version="${raw_version#v}"
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build default bundle
         run: npm run build
 
       - name: Package dist.zip
-        run: zip -r dist.zip dist
+        run: |
+          rm -f dist.zip
+          zip -rq dist.zip dist
 
       - name: Build Nezha v0 bundle
-        env:
-          VITE_NEZHA_VERSION: 'v0'
-        run: npm run build
+        run: npm run build:v0
 
       - name: Package v0-dist.zip
-        run: zip -r v0-dist.zip dist
+        run: |
+          rm -f v0-dist.zip
+          zip -rq v0-dist.zip dist
 
       - name: Build Nezha v0 /aobobo/ subdirectory bundle
-        env:
-          VITE_BASE_PATH: '/aobobo/'
-          VITE_NEZHA_VERSION: 'v0'
-        run: npm run build
+        run: npm run build:aobobo
 
       - name: Package v0-aobobo.zip
-        run: zip -r v0-aobobo.zip dist
+        run: |
+          rm -f v0-aobobo.zip
+          zip -rq v0-aobobo.zip dist
 
       - name: Generate release notes
         id: release_notes
@@ -74,8 +82,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.determine_version.outputs.version }}
-          name: Release v${{ steps.determine_version.outputs.version }}
+          tag_name: ${{ steps.determine_version.outputs.tag }}
+          name: Release ${{ steps.determine_version.outputs.tag }}
           body_path: release_notes.md
           draft: true
           files: |
