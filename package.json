@@ -1,6 +1,6 @@
 {
   "name": "aobobo",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
