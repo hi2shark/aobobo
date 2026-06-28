@@ -14,44 +14,62 @@ function getWsApiPath() {
 }
 
 const msg = new MessageSubscribe();
-const wsService = new WSService({
-  wsUrl: getWsApiPath(),
-  onConnect: () => msg.emit('connect'),
-  onClose: () => msg.emit('close'),
-  onError: (error) => msg.emit('error', error),
-  onMessage: (data) => {
-    if (data?.now && data?.servers) {
-      if (config.aobobo.nezhaVersion === 'v1') {
-        msg.emit('servers', {
-          now: data.now,
-          servers: data?.servers?.map?.((server) => v1TransformV0(server)) || [],
-        });
-      } else {
-        msg.emit('servers', data);
-      }
-    } else {
-      msg.emit('message', data);
-    }
-  },
-});
+let wsService;
 
-export function restart() {
-  if (wsService.connected !== WS_CONNECTION_STATUS.DISCONNECTED) {
-    wsService.close();
-  }
-  wsService.active();
+function createWsService() {
+  return new WSService({
+    wsUrl: getWsApiPath(),
+    onConnect: () => msg.emit('connect'),
+    onClose: () => msg.emit('close'),
+    onError: (error) => msg.emit('error', error),
+    onMessage: (data) => {
+      if (data?.now && data?.servers) {
+        if (config.aobobo.nezhaVersion === 'v1') {
+          msg.emit('servers', {
+            now: data.now,
+            servers: data?.servers?.map?.((server) => v1TransformV0(server)) || [],
+          });
+        } else {
+          msg.emit('servers', data);
+        }
+      } else {
+        msg.emit('message', data);
+      }
+    },
+  });
 }
 
-export { wsService, msg };
+function ensureWsService() {
+  const url = getWsApiPath();
+  if (!wsService || wsService.$wsUrl !== url) {
+    if (wsService) {
+      wsService.close();
+      WSService.instance = null;
+    }
+    wsService = createWsService();
+  }
+  return wsService;
+}
+
+export function restart() {
+  const service = ensureWsService();
+  if (service.connected !== WS_CONNECTION_STATUS.DISCONNECTED) {
+    service.close();
+  }
+  service.active();
+}
+
+export { msg };
 
 export default (actived) => {
-  if (wsService.connected === WS_CONNECTION_STATUS.CONNECTED) {
+  const service = ensureWsService();
+  if (service.connected === WS_CONNECTION_STATUS.CONNECTED) {
     if (actived) actived();
     return;
   }
   msg.once('connect', () => {
     if (actived) actived();
   });
-  if (wsService.connected === WS_CONNECTION_STATUS.CONNECTING) return;
-  wsService.active();
+  if (service.connected === WS_CONNECTION_STATUS.CONNECTING) return;
+  service.active();
 };

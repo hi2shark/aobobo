@@ -37,7 +37,7 @@ export const loadProfile = async (check) => request({
   type: 'GET',
 }).then((res) => {
   if (check) {
-    return res.status === 200 && res.data?.success === true;
+    return res.status === 200;
   }
   if (res.status === 200 && res.data?.success) {
     return res.data?.data || {};
