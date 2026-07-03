@@ -225,6 +225,7 @@ const focusBubbleMarker = ref(null);
 const focusBubbleServerName = ref('');
 const isPopupHovered = ref(false);
 const isUserInteracting = ref(false);
+const isUserDragging = ref(false);
 const isMarkerAnimationSuspended = ref(false);
 const currentLocationTime = ref(Date.now());
 
@@ -675,7 +676,7 @@ function getGlobeOption() {
         autoRotateDirection: 'ccw',
         autoRotateAfterStill: 3,
         rotateSensitivity: 1.5,
-        zoomSensitivity: 1.5,
+        zoomSensitivity: 0.5,
         panSensitivity: 0,
         damping: 0.5,
         targetCoord: [...currentTargetCoord.value],
@@ -1427,6 +1428,8 @@ function teardownChartInstance() {
     chartContainer.value.removeEventListener('click', handleContainerClick);
     chartContainer.value.removeEventListener('pointerdown', handleContainerPointerDown, true);
     chartContainer.value.removeEventListener('pointerup', handleContainerPointerUp, true);
+    chartContainer.value.removeEventListener('pointercancel', handleContainerPointerUp, true);
+    chartContainer.value.removeEventListener('wheel', handleContainerWheel, { passive: false, capture: true });
   }
 
   clearMarkers();
@@ -1633,10 +1636,12 @@ function handleContainerClick() {
 
 function handleContainerPointerDown() {
   isUserInteracting.value = true;
+  isUserDragging.value = true;
   suspendMarkerAnimations();
 }
 
 function handleContainerPointerUp() {
+  isUserDragging.value = false;
   isUserInteracting.value = false;
   scheduleMarkerAnimationResume();
   // The user just finished dragging/zooming — remember this view once it
@@ -1647,6 +1652,14 @@ function handleContainerPointerUp() {
   nextTick(() => {
     updatePopupPosition();
   });
+}
+
+function handleContainerWheel(event) {
+  // 拖动转动时忽略滚轮/触摸板惯性滚动，避免误触缩放。
+  if (isUserDragging.value) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 }
 
 function handlePopupEnter() {
@@ -1805,6 +1818,8 @@ function initChart() {
     chartContainer.value.addEventListener('click', handleContainerClick);
     chartContainer.value.addEventListener('pointerdown', handleContainerPointerDown, true);
     chartContainer.value.addEventListener('pointerup', handleContainerPointerUp, true);
+    chartContainer.value.addEventListener('pointercancel', handleContainerPointerUp, true);
+    chartContainer.value.addEventListener('wheel', handleContainerWheel, { passive: false, capture: true });
 
     attachLifecycleListeners();
 
