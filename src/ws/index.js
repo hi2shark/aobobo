@@ -23,7 +23,7 @@ function createWsService() {
     onClose: () => msg.emit('close'),
     onError: (error) => msg.emit('error', error),
     onMessage: (data) => {
-      if (data?.now && data?.servers) {
+      if (data?.now) {
         if (config.aobobo.nezhaVersion === 'v1') {
           msg.emit('servers', {
             now: data.now,
