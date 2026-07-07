@@ -27,10 +27,16 @@
                 <span class="resource-percent">{{ item.valPercent }}</span>
                 <span class="resource-label">{{ item.label }}</span>
               </div>
-              <div class="resource-capacity">
-                <span class="resource-used">{{ item.valText }}</span>
-                <span class="resource-total resource-total--desktop">/ {{ item.content?.default }}</span>
-                <span class="resource-total resource-total--mobile">/ {{ item.content?.mobile || item.content?.default }}</span>
+              <div
+                class="resource-capacity"
+                :title="item.valText ? `${item.valText} / ${item.content?.default}` : item.content?.default"
+              >
+                <template v-if="item.valText">
+                  <span class="resource-used">{{ item.valText }}</span>
+                  <span class="resource-separator">/</span>
+                </template>
+                <span class="resource-total resource-total--desktop">{{ item.content?.default }}</span>
+                <span class="resource-total resource-total--mobile">{{ item.content?.mobile || item.content?.default }}</span>
               </div>
             </div>
             <div class="resource-progress">
@@ -185,7 +191,7 @@ function progressStyle(item) {
 
 .resource-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
   border-radius: var(--radius-md);
@@ -223,14 +229,14 @@ function progressStyle(item) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .resource-main {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .resource-value {
@@ -257,8 +263,9 @@ function progressStyle(item) {
   display: flex;
   align-items: baseline;
   gap: 3px;
-  min-width: 0;
-  font-size: 10px;
+  width: 100%;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -267,6 +274,10 @@ function progressStyle(item) {
   .resource-used {
     font-weight: 600;
     color: var(--text-primary);
+  }
+
+  .resource-separator {
+    color: var(--text-muted);
   }
 
   .resource-total {
@@ -365,7 +376,7 @@ function progressStyle(item) {
   }
 
   .resource-capacity {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .resource-progress {

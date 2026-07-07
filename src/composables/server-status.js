@@ -117,7 +117,8 @@ export default (params) => {
         const CoresVal = cpuInfo.value?.cores ? `${cpuInfo.value?.cores}C` : '-';
         const usedColor = getColor('cpu', serverStatusColorMode.value);
         const valPercent = `${(props.info.State?.CPU || 0).toFixed(1) * 1}%`;
-        const valText = valPercent;
+        // CPU 的已用量就是百分比本身，已在 resource-value 中展示，这里不再重复
+        const valText = '';
         return {
           type: 'cpu',
           used: (props.info.State?.CPU || 0).toFixed(1) * 1,
