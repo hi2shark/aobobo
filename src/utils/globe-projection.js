@@ -20,7 +20,14 @@ function normalizeClip(clip) {
   return clip.map((v) => v / w);
 }
 
-export function projectLatLngToScreen(chart, containerRect, lng, lat, altitude = 0) {
+/**
+ * Snapshot globe camera/matrices once per frame. Call this once, then project
+ * many points with projectLatLngWithFrame — avoid camera.update() per particle.
+ * @param {object} chart
+ * @param {{ width: number, height: number }} containerRect
+ * @returns {object | null}
+ */
+export function createGlobeProjectionFrame(chart, containerRect) {
   if (!chart || !containerRect) {
     return null;
   }
@@ -31,34 +38,50 @@ export function projectLatLngToScreen(chart, containerRect, lng, lat, altitude =
     return null;
   }
 
-  const world = coordSys.dataToPoint([lng, lat, altitude]);
   const { camera } = coordSys.viewGL;
   camera.update();
 
-  const viewMatrix = camera.viewMatrix.array;
-  const projectionMatrix = camera.projectionMatrix.array;
   const cameraWorld = camera.worldTransform.array;
   const cameraPosition = [cameraWorld[12], cameraWorld[13], cameraWorld[14]];
-
-  const surfaceRadius = Math.sqrt(world[0] ** 2 + world[1] ** 2 + world[2] ** 2);
   const cameraDistance = Math.sqrt(
     cameraPosition[0] ** 2 + cameraPosition[1] ** 2 + cameraPosition[2] ** 2,
   );
-  const facing = (world[0] * cameraPosition[0]
-    + world[1] * cameraPosition[1]
-    + world[2] * cameraPosition[2])
-    / (surfaceRadius * cameraDistance);
 
-  // Keep markers hidden until they are clearly in front of the visible horizon.
-  // `surfaceRadius / cameraDistance` is the cosine of the horizon angle for a
-  // surface point; add a tiny angular margin so the marker billboard does not
-  // clip the globe limb. The margin is kept small so markers remain visible
-  // near the edge even when zoomed in close.
-  const horizonThreshold = cameraDistance > 0 ? surfaceRadius / cameraDistance : 0;
+  return {
+    coordSys,
+    viewMatrix: camera.viewMatrix.array,
+    projectionMatrix: camera.projectionMatrix.array,
+    cameraPosition,
+    cameraDistance,
+    width: containerRect.width,
+    height: containerRect.height,
+  };
+}
+
+/**
+ * @param {object} frame
+ * @param {number} lng
+ * @param {number} lat
+ * @param {number} [altitude]
+ * @returns {{ x: number, y: number, visible: boolean } | null}
+ */
+export function projectLatLngWithFrame(frame, lng, lat, altitude = 0) {
+  if (!frame) {
+    return null;
+  }
+
+  const world = frame.coordSys.dataToPoint([lng, lat, altitude]);
+  const surfaceRadius = Math.sqrt(world[0] ** 2 + world[1] ** 2 + world[2] ** 2);
+  const facing = (world[0] * frame.cameraPosition[0]
+    + world[1] * frame.cameraPosition[1]
+    + world[2] * frame.cameraPosition[2])
+    / (surfaceRadius * frame.cameraDistance);
+
+  const horizonThreshold = frame.cameraDistance > 0 ? surfaceRadius / frame.cameraDistance : 0;
   const VISIBLE_FACING_THRESHOLD = Math.min(1, horizonThreshold + 0.005);
 
-  const view = multiplyMat4ByVec4(viewMatrix, world);
-  const clip = multiplyMat4ByVec4(projectionMatrix, view);
+  const view = multiplyMat4ByVec4(frame.viewMatrix, world);
+  const clip = multiplyMat4ByVec4(frame.projectionMatrix, view);
 
   if (clip[3] <= 0) {
     return null;
@@ -69,14 +92,22 @@ export function projectLatLngToScreen(chart, containerRect, lng, lat, altitude =
     return null;
   }
 
-  const x = (ndc[0] * 0.5 + 0.5) * containerRect.width;
-  const y = (1 - (ndc[1] * 0.5 + 0.5)) * containerRect.height;
+  const x = (ndc[0] * 0.5 + 0.5) * frame.width;
+  const y = (1 - (ndc[1] * 0.5 + 0.5)) * frame.height;
 
   return {
     x,
     y,
     visible: facing > VISIBLE_FACING_THRESHOLD,
   };
+}
+
+export function projectLatLngToScreen(chart, containerRect, lng, lat, altitude = 0) {
+  const frame = createGlobeProjectionFrame(chart, containerRect);
+  if (!frame) {
+    return null;
+  }
+  return projectLatLngWithFrame(frame, lng, lat, altitude);
 }
 
 export default projectLatLngToScreen;

@@ -47,6 +47,8 @@
         :locations="serverLocations"
         :theme="resolvedTheme"
         :cycle-transfer-map="cycleTransferMap"
+        :auto-rotate="globeAutoRotate"
+        :rotate-speed="globeRotateSpeed"
         @select-server="handleServerSelect"
       />
       <div
@@ -106,6 +108,13 @@
             </div>
           </div>
         </div>
+        <globe-rotation-control
+          v-if="serverList.length > 0"
+          v-model:auto-rotate="globeAutoRotate"
+          v-model:rotate-speed="globeRotateSpeed"
+          embedded
+          class="globe-stats-rotation"
+        />
       </div>
     </div>
     <button
@@ -327,6 +336,7 @@ import {
 } from '@/composables/server-sort';
 import CurrentTime from '@/components/current-time.vue';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
+import GlobeRotationControl from '@/components/globe-earth/globe-rotation-control.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
 import ServerStatusFilter from '@/components/server-list/server-status-filter.vue';
@@ -343,6 +353,10 @@ import ServerDetailResourceHistory from '@/components/server-detail/server-detai
 import ServerDetailCycleTransfer from '@/components/server-detail/server-detail-cycle-transfer.vue';
 import ServerDetailInfo from '@/components/server-detail/server-detail-info.vue';
 import ServerDetailMonitor from '@/components/server-detail/server-detail-monitor.vue';
+import {
+  loadGlobeRotation,
+  persistGlobeRotation,
+} from '@/utils/globe-rotation';
 
 const SERVER_HOVER_FOCUS_DELAY = 3000;
 const FILTER_OPTIONS = [
@@ -368,6 +382,9 @@ const detailServerId = ref(null);
 const detailDrawerRef = ref(null);
 const globeRef = ref(null);
 const globeKey = ref(0);
+const savedGlobeRotation = loadGlobeRotation();
+const globeAutoRotate = ref(savedGlobeRotation.autoRotate);
+const globeRotateSpeed = ref(savedGlobeRotation.rotateSpeed);
 const cycleTransferMap = ref({});
 const cycleTransferLoading = ref(false);
 const exchangeRateState = ref({
@@ -1251,6 +1268,16 @@ watch(
 );
 
 watch(
+  [globeAutoRotate, globeRotateSpeed],
+  ([autoRotate, rotateSpeed]) => {
+    persistGlobeRotation({
+      autoRotate,
+      rotateSpeed,
+    });
+  },
+);
+
+watch(
   () => serverList.value.length,
   (length, prevLength) => {
     if (length > 0 && prevLength === 0 && store.state.init) {
@@ -1654,6 +1681,15 @@ onUnmounted(() => {
       box-shadow: var(--button-active-shadow);
       transform: translateY(-1px);
     }
+  }
+
+  .globe-stats-rotation {
+    position: relative;
+    z-index: 2;
+    margin-top: 2px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(var(--accent-primary-rgb), 0.12);
+    pointer-events: auto;
   }
 
   .globe-stats-row {
@@ -2257,6 +2293,10 @@ onUnmounted(() => {
       }
     }
 
+    .globe-stats-rotation {
+      padding-top: 8px;
+    }
+
     .globe-stats-row {
       grid-template-columns: 32px minmax(0, 1fr);
       gap: 8px;
@@ -2561,6 +2601,10 @@ onUnmounted(() => {
     gap: 6px;
     padding: 8px 10px 9px;
     border-radius: 16px;
+
+    .globe-stats-rotation {
+      padding-top: 7px;
+    }
 
     .stats-count-icon {
       width: 15px;

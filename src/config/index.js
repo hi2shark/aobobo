@@ -32,6 +32,7 @@ const config = reactive({
     detailCycleTransferRefreshTime: 60,
     hideDetailCycleTransfer: false,
     hideDetailServerGlobe: false,
+    globeActivityEffects: true,
     monitorRefreshTime: 30,
     monitorChartType: 'multi',
     monitorChartTypeToggle: true,

@@ -20,6 +20,11 @@
         transition: 'opacity 0.25s ease',
       }"
     />
+    <canvas
+      ref="particleCanvas"
+      class="globe-particle-layer"
+      aria-hidden="true"
+    />
     <div ref="markerLayer" class="marker-layer" />
 
     <div
@@ -119,7 +124,7 @@ import {
   THEME_COLORS,
 } from '@/utils/globe-textures';
 import { getLandPolygonsData } from '@/utils/globe-land-polygons.js';
-import { projectLatLngToScreen } from '@/utils/globe-projection';
+import { createGlobeProjectionFrame, projectLatLngWithFrame } from '@/utils/globe-projection';
 import { formatLocationLocalTime } from '@/utils/location-time';
 import {
   loadGlobeView,
@@ -130,6 +135,15 @@ import {
   getGlobeGLCanvas,
   isGlobeGLContextLost,
 } from '@/utils/globe-gl';
+import {
+  buildActivitySeriesOptions,
+  buildConnectionParticlePool,
+  createAltitudeAnchorSeries,
+  isGlobeActivitySeriesId,
+  stepConnectionParticles,
+  buildConnectionParticleCountSignature,
+} from '@/utils/globe-activity-effects';
+import config from '@/config';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
 import IconLoading from '@/components/icons/icon-loading.vue';
 import IconEarth from '@/components/icons/icon-earth.vue';
@@ -141,6 +155,8 @@ const INITIAL_POINT_OF_VIEW = {
 };
 
 const GLOBE_RADIUS = 100;
+// Headroom above the earth mesh so traffic rays can use real altitude.
+const GLOBE_OUTER_RADIUS = 118;
 const CAMERA_FOV = 50;
 const DEFAULT_FILL_RATIO = 0.92;
 const AUTO_ROTATE_SPEED_MULTIPLIER = 2;
@@ -183,6 +199,7 @@ const READY_FRAME_BUFFER = 4;
 // painted underneath, so no blank-canvas frame is ever visible.
 const GLOBE_REVEAL_DELAY = 260;
 const COMPACT_GLOBE_WIDTH = 560;
+const ACTIVITY_EFFECT_UPDATE_MS = 1000;
 
 const props = defineProps({
   locations: {
@@ -211,6 +228,7 @@ const emit = defineEmits(['marker-click', 'select-server']);
 
 const rootRef = ref(null);
 const chartContainer = ref(null);
+const particleCanvas = ref(null);
 const markerLayer = ref(null);
 const popupWrapper = ref(null);
 const tooltipWrapper = ref(null);
@@ -265,6 +283,13 @@ let visibilityHandler = null;
 let markerUpdateHandler = null;
 let cachedContainerRect = null;
 let revealTimer = null;
+let activityEffectTimer = null;
+let activityEffectsPaused = false;
+let lastActivitySignature = '';
+let lastConnectionParticleSignature = '';
+let connectionParticles = [];
+let particleRafId = null;
+let particleLastTs = 0;
 
 // --- Globe view persistence ---
 // Whether the current camera state should be written back to localStorage.
@@ -312,6 +337,10 @@ function getThemePalette(theme) {
       markerOffline: readThemeToken('--globe-marker-muted', '#9aa3af'),
       markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(154, 163, 175, 0.2)'),
       onlineRing: readThemeToken('--globe-ring-rgb', '255, 200, 83'),
+      effectTcp: readThemeToken('--globe-effect-tcp', '#5eb3c9'),
+      effectUdp: readThemeToken('--globe-effect-udp', '#a78bfa'),
+      effectNetIn: readThemeToken('--globe-effect-net-in', '#f0a07a'),
+      effectNetOut: readThemeToken('--globe-effect-net-out', '#8fa2f5'),
     };
   }
 
@@ -323,6 +352,10 @@ function getThemePalette(theme) {
     markerOffline: readThemeToken('--globe-marker-muted', '#6d7888'),
     markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(109, 120, 136, 0.22)'),
     onlineRing: readThemeToken('--globe-ring-rgb', '46, 207, 255'),
+    effectTcp: readThemeToken('--globe-effect-tcp', '#5eead4'),
+    effectUdp: readThemeToken('--globe-effect-udp', '#f0abfc'),
+    effectNetIn: readThemeToken('--globe-effect-net-in', '#f5b199'),
+    effectNetOut: readThemeToken('--globe-effect-net-out', '#89c3eb'),
   };
 }
 
@@ -597,6 +630,8 @@ function setMarkerAnimationSuspended(suspended) {
       suspended ? '0ms' : `${MARKER_HTML_TRANSITION_DURATION}ms`,
     );
   }
+
+  setActivityEffectsPaused(suspended);
 }
 
 function getOrbitControl() {
@@ -645,11 +680,375 @@ function getViewDistanceOptions() {
   };
 }
 
+function getCoastlineSeriesOptions() {
+  const coastlineData = getCoastlineSeriesData(props.theme);
+  const coastlineLayers = getCoastlineLayerStyles(props.theme);
+
+  return coastlineLayers.map((lineStyle, index) => (
+    {
+      id: `globe-coastline-${index}`,
+      type: 'lines3D',
+      coordinateSystem: 'globe',
+      polyline: true,
+      silent: true,
+      blendMode: 'source-over',
+      lineStyle: {
+        width: lineStyle.width,
+        color: lineStyle.color,
+        opacity: 1,
+      },
+      data: coastlineData,
+    }
+  ));
+}
+
+function getActivityEffectColors() {
+  const palette = getThemePalette(props.theme);
+  return {
+    tcp: palette.effectTcp,
+    udp: palette.effectUdp,
+    netIn: palette.effectNetIn,
+    netOut: palette.effectNetOut,
+  };
+}
+
+function isGlobeActivityEffectsEnabled() {
+  return config.aobobo.globeActivityEffects !== false;
+}
+
+function getActivitySeriesOptions() {
+  return buildActivitySeriesOptions({
+    locations: props.locations,
+    colors: getActivityEffectColors(),
+    isMobile: isMobile.value,
+    enabled: isGlobeActivityEffectsEnabled(),
+    theme: props.theme,
+  });
+}
+
+function buildActivitySignature() {
+  if (!isGlobeActivityEffectsEnabled()) {
+    return 'disabled';
+  }
+
+  return (props.locations || []).map((location) => {
+    const servers = location?.servers || [];
+    let tcp = 0;
+    let udp = 0;
+    let netIn = 0;
+    let netOut = 0;
+    let online = 0;
+    servers.forEach((server) => {
+      if (server?.online !== 1) {
+        return;
+      }
+      online += 1;
+      const state = server.State || {};
+      tcp += Number(state.TcpConnCount) || 0;
+      udp += Number(state.UdpConnCount) || 0;
+      netIn += Number(state.NetInSpeed) || 0;
+      netOut += Number(state.NetOutSpeed) || 0;
+    });
+    return [
+      location?.key || location?.code || '',
+      online,
+      tcp,
+      udp,
+      Math.round(netIn / 1000),
+      Math.round(netOut / 1000),
+    ].join(':');
+  }).join('|');
+}
+
+function buildConnectionParticleSignature() {
+  if (!isGlobeActivityEffectsEnabled()) {
+    return 'disabled';
+  }
+  // Use mapped particle counts so raw conn jitter does not wipe in-flight particles.
+  return buildConnectionParticleCountSignature(props.locations || [], isMobile.value);
+}
+
+function clearActivityEffectTimer() {
+  if (activityEffectTimer) {
+    window.clearTimeout(activityEffectTimer);
+    activityEffectTimer = null;
+  }
+}
+
+function syncParticleCanvasSize() {
+  const canvas = particleCanvas.value;
+  const container = chartContainer.value;
+  if (!canvas || !container) {
+    return null;
+  }
+
+  // Reuse the marker/camera-synced rect; avoid layout reads every frame.
+  if (!cachedContainerRect) {
+    cachedContainerRect = container.getBoundingClientRect();
+  }
+  const rect = cachedContainerRect;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(rect.width));
+  const height = Math.max(1, Math.round(rect.height));
+  const pixelWidth = Math.round(width * dpr);
+  const pixelHeight = Math.round(height * dpr);
+
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+
+  return {
+    ctx: canvas.getContext('2d'),
+    rect,
+    dpr,
+    width,
+    height,
+  };
+}
+
+function clearParticleCanvas() {
+  const canvas = particleCanvas.value;
+  if (!canvas) {
+    return;
+  }
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function paintConnectionParticles() {
+  if (!chart || !isGlobeActivityEffectsEnabled() || connectionParticles.length === 0) {
+    clearParticleCanvas();
+    return;
+  }
+
+  const surface = syncParticleCanvasSize();
+  if (!surface?.ctx) {
+    return;
+  }
+
+  const frame = createGlobeProjectionFrame(chart, surface.rect);
+  if (!frame) {
+    return;
+  }
+
+  const {
+    ctx,
+    dpr,
+  } = surface;
+  const colors = getActivityEffectColors();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, surface.width, surface.height);
+
+  connectionParticles.forEach((particle) => {
+    const position = projectLatLngWithFrame(
+      frame,
+      particle.lng,
+      particle.lat,
+      0,
+    );
+    if (!position?.visible) {
+      return;
+    }
+
+    // Fade in while approaching; only fade out once they are already at the node.
+    let alpha = 0.35 + particle.t * 0.55;
+    if (particle.t > 0.88) {
+      alpha *= (1 - particle.t) / 0.12;
+    }
+    const radius = particle.size * (0.7 + particle.t * 0.2);
+    const color = particle.protocol === 'udp' ? colors.udp : colors.tcp;
+
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.globalAlpha = 1;
+}
+
+function stopConnectionParticleLoop() {
+  if (particleRafId) {
+    cancelAnimationFrame(particleRafId);
+    particleRafId = null;
+  }
+  particleLastTs = 0;
+}
+
+function runConnectionParticleFrame(timestamp) {
+  particleRafId = null;
+  if (!chart || !isGlobeActivityEffectsEnabled()) {
+    clearParticleCanvas();
+    return;
+  }
+
+  if (document.hidden) {
+    // Pause the loop while backgrounded; visibilitychange restarts it.
+    particleLastTs = 0;
+    return;
+  }
+
+  if (!particleLastTs) {
+    particleLastTs = timestamp;
+  }
+  const dt = Math.min((timestamp - particleLastTs) / 1000, 0.05);
+  particleLastTs = timestamp;
+
+  if (!activityEffectsPaused) {
+    stepConnectionParticles(connectionParticles, dt, isMobile.value);
+  }
+
+  paintConnectionParticles();
+  particleRafId = requestAnimationFrame(runConnectionParticleFrame);
+}
+
+function startConnectionParticleLoop() {
+  if (particleRafId || typeof window === 'undefined' || document.hidden) {
+    return;
+  }
+  particleLastTs = 0;
+  particleRafId = requestAnimationFrame(runConnectionParticleFrame);
+}
+
+function rebuildConnectionParticles(force = false) {
+  const signature = `${buildConnectionParticleSignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
+  if (!force && signature === lastConnectionParticleSignature) {
+    return;
+  }
+  lastConnectionParticleSignature = signature;
+
+  connectionParticles = buildConnectionParticlePool({
+    locations: props.locations,
+    isMobile: isMobile.value,
+    enabled: isGlobeActivityEffectsEnabled(),
+  });
+
+  if (connectionParticles.length === 0) {
+    clearParticleCanvas();
+    stopConnectionParticleLoop();
+    return;
+  }
+
+  startConnectionParticleLoop();
+  paintConnectionParticles();
+}
+
+function setActivityEffectsPaused(paused) {
+  activityEffectsPaused = paused;
+  if (!chart) {
+    return;
+  }
+
+  try {
+    const seriesModels = chart.getModel().getSeriesByType('lines3D');
+    seriesModels.forEach((seriesModel) => {
+      const id = seriesModel?.get?.('id');
+      if (!isGlobeActivitySeriesId(id)) {
+        return;
+      }
+      const view = chart.getViewOfSeriesModel(seriesModel);
+      if (!view) {
+        return;
+      }
+      if (paused) {
+        view.pauseEffect?.();
+      } else {
+        view.resumeEffect?.();
+      }
+    });
+  } catch {
+    // Internal APIs may change; ignore if unavailable.
+  }
+
+  if (!paused && connectionParticles.length > 0) {
+    startConnectionParticleLoop();
+  }
+}
+
+function applyActivitySeries(force = false) {
+  if (!chart) {
+    return;
+  }
+
+  const signature = `${buildActivitySignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
+  if (!force && signature === lastActivitySignature) {
+    rebuildConnectionParticles(false);
+    return;
+  }
+  lastActivitySignature = signature;
+
+  // Any setOption re-renders GlobeView, which re-applies viewControl and does
+  // control.off('update') — wiping our marker listener and snapping the camera
+  // to a stale targetCoord mid auto-rotate. Sync the live camera into the option
+  // first so the re-apply is a no-op visually, then re-bind listeners.
+  const liveView = syncCameraStateToRefs();
+  const option = {
+    series: getActivitySeriesOptions(),
+  };
+
+  if (liveView) {
+    option.globe = {
+      viewControl: {
+        targetCoord: [liveView.lng, liveView.lat],
+        distance: liveView.distance,
+        autoRotate: currentAutoRotate.value,
+        autoRotateSpeed: props.rotateSpeed * AUTO_ROTATE_SPEED_MULTIPLIER,
+        autoRotateDirection: 'ccw',
+        animation: false,
+      },
+    };
+  }
+
+  chart.setOption(option);
+
+  // GlobeView.render replaces the OrbitControl 'update' handler; refresh cache
+  // and re-attach marker / persist listeners, then restore auto-rotate intent.
+  orbitControl = null;
+  attachMarkerUpdateListener();
+  applyAutoRotateState();
+  rebuildConnectionParticles(force);
+
+  if (activityEffectsPaused) {
+    setActivityEffectsPaused(true);
+  }
+}
+
+function scheduleActivitySeriesUpdate(force = false) {
+  if (!chart) {
+    return;
+  }
+
+  if (!isGlobeActivityEffectsEnabled()) {
+    clearActivityEffectTimer();
+    applyActivitySeries(true);
+    return;
+  }
+
+  if (force) {
+    clearActivityEffectTimer();
+    applyActivitySeries(true);
+    return;
+  }
+
+  if (activityEffectTimer) {
+    return;
+  }
+
+  activityEffectTimer = window.setTimeout(() => {
+    activityEffectTimer = null;
+    applyActivitySeries(false);
+  }, ACTIVITY_EFFECT_UPDATE_MS);
+}
+
 function getGlobeOption() {
   const isLight = props.theme === 'light';
   const maps = getGlobeMaps(props.theme);
-  const coastlineData = getCoastlineSeriesData(props.theme);
-  const coastlineLayers = getCoastlineLayerStyles(props.theme);
 
   return {
     backgroundColor: isLight ? 'transparent' : '#020a16',
@@ -660,7 +1059,7 @@ function getGlobeOption() {
       show: true,
       baseTexture: maps.colorMap,
       globeRadius: GLOBE_RADIUS,
-      globeOuterRadius: GLOBE_RADIUS,
+      globeOuterRadius: GLOBE_OUTER_RADIUS,
       shading: 'color',
       environment: getSceneEnvironment(props.theme),
       atmosphere: getAtmosphereOption(props.theme),
@@ -684,21 +1083,11 @@ function getGlobeOption() {
         animation: false,
       },
     },
-    series: coastlineLayers.map((lineStyle) => (
-      {
-        type: 'lines3D',
-        coordinateSystem: 'globe',
-        polyline: true,
-        silent: true,
-        blendMode: 'source-over',
-        lineStyle: {
-          width: lineStyle.width,
-          color: lineStyle.color,
-          opacity: 1,
-        },
-        data: coastlineData,
-      }
-    )),
+    series: [
+      ...getCoastlineSeriesOptions(),
+      createAltitudeAnchorSeries(),
+      ...getActivitySeriesOptions(),
+    ],
   };
 }
 
@@ -754,10 +1143,15 @@ function syncCoastlineDepth() {
   try {
     // echarts-gl shrinks the earth mesh to 0.99 * globeRadius to avoid
     // z-fighting, while lines3D coastlines are generated at full radius.
-    // Scale the lines just a hair above the mesh surface so they are clearly
-    // in front without visibly floating.
+    // Scale the coastline series just a hair above the mesh surface so they
+    // are clearly in front without visibly floating. Activity effect series
+    // keep unit scale so altitude rays remain visually correct.
     const seriesModels = chart.getModel().getSeriesByType('lines3D');
     seriesModels.forEach((seriesModel) => {
+      const id = seriesModel?.get?.('id');
+      if (isGlobeActivitySeriesId(id)) {
+        return;
+      }
       const view = seriesModel && chart.getViewOfSeriesModel(seriesModel);
       if (view && view.groupGL) {
         view.groupGL.scale.set(COASTLINE_SCALE, COASTLINE_SCALE, COASTLINE_SCALE);
@@ -829,6 +1223,7 @@ function applyThemeToGlobe() {
   }
 
   chart.setOption(getGlobeOption(), { notMerge: true });
+  lastActivitySignature = `${buildActivitySignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
   showGlobeWhenReady(READY_FRAME_BUFFER);
   sharpenGlobeTextures();
 
@@ -840,6 +1235,9 @@ function applyThemeToGlobe() {
   // The offscreen GL canvas is also recreated, so re-attach the context-loss
   // listeners onto the new canvas.
   attachContextLossListeners();
+  if (activityEffectsPaused) {
+    setActivityEffectsPaused(true);
+  }
 }
 
 function resolveMarkerFromElement(element) {
@@ -1007,7 +1405,10 @@ function updateMarkerPositions() {
     cachedContainerRect = container.getBoundingClientRect();
   }
 
-  const rect = cachedContainerRect;
+  const frame = createGlobeProjectionFrame(chart, cachedContainerRect);
+  if (!frame) {
+    return;
+  }
 
   markerLayer.value.querySelectorAll('.globe-marker').forEach((element) => {
     const marker = element.__data__;
@@ -1015,9 +1416,8 @@ function updateMarkerPositions() {
       return;
     }
 
-    const position = projectLatLngToScreen(
-      chart,
-      rect,
+    const position = projectLatLngWithFrame(
+      frame,
       marker.lng,
       marker.lat,
       marker.altitude,
@@ -1056,6 +1456,7 @@ function attachMarkerUpdateListener() {
     // the user actually sees instead of a stale value.
     syncCameraStateToRefs();
     updateMarkerPositions();
+    paintConnectionParticles();
     // Persist the user's last manual view after they stop interacting.
     schedulePersistGlobeView();
   };
@@ -1412,6 +1813,13 @@ function teardownChartInstance() {
   detachContextLossListeners();
   clearRevealTimer();
   clearInteractionSettleTimer();
+  clearActivityEffectTimer();
+  stopConnectionParticleLoop();
+  clearParticleCanvas();
+  connectionParticles = [];
+  lastActivitySignature = '';
+  lastConnectionParticleSignature = '';
+  activityEffectsPaused = false;
 
   if (markerUpdateHandler && orbitControl) {
     orbitControl.off('update', markerUpdateHandler);
@@ -1714,6 +2122,7 @@ function handleResize() {
   });
 
   attachMarkerUpdateListener();
+  scheduleActivitySeriesUpdate(false);
 
   nextTick(() => {
     updatePopupPosition();
@@ -1754,6 +2163,9 @@ function handleVisibilityChange() {
     scheduleHandleResize();
     applyThemeToGlobe();
     renderMarkers();
+    if (connectionParticles.length > 0 && !activityEffectsPaused) {
+      startConnectionParticleLoop();
+    }
   });
 }
 
@@ -1801,6 +2213,7 @@ function initChart() {
     });
 
     chart.setOption(getGlobeOption(), { notMerge: true });
+    lastActivitySignature = `${buildActivitySignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
     sharpenGlobeTextures();
 
     chart.on('finished', syncCoastlineDepth);
@@ -1841,6 +2254,7 @@ function initChart() {
     // Guard against the mobile-only WebGL context-loss case: listen for loss on
     // the offscreen GL canvas and poll its health on an interval.
     attachContextLossListeners();
+    rebuildConnectionParticles(true);
   } catch (error) {
     console.error('Globe initialization failed:', error);
     initError.value = true;
@@ -1871,10 +2285,25 @@ watch(markerData, (nextMarkers) => {
   }
 
   renderMarkers();
+  scheduleActivitySeriesUpdate(false);
   nextTick(() => {
     updatePopupPosition();
     updateFocusBubblePosition();
   });
+});
+
+watch(() => props.locations, () => {
+  if (!chart) {
+    return;
+  }
+  scheduleActivitySeriesUpdate(false);
+}, { deep: true });
+
+watch(() => config.aobobo.globeActivityEffects, () => {
+  if (!chart) {
+    return;
+  }
+  scheduleActivitySeriesUpdate(true);
 });
 
 watch(() => props.autoRotate, () => {
@@ -1987,6 +2416,7 @@ onActivated(() => {
       renderMarkers();
       updatePopupPosition();
       updateFocusBubblePosition();
+      rebuildConnectionParticles(true);
     }
     scheduleHealthCheck();
   });
@@ -1998,6 +2428,8 @@ onDeactivated(() => {
   contextLossGuardsActive = false;
   clearInteractionSettleTimer();
   clearRevealTimer();
+  clearActivityEffectTimer();
+  stopConnectionParticleLoop();
   clearFocusBubble();
 });
 
@@ -2011,6 +2443,10 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   stopLocalTimeTicker();
   detachLifecycleListeners();
+  clearActivityEffectTimer();
+  stopConnectionParticleLoop();
+  clearParticleCanvas();
+  connectionParticles = [];
 
   if (pendingResizeRaf) {
     cancelAnimationFrame(pendingResizeRaf);
@@ -2061,17 +2497,26 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.marker-layer {
+.globe-particle-layer {
   position: absolute;
   inset: 0;
   z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.marker-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   pointer-events: none;
   overflow: hidden;
 }
 
 .popup-layer {
   position: absolute;
-  z-index: 4;
+  z-index: 5;
   transition:
     opacity 0.24s ease,
     transform 0.24s ease;
@@ -2136,7 +2581,7 @@ onUnmounted(() => {
 
 .marker-tooltip {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   padding: 10px 14px;
   border-radius: 16px;

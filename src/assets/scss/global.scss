@@ -187,6 +187,10 @@ html[data-theme='dark'] {
   --net-speed-out-color: #89c3eb;
   --conn-tcp-color: #89c3eb;
   --conn-udp-color: var(--accent-primary);
+  --globe-effect-tcp: #5eead4;
+  --globe-effect-udp: #f0abfc;
+  --globe-effect-net-in: var(--net-speed-in-color);
+  --globe-effect-net-out: var(--net-speed-out-color);
   --load-color: #90f2ff;
   --process-color: #f5b199;
   --server-status-value-color: #a1eafb;
@@ -368,6 +372,11 @@ html[data-theme='light'] {
   --net-speed-out-color: #4383ff;
   --conn-tcp-color: #4383ff;
   --conn-udp-color: var(--accent-primary);
+  /* Soft cyan / lavender particles — distinct from peach/periwinkle traffic rays. */
+  --globe-effect-tcp: #5eb3c9;
+  --globe-effect-udp: #a78bfa;
+  --globe-effect-net-in: #f0a07a;
+  --globe-effect-net-out: #8fa2f5;
   --load-color: #2a9fd6;
   --process-color: #d97757;
   --server-status-value-color: var(--accent-primary);
