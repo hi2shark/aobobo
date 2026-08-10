@@ -49,6 +49,8 @@
         :cycle-transfer-map="cycleTransferMap"
         :auto-rotate="globeAutoRotate"
         :rotate-speed="globeRotateSpeed"
+        :show-conn-particles="globeShowConnParticles"
+        :show-net-rays="globeShowNetRays"
         @select-server="handleServerSelect"
       />
       <div
@@ -108,13 +110,21 @@
             </div>
           </div>
         </div>
-        <globe-rotation-control
+        <div
           v-if="serverList.length > 0"
-          v-model:auto-rotate="globeAutoRotate"
-          v-model:rotate-speed="globeRotateSpeed"
-          embedded
-          class="globe-stats-rotation"
-        />
+          class="globe-stats-controls"
+        >
+          <globe-rotation-control
+            v-model:auto-rotate="globeAutoRotate"
+            v-model:rotate-speed="globeRotateSpeed"
+            embedded
+          />
+          <globe-effects-control
+            v-if="config.aobobo.globeActivityEffects !== false"
+            v-model:conn-particles="globeShowConnParticles"
+            v-model:net-rays="globeShowNetRays"
+          />
+        </div>
       </div>
     </div>
     <button
@@ -337,6 +347,7 @@ import {
 import CurrentTime from '@/components/current-time.vue';
 import GlobeEarth from '@/components/globe-earth/globe-earth.vue';
 import GlobeRotationControl from '@/components/globe-earth/globe-rotation-control.vue';
+import GlobeEffectsControl from '@/components/globe-earth/globe-effects-control.vue';
 import ServerTable from '@/components/server-panel/server-table.vue';
 import ServerSortSelect from '@/components/server-list/server-sort-select.vue';
 import ServerStatusFilter from '@/components/server-list/server-status-filter.vue';
@@ -385,6 +396,8 @@ const globeKey = ref(0);
 const savedGlobeRotation = loadGlobeRotation();
 const globeAutoRotate = ref(savedGlobeRotation.autoRotate);
 const globeRotateSpeed = ref(savedGlobeRotation.rotateSpeed);
+const globeShowConnParticles = ref(savedGlobeRotation.showConnParticles);
+const globeShowNetRays = ref(savedGlobeRotation.showNetRays);
 const cycleTransferMap = ref({});
 const cycleTransferLoading = ref(false);
 const exchangeRateState = ref({
@@ -1268,11 +1281,13 @@ watch(
 );
 
 watch(
-  [globeAutoRotate, globeRotateSpeed],
-  ([autoRotate, rotateSpeed]) => {
+  [globeAutoRotate, globeRotateSpeed, globeShowConnParticles, globeShowNetRays],
+  ([autoRotate, rotateSpeed, showConnParticles, showNetRays]) => {
     persistGlobeRotation({
       autoRotate,
       rotateSpeed,
+      showConnParticles,
+      showNetRays,
     });
   },
 );
@@ -1683,11 +1698,14 @@ onUnmounted(() => {
     }
   }
 
-  .globe-stats-rotation {
+  .globe-stats-controls {
     position: relative;
     z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-top: 2px;
-    padding-top: 9px;
+    padding-top: 8px;
     border-top: 1px solid rgba(var(--accent-primary-rgb), 0.12);
     pointer-events: auto;
   }
@@ -2293,8 +2311,8 @@ onUnmounted(() => {
       }
     }
 
-    .globe-stats-rotation {
-      padding-top: 8px;
+    .globe-stats-controls {
+      padding-top: 7px;
     }
 
     .globe-stats-row {
@@ -2602,8 +2620,8 @@ onUnmounted(() => {
     padding: 8px 10px 9px;
     border-radius: 16px;
 
-    .globe-stats-rotation {
-      padding-top: 7px;
+    .globe-stats-controls {
+      padding-top: 6px;
     }
 
     .stats-count-icon {

@@ -137,11 +137,14 @@ import {
 } from '@/utils/globe-gl';
 import {
   buildActivitySeriesOptions,
-  buildConnectionParticlePool,
+  planConnectionParticleGroups,
+  reconcileConnectionParticlePool,
   createAltitudeAnchorSeries,
+  getConnectionParticleVisual,
   isGlobeActivitySeriesId,
   stepConnectionParticles,
   buildConnectionParticleCountSignature,
+  GLOBE_ACTIVITY_SERIES_IDS,
 } from '@/utils/globe-activity-effects';
 import config from '@/config';
 import LocationPopup from '@/components/globe-earth/location-popup.vue';
@@ -200,6 +203,12 @@ const READY_FRAME_BUFFER = 4;
 const GLOBE_REVEAL_DELAY = 260;
 const COMPACT_GLOBE_WIDTH = 560;
 const ACTIVITY_EFFECT_UPDATE_MS = 1000;
+// Fade speeds for the activity layers: connection-particle cloud (canvas) and
+// traffic rays (lines3D opacity). Both ease instead of popping in/out.
+const PARTICLE_CLOUD_FADE_SECONDS = 0.5;
+const RAY_FADE_SECONDS = 0.48;
+// Min interval between setOption calls while ray fades are running.
+const RAY_FADE_APPLY_MS = 34;
 
 const props = defineProps({
   locations: {
@@ -213,6 +222,14 @@ const props = defineProps({
   rotateSpeed: {
     type: Number,
     default: 0.5,
+  },
+  showConnParticles: {
+    type: Boolean,
+    default: true,
+  },
+  showNetRays: {
+    type: Boolean,
+    default: true,
   },
   theme: {
     type: String,
@@ -290,6 +307,18 @@ let lastConnectionParticleSignature = '';
 let connectionParticles = [];
 let particleRafId = null;
 let particleLastTs = 0;
+// Whole-cloud opacity for the connection particles (canvas layer), eased
+// toward particleCloudTarget so the layer never pops in/out on toggles.
+let particleCloudAlpha = 1;
+let particleCloudTarget = 1;
+// Per traffic-ray series fade state: alpha eases toward target; outgoing rays
+// are kept on screen (lastData) until the fade-out completes.
+const raySeriesFadeState = {};
+let rayFadeRafId = null;
+let rayFadeLastTs = 0;
+let rayFadeLastApply = 0;
+// Soft-glow sprite cache for particle rendering, keyed by color.
+const particleSpriteCache = {};
 
 // --- Globe view persistence ---
 // Whether the current camera state should be written back to localStorage.
@@ -337,8 +366,8 @@ function getThemePalette(theme) {
       markerOffline: readThemeToken('--globe-marker-muted', '#9aa3af'),
       markerOfflineSoft: readThemeToken('--globe-marker-muted-soft', 'rgba(154, 163, 175, 0.2)'),
       onlineRing: readThemeToken('--globe-ring-rgb', '255, 200, 83'),
-      effectTcp: readThemeToken('--globe-effect-tcp', '#5eb3c9'),
-      effectUdp: readThemeToken('--globe-effect-udp', '#a78bfa'),
+      effectTcp: readThemeToken('--globe-effect-tcp', '#e08e00'),
+      effectUdp: readThemeToken('--globe-effect-udp', '#ffc44d'),
       effectNetIn: readThemeToken('--globe-effect-net-in', '#f0a07a'),
       effectNetOut: readThemeToken('--globe-effect-net-out', '#8fa2f5'),
     };
@@ -716,14 +745,175 @@ function isGlobeActivityEffectsEnabled() {
   return config.aobobo.globeActivityEffects !== false;
 }
 
+function getRayFadeState(id) {
+  if (!raySeriesFadeState[id]) {
+    raySeriesFadeState[id] = {
+      alpha: 0,
+      target: 0,
+      baseLine: 0,
+      baseTrail: 0,
+      lastData: [],
+      clearAtZero: false,
+      needsClear: false,
+    };
+  }
+  return raySeriesFadeState[id];
+}
+
+// Fold the fade state into freshly built ray series options: record the new
+// base opacities, decide the fade target from data presence + toggles, keep
+// outgoing rays on screen while they fade, and scale opacities by the current
+// alpha so a setOption never changes brightness abruptly.
+function applyRayFadeToSeriesOptions(seriesOptions) {
+  const raysEnabled = isNetRaysEnabled();
+  return seriesOptions.map((series) => {
+    const state = getRayFadeState(series.id);
+    state.baseLine = series.lineStyle.opacity;
+    state.baseTrail = series.effect.trailOpacity;
+
+    if (series.data.length > 0) {
+      state.lastData = series.data;
+      state.target = raysEnabled ? 1 : 0;
+      state.clearAtZero = !raysEnabled;
+    } else if (state.lastData.length > 0 && state.alpha > 0.01) {
+      // Rays just dropped to zero: keep the previous set on screen while it
+      // fades out instead of vanishing mid-flight.
+      series.data = state.lastData;
+      series.effect.show = true;
+      state.target = 0;
+      state.clearAtZero = true;
+    } else {
+      state.lastData = [];
+      state.target = 0;
+      state.clearAtZero = false;
+    }
+
+    series.lineStyle.opacity = state.baseLine * state.alpha;
+    series.effect.trailOpacity = state.baseTrail * state.alpha;
+    return series;
+  });
+}
+
 function getActivitySeriesOptions() {
-  return buildActivitySeriesOptions({
+  return applyRayFadeToSeriesOptions(buildActivitySeriesOptions({
     locations: props.locations,
     colors: getActivityEffectColors(),
     isMobile: isMobile.value,
     enabled: isGlobeActivityEffectsEnabled(),
     theme: props.theme,
+  }));
+}
+
+// Push the current fade alphas into the chart. Only opacity fields are merged
+// (series matched by id); a series whose fade-out just finished also gets the
+// data it kept for the fade cleared here.
+function applyRayFadeAlphas() {
+  if (!chart) {
+    return;
+  }
+
+  const series = [];
+  GLOBE_ACTIVITY_SERIES_IDS.forEach((id) => {
+    const state = raySeriesFadeState[id];
+    if (!state) {
+      return;
+    }
+    const entry = {
+      id,
+      lineStyle: { opacity: state.baseLine * state.alpha },
+      effect: { trailOpacity: state.baseTrail * state.alpha },
+    };
+    if (state.needsClear) {
+      entry.data = [];
+      state.needsClear = false;
+    }
+    series.push(entry);
   });
+
+  if (series.length > 0) {
+    setOptionPreservingView({ series });
+  }
+}
+
+function runRayFadeFrame(timestamp) {
+  rayFadeRafId = null;
+  if (!chart) {
+    return;
+  }
+  if (document.hidden) {
+    // Pause the loop while backgrounded; applyThemeToGlobe restarts it.
+    rayFadeLastTs = 0;
+    return;
+  }
+
+  if (!rayFadeLastTs) {
+    rayFadeLastTs = timestamp;
+  }
+  const dt = Math.min((timestamp - rayFadeLastTs) / 1000, 0.1);
+  rayFadeLastTs = timestamp;
+
+  let pending = false;
+  let changed = false;
+  GLOBE_ACTIVITY_SERIES_IDS.forEach((id) => {
+    const state = raySeriesFadeState[id];
+    if (!state || state.alpha === state.target) {
+      return;
+    }
+    const direction = Math.sign(state.target - state.alpha);
+    state.alpha = Math.min(1, Math.max(
+      0,
+      state.alpha + (direction * dt) / RAY_FADE_SECONDS,
+    ));
+    if ((direction > 0 && state.alpha > state.target)
+      || (direction < 0 && state.alpha < state.target)) {
+      state.alpha = state.target;
+    }
+    changed = true;
+    if (state.alpha === 0 && state.target === 0 && state.clearAtZero) {
+      state.clearAtZero = false;
+      state.lastData = [];
+      state.needsClear = true;
+    }
+    if (state.alpha !== state.target) {
+      pending = true;
+    }
+  });
+
+  // Apply every frame while fading (throttled), and always apply the final
+  // step so a fade never stalls one frame short of its target.
+  if (changed && (!pending || timestamp - rayFadeLastApply >= RAY_FADE_APPLY_MS)) {
+    rayFadeLastApply = timestamp;
+    applyRayFadeAlphas();
+  }
+
+  if (pending) {
+    rayFadeRafId = requestAnimationFrame(runRayFadeFrame);
+  } else {
+    rayFadeLastTs = 0;
+  }
+}
+
+function startRayFadeLoop() {
+  if (rayFadeRafId || typeof window === 'undefined' || document.hidden) {
+    return;
+  }
+  const pending = GLOBE_ACTIVITY_SERIES_IDS.some((id) => (
+    raySeriesFadeState[id]
+      && raySeriesFadeState[id].alpha !== raySeriesFadeState[id].target
+  ));
+  if (!pending) {
+    return;
+  }
+  rayFadeLastTs = 0;
+  rayFadeRafId = requestAnimationFrame(runRayFadeFrame);
+}
+
+function stopRayFadeLoop() {
+  if (rayFadeRafId) {
+    cancelAnimationFrame(rayFadeRafId);
+    rayFadeRafId = null;
+  }
+  rayFadeLastTs = 0;
 }
 
 function buildActivitySignature() {
@@ -820,8 +1010,62 @@ function clearParticleCanvas() {
   }
 }
 
+function isConnParticlesEnabled() {
+  return isGlobeActivityEffectsEnabled() && props.showConnParticles;
+}
+
+// 'in' = 从外向内聚拢（默认）；'out' = 从内向外发散。
+function getConnParticleDirection() {
+  return config.aobobo.globeConnParticleDirection === 'out' ? 'out' : 'in';
+}
+
+function isNetRaysEnabled() {
+  return isGlobeActivityEffectsEnabled() && props.showNetRays;
+}
+
+function hexToRgbChannels(color) {
+  const hex = String(color || '').trim().replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(hex) && !/^[0-9a-fA-F]{3}$/.test(hex)) {
+    return '255, 255, 255';
+  }
+  const full = hex.length === 3
+    ? hex.split('').map((char) => char + char).join('')
+    : hex;
+  const numeric = parseInt(full, 16);
+  const red = Math.floor(numeric / 65536) % 256;
+  const green = Math.floor(numeric / 256) % 256;
+  const blue = numeric % 256;
+  return `${red}, ${green}, ${blue}`;
+}
+
+// Pre-rendered radial-gradient sprite: a soft halo that fades to transparent.
+// One drawImage per particle is far cheaper than shadowBlur and looks smoother
+// than a hard-edged circle.
+function getParticleSprite(color) {
+  if (particleSpriteCache[color]) {
+    return particleSpriteCache[color];
+  }
+
+  const size = 64;
+  const center = size / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const rgb = hexToRgbChannels(color);
+  const gradient = ctx.createRadialGradient(center, center, 0, center, center, center);
+  gradient.addColorStop(0, `rgba(${rgb}, 0.9)`);
+  gradient.addColorStop(0.3, `rgba(${rgb}, 0.42)`);
+  gradient.addColorStop(0.65, `rgba(${rgb}, 0.12)`);
+  gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  particleSpriteCache[color] = canvas;
+  return canvas;
+}
+
 function paintConnectionParticles() {
-  if (!chart || !isGlobeActivityEffectsEnabled() || connectionParticles.length === 0) {
+  if (!chart || connectionParticles.length === 0 || particleCloudAlpha <= 0) {
     clearParticleCanvas();
     return;
   }
@@ -855,18 +1099,30 @@ function paintConnectionParticles() {
       return;
     }
 
-    // Fade in while approaching; only fade out once they are already at the node.
-    let alpha = 0.35 + particle.t * 0.55;
-    if (particle.t > 0.88) {
-      alpha *= (1 - particle.t) / 0.12;
+    // Silky lifecycle curve (fade-in near spawn, fade-out + shrink at the
+    // node, pool-build ramp) scaled by the whole-cloud toggle fade.
+    const visual = getConnectionParticleVisual(particle);
+    const alpha = visual.alpha * particleCloudAlpha;
+    if (alpha <= 0.01) {
+      return;
     }
-    const radius = particle.size * (0.7 + particle.t * 0.2);
+
     const color = particle.protocol === 'udp' ? colors.udp : colors.tcp;
+    const coreRadius = Math.max(0.4, particle.size * 0.62 * visual.scale);
+    const glowRadius = Math.max(coreRadius * 2, particle.size * 2.5 * visual.scale);
+
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.drawImage(
+      getParticleSprite(color),
+      position.x - glowRadius,
+      position.y - glowRadius,
+      glowRadius * 2,
+      glowRadius * 2,
+    );
 
     ctx.beginPath();
     ctx.fillStyle = color;
-    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-    ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+    ctx.arc(position.x, position.y, coreRadius, 0, Math.PI * 2);
     ctx.fill();
   });
 
@@ -883,7 +1139,7 @@ function stopConnectionParticleLoop() {
 
 function runConnectionParticleFrame(timestamp) {
   particleRafId = null;
-  if (!chart || !isGlobeActivityEffectsEnabled()) {
+  if (!chart || connectionParticles.length === 0) {
     clearParticleCanvas();
     return;
   }
@@ -900,8 +1156,32 @@ function runConnectionParticleFrame(timestamp) {
   const dt = Math.min((timestamp - particleLastTs) / 1000, 0.05);
   particleLastTs = timestamp;
 
+  if (particleCloudAlpha !== particleCloudTarget) {
+    const direction = Math.sign(particleCloudTarget - particleCloudAlpha);
+    particleCloudAlpha = Math.min(1, Math.max(
+      0,
+      particleCloudAlpha + (direction * dt) / PARTICLE_CLOUD_FADE_SECONDS,
+    ));
+    if ((direction > 0 && particleCloudAlpha > particleCloudTarget)
+      || (direction < 0 && particleCloudAlpha < particleCloudTarget)) {
+      particleCloudAlpha = particleCloudTarget;
+    }
+    // Fully faded out: park the loop until the cloud is wanted again.
+    if (particleCloudAlpha === 0 && particleCloudTarget === 0) {
+      clearParticleCanvas();
+      particleLastTs = 0;
+      return;
+    }
+  }
+
   if (!activityEffectsPaused) {
-    stepConnectionParticles(connectionParticles, dt, isMobile.value);
+    stepConnectionParticles(connectionParticles, dt, isMobile.value, getConnParticleDirection());
+    // All particles retired (locations went offline): park the loop.
+    if (connectionParticles.length === 0) {
+      clearParticleCanvas();
+      particleLastTs = 0;
+      return;
+    }
   }
 
   paintConnectionParticles();
@@ -917,17 +1197,31 @@ function startConnectionParticleLoop() {
 }
 
 function rebuildConnectionParticles(force = false) {
-  const signature = `${buildConnectionParticleSignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
+  const signature = `${buildConnectionParticleSignature()}#${props.theme}#${isMobile.value ? 1 : 0}#${getConnParticleDirection()}`;
   if (!force && signature === lastConnectionParticleSignature) {
     return;
   }
   lastConnectionParticleSignature = signature;
 
-  connectionParticles = buildConnectionParticlePool({
-    locations: props.locations,
-    isMobile: isMobile.value,
-    enabled: isGlobeActivityEffectsEnabled(),
-  });
+  particleCloudTarget = isConnParticlesEnabled() ? 1 : 0;
+
+  if (!isGlobeActivityEffectsEnabled()) {
+    connectionParticles = [];
+  } else {
+    // Diff-based reconcile: in-flight particles keep flying to their node;
+    // only count deltas spawn (fade in) or retire (finish their trip), so the
+    // cloud never restarts mid-journey when conn counts fluctuate.
+    connectionParticles = reconcileConnectionParticlePool(
+      connectionParticles,
+      planConnectionParticleGroups({
+        locations: props.locations,
+        isMobile: isMobile.value,
+        enabled: true,
+      }),
+      isMobile.value,
+      getConnParticleDirection(),
+    );
+  }
 
   if (connectionParticles.length === 0) {
     clearParticleCanvas();
@@ -935,7 +1229,9 @@ function rebuildConnectionParticles(force = false) {
     return;
   }
 
-  startConnectionParticleLoop();
+  if (particleCloudTarget > 0 || particleCloudAlpha > 0) {
+    startConnectionParticleLoop();
+  }
   paintConnectionParticles();
 }
 
@@ -971,27 +1267,12 @@ function setActivityEffectsPaused(paused) {
   }
 }
 
-function applyActivitySeries(force = false) {
-  if (!chart) {
-    return;
-  }
-
-  const signature = `${buildActivitySignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
-  if (!force && signature === lastActivitySignature) {
-    rebuildConnectionParticles(false);
-    return;
-  }
-  lastActivitySignature = signature;
-
-  // Any setOption re-renders GlobeView, which re-applies viewControl and does
-  // control.off('update') — wiping our marker listener and snapping the camera
-  // to a stale targetCoord mid auto-rotate. Sync the live camera into the option
-  // first so the re-apply is a no-op visually, then re-bind listeners.
+// Any setOption re-renders GlobeView, which re-applies viewControl and does
+// control.off('update') — wiping our marker listener and snapping the camera
+// to a stale targetCoord mid auto-rotate. Sync the live camera into the option
+// first so the re-apply is a no-op visually, then re-bind listeners.
+function setOptionPreservingView(option) {
   const liveView = syncCameraStateToRefs();
-  const option = {
-    series: getActivitySeriesOptions(),
-  };
-
   if (liveView) {
     option.globe = {
       viewControl: {
@@ -1012,6 +1293,24 @@ function applyActivitySeries(force = false) {
   orbitControl = null;
   attachMarkerUpdateListener();
   applyAutoRotateState();
+}
+
+function applyActivitySeries(force = false) {
+  if (!chart) {
+    return;
+  }
+
+  const signature = `${buildActivitySignature()}#${props.theme}#${isMobile.value ? 1 : 0}`;
+  if (!force && signature === lastActivitySignature) {
+    rebuildConnectionParticles(false);
+    return;
+  }
+  lastActivitySignature = signature;
+
+  setOptionPreservingView({
+    series: getActivitySeriesOptions(),
+  });
+  startRayFadeLoop();
   rebuildConnectionParticles(force);
 
   if (activityEffectsPaused) {
@@ -1235,6 +1534,7 @@ function applyThemeToGlobe() {
   // The offscreen GL canvas is also recreated, so re-attach the context-loss
   // listeners onto the new canvas.
   attachContextLossListeners();
+  startRayFadeLoop();
   if (activityEffectsPaused) {
     setActivityEffectsPaused(true);
   }
@@ -1815,6 +2115,7 @@ function teardownChartInstance() {
   clearInteractionSettleTimer();
   clearActivityEffectTimer();
   stopConnectionParticleLoop();
+  stopRayFadeLoop();
   clearParticleCanvas();
   connectionParticles = [];
   lastActivitySignature = '';
@@ -2255,6 +2556,8 @@ function initChart() {
     // the offscreen GL canvas and poll its health on an interval.
     attachContextLossListeners();
     rebuildConnectionParticles(true);
+    // Rays start at alpha 0 in the freshly built option; ease them in.
+    startRayFadeLoop();
   } catch (error) {
     console.error('Globe initialization failed:', error);
     initError.value = true;
@@ -2304,6 +2607,36 @@ watch(() => config.aobobo.globeActivityEffects, () => {
     return;
   }
   scheduleActivitySeriesUpdate(true);
+});
+
+watch(() => config.aobobo.globeConnParticleDirection, () => {
+  if (!chart) {
+    return;
+  }
+  // In-flight particles finish their current journey and respawn in the new
+  // direction; reconcile only picks up the signature change.
+  rebuildConnectionParticles(true);
+});
+
+watch(() => props.showConnParticles, () => {
+  if (!chart) {
+    return;
+  }
+  // The pool survives while hidden; this only syncs the cloud-alpha target so
+  // re-showing eases the existing cloud back in instead of rebuilding it.
+  rebuildConnectionParticles(true);
+});
+
+watch(() => props.showNetRays, () => {
+  if (!chart) {
+    return;
+  }
+  // Slim path (not applyActivitySeries): only the ray fade targets change, so
+  // the connection-particle pool must not be rebuilt alongside.
+  setOptionPreservingView({
+    series: getActivitySeriesOptions(),
+  });
+  startRayFadeLoop();
 });
 
 watch(() => props.autoRotate, () => {
@@ -2430,6 +2763,7 @@ onDeactivated(() => {
   clearRevealTimer();
   clearActivityEffectTimer();
   stopConnectionParticleLoop();
+  stopRayFadeLoop();
   clearFocusBubble();
 });
 

@@ -1,7 +1,7 @@
 /**
  * Globe activity visuals:
  * - TCP/UDP: canvas particles converging into nodes (not line trails)
- * - Traffic: short radial lines3D rays for net in/out speed
+ * - Traffic: fountain-style curved lines3D rays for net in/out speed
  *
  * Peer endpoints are unavailable from Nezha metrics, so particle origins are
  * stable pseudo-random directions around each node (visual cue only).
@@ -28,13 +28,20 @@ const ARC_MAX_DEG = 12;
 const ARC_MIN_DEG_MOBILE = 6;
 const ARC_MAX_DEG_MOBILE = 14;
 
-// Traffic rays: radial altitude (0..1 mapped by altitudeAxis).
-const RAY_ALT_MIN = 0.52;
-const RAY_ALT_MAX = 0.82;
-const RAY_SPREAD_DEG = 0.7;
-const RAY_ALT_MIN_MOBILE = 0.72;
-const RAY_ALT_MAX_MOBILE = 0.98;
-const RAY_SPREAD_DEG_MOBILE = 1.15;
+// Traffic rays: radial altitude (0..1 mapped by altitudeAxis) and lateral
+// spread of the ray tip (degrees). Rays leave the node near-vertically then
+// arc smoothly outward — a soft spray rather than straight vertical needles.
+const RAY_ALT_MIN = 0.42;
+const RAY_ALT_MAX = 0.72;
+const RAY_SPREAD_DEG = 2.1;
+const RAY_SPREAD_MIN_DEG = 0.3;
+const RAY_ALT_MIN_MOBILE = 0.55;
+const RAY_ALT_MAX_MOBILE = 0.85;
+const RAY_SPREAD_DEG_MOBILE = 3;
+const RAY_SPREAD_MIN_DEG_MOBILE = 0.4;
+// Each ray's quadratic bezier is sampled into this many segments: a 3-point
+// polyline renders as a kinked wire, not a curve.
+const RAY_CURVE_SEGMENTS = 9;
 
 function getLengthParams(isMobile = false) {
   if (isMobile) {
@@ -44,6 +51,7 @@ function getLengthParams(isMobile = false) {
       rayAltMin: RAY_ALT_MIN_MOBILE,
       rayAltMax: RAY_ALT_MAX_MOBILE,
       raySpread: RAY_SPREAD_DEG_MOBILE,
+      raySpreadMin: RAY_SPREAD_MIN_DEG_MOBILE,
     };
   }
   return {
@@ -52,6 +60,7 @@ function getLengthParams(isMobile = false) {
     rayAltMin: RAY_ALT_MIN,
     rayAltMax: RAY_ALT_MAX,
     raySpread: RAY_SPREAD_DEG,
+    raySpreadMin: RAY_SPREAD_MIN_DEG,
   };
 }
 
@@ -181,25 +190,42 @@ function buildTrafficRays(activity, direction, count, isMobile = false) {
     return [];
   }
 
-  const { rayAltMin, rayAltMax, raySpread } = getLengthParams(isMobile);
+  const { rayAltMin, rayAltMax, raySpread, raySpreadMin } = getLengthParams(isMobile);
   const rays = [];
   const rand = mulberry32(hashString(`${activity.key}:${direction}:ray`));
 
   for (let i = 0; i < count; i += 1) {
     const bearing = rand() * 360;
-    const spread = 0.08 + rand() * raySpread;
+    const spread = raySpreadMin + rand() * raySpread;
+    const spreadRatio = (spread - raySpreadMin) / raySpread;
     const tip = offsetLatLng(activity.lat, activity.lng, bearing, spread);
-    const alt = rayAltMin + rand() * (rayAltMax - rayAltMin);
-    const base = [activity.lng, activity.lat, 0.02];
-    const mid = [
-      activity.lng * 0.65 + tip.lng * 0.35,
-      activity.lat * 0.65 + tip.lat * 0.35,
-      alt * 0.55,
-    ];
-    const far = [tip.lng, tip.lat, alt];
+    // Outer rays arc a little lower, like a real spray.
+    const alt = (rayAltMin + rand() * (rayAltMax - rayAltMin)) * (1 - 0.28 * spreadRatio);
+
+    // Quadratic bezier base→ctrl→tip: the control point sits mostly above the
+    // node, so the ray leaves near-vertically then bends outward in one smooth
+    // arc (sampled below — lines3D polyline is straight segments, not curves).
+    const dLng = normalizeLng(tip.lng - activity.lng);
+    const dLat = tip.lat - activity.lat;
+    const lean = 0.06 + rand() * 0.14;
+    const ctrlLng = activity.lng + dLng * lean;
+    const ctrlLat = activity.lat + dLat * lean;
+    const ctrlAlt = alt * (0.55 + rand() * 0.15);
+    const tipLng = activity.lng + dLng; // unwrap before interpolating
+
+    const coords = [];
+    for (let s = 0; s <= RAY_CURVE_SEGMENTS; s += 1) {
+      const t = s / RAY_CURVE_SEGMENTS;
+      const u = 1 - t;
+      coords.push([
+        normalizeLng((u * u * activity.lng) + (2 * u * t * ctrlLng) + (t * t * tipLng)),
+        (u * u * activity.lat) + (2 * u * t * ctrlLat) + (t * t * tip.lat),
+        (u * u * 0.02) + (2 * u * t * ctrlAlt) + (t * t * alt),
+      ]);
+    }
 
     rays.push({
-      coords: direction === 'in' ? [far, mid, base] : [base, mid, far],
+      coords: direction === 'in' ? coords.reverse() : coords,
     });
   }
 
@@ -236,13 +262,13 @@ function createRaySeries(id, color, data, theme = 'dark', isMobile = false) {
     lineStyle: {
       width: lineWidth,
       color,
-      opacity: isLight ? 0.38 : 0.28,
+      opacity: isLight ? 0.3 : 0.22,
     },
     effect: {
       show: data.length > 0,
       constantSpeed: isMobile ? 26 : 22,
       trailWidth,
-      trailLength: isMobile ? 0.42 : 0.36,
+      trailLength: isMobile ? 0.46 : 0.4,
       trailColor: color,
       trailOpacity: isLight ? 0.85 : 0.8,
       spotIntensity: 4,
@@ -335,8 +361,8 @@ export function buildActivitySeriesOptions({
 } = {}) {
   const isLight = theme === 'light';
   const palette = {
-    tcp: colors?.tcp || (isLight ? '#5eb3c9' : '#5eead4'),
-    udp: colors?.udp || (isLight ? '#a78bfa' : '#f0abfc'),
+    tcp: colors?.tcp || (isLight ? '#e08e00' : '#5eead4'),
+    udp: colors?.udp || (isLight ? '#ffc44d' : '#f0abfc'),
     netIn: colors?.netIn || (isLight ? '#f0a07a' : '#f5b199'),
     netOut: colors?.netOut || (isLight ? '#8fa2f5' : '#89c3eb'),
   };
@@ -372,6 +398,47 @@ function easeOutQuad(t) {
   return 1 - (1 - x) * (1 - x);
 }
 
+function easeInQuad(t) {
+  const x = clamp(t, 0, 1);
+  return x * x;
+}
+
+// Decelerate into the node when converging ('in'), accelerate away from it
+// when diverging ('out').
+function easeParticleMotion(t, direction) {
+  return direction === 'out' ? easeInQuad(t) : easeOutQuad(t);
+}
+
+function smoothstep(edge0, edge1, x) {
+  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+// Seconds for a freshly built particle to reach full brightness. Pool rebuilds
+// stagger particles mid-flight, so without this they would pop in at once.
+const PARTICLE_BUILD_FADE_SECONDS = 0.9;
+const PARTICLE_PEAK_ALPHA = 0.92;
+
+/**
+ * Silky per-particle visuals: smoothstep fade-in after (re)spawn, then full
+ * brightness until the particle actually reaches the node — the fade-out and
+ * shrink only kick in over the final approach (t 0.9→1, i.e. the last ~1% of
+ * the eased path), so every journey visibly completes instead of vanishing
+ * just short of the marker.
+ * @param {object} particle
+ * @returns {{ alpha: number, scale: number }}
+ */
+export function getConnectionParticleVisual(particle) {
+  const t = clamp(Number(particle?.t) || 0, 0, 1);
+  const fadeIn = smoothstep(0.02, 0.14, t);
+  const fadeOut = 1 - smoothstep(0.9, 1, t);
+  const buildFade = clamp(Number(particle?.fade ?? 1) || 0, 0, 1);
+  return {
+    alpha: PARTICLE_PEAK_ALPHA * fadeIn * fadeOut * buildFade,
+    scale: (0.75 + t * 0.25) * (1 - 0.45 * smoothstep(0.88, 1, t)),
+  };
+}
+
 function bezierLat(start, ctrl, dest, t) {
   const u = 1 - t;
   return (u * u * start) + (2 * u * t * ctrl) + (t * t * dest);
@@ -400,27 +467,38 @@ function pickApproachBearing(rand, lastBearing) {
   return normalizeLng(lastBearing + 90 + rand() * 180);
 }
 
-function assignParticlePath(particle, rand, isMobile) {
+function assignParticlePath(particle, rand, isMobile, direction = 'in') {
   const { arcMin, arcMax } = getLengthParams(isMobile);
   const bearing = pickApproachBearing(rand, particle.lastBearing);
   const distance = arcMin + rand() * (arcMax - arcMin);
-  const start = offsetLatLng(particle.destLat, particle.destLng, bearing, distance);
+  const far = offsetLatLng(particle.nodeLat, particle.nodeLng, bearing, distance);
 
-  const dLat = particle.destLat - start.lat;
-  const dLng = normalizeLng(particle.destLng - start.lng);
+  const dLat = far.lat - particle.nodeLat;
+  const dLng = normalizeLng(far.lng - particle.nodeLng);
   const len = Math.hypot(dLat, dLng) || 1;
   const side = rand() < 0.5 ? 1 : -1;
   // Lateral bend so paths are arcs, not identical radial lines.
   const bend = (0.18 + rand() * 0.62) * side * len;
-  const midLat = start.lat + dLat * (0.35 + rand() * 0.3);
-  const midLng = normalizeLng(start.lng + dLng * (0.35 + rand() * 0.3));
+  const midLat = particle.nodeLat + dLat * (0.35 + rand() * 0.3);
+  const midLng = normalizeLng(particle.nodeLng + dLng * (0.35 + rand() * 0.3));
 
-  particle.startLat = start.lat;
-  particle.startLng = start.lng;
   particle.ctrlLat = midLat + (-dLng / len) * bend;
   particle.ctrlLng = normalizeLng(midLng + (dLat / len) * bend);
-  particle.lat = start.lat;
-  particle.lng = start.lng;
+  if (direction === 'out') {
+    // Diverge: spawn at the node and fly outward to the far point.
+    particle.startLat = particle.nodeLat;
+    particle.startLng = particle.nodeLng;
+    particle.destLat = far.lat;
+    particle.destLng = far.lng;
+  } else {
+    // Converge (default): spawn at the far point and fall into the node.
+    particle.startLat = far.lat;
+    particle.startLng = far.lng;
+    particle.destLat = particle.nodeLat;
+    particle.destLng = particle.nodeLng;
+  }
+  particle.lat = particle.startLat;
+  particle.lng = particle.startLng;
   particle.t = 0;
   particle.lastBearing = bearing;
   // Long enough that a full approach is visible before respawn.
@@ -429,10 +507,12 @@ function assignParticlePath(particle, rand, isMobile) {
 }
 
 /**
- * Build a mutable pool of connection particles that converge into nodes.
- * @returns {Array<object>}
+ * Plan the desired connection-particle groups (per location + protocol) with
+ * the global cap applied. Drives both pool reconciliation and the change
+ * signature, so count changes never touch particles whose density did not move.
+ * @returns {Array<{ key: string, lat: number, lng: number, protocol: string, count: number }>}
  */
-export function buildConnectionParticlePool({
+export function planConnectionParticleGroups({
   locations,
   isMobile = false,
   enabled = true,
@@ -444,9 +524,7 @@ export function buildConnectionParticlePool({
   const particleCap = isMobile ? GLOBAL_PARTICLE_CAP_MOBILE : GLOBAL_PARTICLE_CAP_DESKTOP;
   const planned = planLocationEffects(locations, isMobile);
   let remaining = particleCap;
-  const particles = [];
-  // Fresh salt each rebuild so paths are not identical across pool rebuilds.
-  const poolSalt = `${Date.now().toString(36)}:${Math.floor(Math.random() * 1e9)}`;
+  const groups = [];
 
   planned.forEach((item) => {
     if (remaining <= 0 || item.connTotal <= 0) {
@@ -455,62 +533,151 @@ export function buildConnectionParticlePool({
     const scaled = scaleCounts(item, remaining, ['tcpCount', 'udpCount']);
     ['tcp', 'udp'].forEach((protocol) => {
       const count = protocol === 'tcp' ? scaled.tcpCount : scaled.udpCount;
-      for (let i = 0; i < count; i += 1) {
-        const rand = mulberry32(hashString(`${item.activity.key}:${protocol}:p:${i}:${poolSalt}`));
-        const particle = {
-          protocol,
-          destLat: item.activity.lat,
-          destLng: item.activity.lng,
-          startLat: item.activity.lat,
-          startLng: item.activity.lng,
-          ctrlLat: item.activity.lat,
-          ctrlLng: item.activity.lng,
+      if (count > 0) {
+        groups.push({
+          key: item.activity.key,
           lat: item.activity.lat,
           lng: item.activity.lng,
-          lastBearing: null,
-          t: 0,
-          duration: 1.8,
-          size: 1.4,
-        };
-        assignParticlePath(particle, rand, isMobile);
-        // Stagger so the cloud is already in motion (keep clear of the fade-out tail).
-        particle.t = rand() * 0.82;
-        const eased = easeOutQuad(particle.t);
-        particle.lat = bezierLat(particle.startLat, particle.ctrlLat, particle.destLat, eased);
-        particle.lng = bezierLng(particle.startLng, particle.ctrlLng, particle.destLng, eased);
-        particles.push(particle);
+          protocol,
+          count,
+        });
       }
     });
     remaining -= scaled.tcpCount + scaled.udpCount;
   });
 
-  return particles;
+  return groups;
+}
+
+function createConnectionParticle(group, isMobile, direction = 'in') {
+  const particle = {
+    protocol: group.protocol,
+    groupKey: `${group.key}:${group.protocol}`,
+    nodeLat: group.lat,
+    nodeLng: group.lng,
+    destLat: group.lat,
+    destLng: group.lng,
+    startLat: group.lat,
+    startLng: group.lng,
+    ctrlLat: group.lat,
+    ctrlLng: group.lng,
+    lat: group.lat,
+    lng: group.lng,
+    lastBearing: null,
+    t: 0,
+    duration: 1.8,
+    size: 1.4,
+    fade: 0,
+    retire: false,
+  };
+  // True random each spawn — avoids looping the same few inbound tracks.
+  assignParticlePath(particle, Math.random, isMobile, direction);
+  // Stagger so a fresh cloud is already in motion (keep clear of the fade-out tail).
+  particle.t = Math.random() * 0.82;
+  const eased = easeParticleMotion(particle.t, direction);
+  particle.lat = bezierLat(particle.startLat, particle.ctrlLat, particle.destLat, eased);
+  particle.lng = bezierLng(particle.startLng, particle.ctrlLng, particle.destLng, eased);
+  return particle;
 }
 
 /**
- * Advance particles toward their destinations; respawn on arrival.
- * @param {Array<object>} particles
+ * Reconcile a live pool toward the planned groups WITHOUT wiping in-flight
+ * particles: matching particles keep flying, retiring ones are revived first,
+ * only the deficit spawns anew, and surplus particles finish their current
+ * journey (retire) instead of vanishing mid-flight.
+ * @param {Array<object>} particles mutated in place
+ * @param {Array<object>} groups from planConnectionParticleGroups
+ * @param {boolean} [isMobile]
+ * @param {string} [direction] 'in' (converge) | 'out' (diverge)
+ * @returns {Array<object>} the same array
+ */
+export function reconcileConnectionParticlePool(particles, groups, isMobile = false, direction = 'in') {
+  const pool = Array.isArray(particles) ? particles : [];
+  const byGroup = new Map();
+  pool.forEach((particle) => {
+    if (!byGroup.has(particle.groupKey)) {
+      byGroup.set(particle.groupKey, []);
+    }
+    byGroup.get(particle.groupKey).push(particle);
+  });
+
+  const wanted = new Set();
+  (groups || []).forEach((group) => {
+    const id = `${group.key}:${group.protocol}`;
+    wanted.add(id);
+    const existing = byGroup.get(id) || [];
+    const active = existing.filter((particle) => !particle.retire);
+    const retiring = existing.filter((particle) => particle.retire);
+
+    let deficit = group.count - active.length;
+    // Revive retiring particles first — the cheapest way to regain density.
+    while (deficit > 0 && retiring.length > 0) {
+      retiring.pop().retire = false;
+      deficit -= 1;
+    }
+    // Keep the node anchor in sync (coords are stable per key, but stay safe).
+    existing.forEach((particle) => {
+      particle.nodeLat = group.lat;
+      particle.nodeLng = group.lng;
+    });
+    for (let i = 0; i < deficit; i += 1) {
+      pool.push(createConnectionParticle(group, isMobile, direction));
+    }
+    if (deficit < 0) {
+      // Surplus: retire the ones nearest arrival so they exit soonest.
+      active
+        .slice()
+        .sort((a, b) => b.t - a.t)
+        .slice(0, -deficit)
+        .forEach((particle) => {
+          particle.retire = true;
+        });
+    }
+  });
+
+  // Groups that disappeared entirely: let their particles complete the trip.
+  pool.forEach((particle) => {
+    if (!wanted.has(particle.groupKey)) {
+      particle.retire = true;
+    }
+  });
+
+  return pool;
+}
+
+/**
+ * Advance particles toward their destinations; respawn on arrival, prune
+ * retired particles once their final journey completes.
+ * @param {Array<object>} particles mutated in place
  * @param {number} dtSeconds
  * @param {boolean} [isMobile]
+ * @param {string} [direction] 'in' (converge) | 'out' (diverge)
  */
-export function stepConnectionParticles(particles, dtSeconds, isMobile = false) {
+export function stepConnectionParticles(particles, dtSeconds, isMobile = false, direction = 'in') {
   if (!Array.isArray(particles) || particles.length === 0 || dtSeconds <= 0) {
     return;
   }
 
   const dt = Math.min(dtSeconds, 0.05);
-  particles.forEach((particle) => {
+  for (let i = particles.length - 1; i >= 0; i -= 1) {
+    const particle = particles[i];
+    // Post-build brightness ramp; respawns keep the fade they already earned.
+    particle.fade = Math.min(1, (Number(particle.fade) || 0) + dt / PARTICLE_BUILD_FADE_SECONDS);
     particle.t += dt / particle.duration;
     if (particle.t >= 1) {
-      // True random each life — avoids looping the same few inbound tracks.
-      assignParticlePath(particle, Math.random, isMobile);
-      return;
+      if (particle.retire) {
+        // Final journey complete — remove instead of respawning.
+        particles.splice(i, 1);
+      } else {
+        assignParticlePath(particle, Math.random, isMobile, direction);
+      }
+    } else {
+      // Ease along the path: decelerate on approach ('in'), accelerate away ('out').
+      const eased = easeParticleMotion(particle.t, direction);
+      particle.lat = bezierLat(particle.startLat, particle.ctrlLat, particle.destLat, eased);
+      particle.lng = bezierLng(particle.startLng, particle.ctrlLng, particle.destLng, eased);
     }
-    // Ease-out: linger near the node so the approach finishes before fade/respawn.
-    const eased = easeOutQuad(particle.t);
-    particle.lat = bezierLat(particle.startLat, particle.ctrlLat, particle.destLat, eased);
-    particle.lng = bezierLng(particle.startLng, particle.ctrlLng, particle.destLng, eased);
-  });
+  }
 }
 
 /**

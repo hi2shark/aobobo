@@ -123,7 +123,9 @@ function handleSpeedInput(event) {
 
   &.is-embedded {
     display: flex;
-    width: 100%;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
     gap: 6px;
     padding: 0;
     border: none;
@@ -179,10 +181,16 @@ function handleSpeedInput(event) {
   }
 
   .is-embedded & {
-    min-height: 26px;
-    padding: 0 8px 0 6px;
+    min-height: 24px;
+    padding: 0 7px;
     font-size: 10.5px;
     border-radius: 8px;
+
+    // Compact single-row layout: icon-only toggle, the tooltip/aria-label
+    // still carries the meaning.
+    span {
+      display: none;
+    }
   }
 }
 
@@ -229,6 +237,14 @@ function handleSpeedInput(event) {
     min-width: 0;
   }
 
+  // Compact single-row layout: the slider speaks for itself — hide the speed
+  // icon and the numeric readout (still exposed via the range aria-label) so
+  // the slider keeps a usable width.
+  .is-embedded & > i,
+  .is-embedded & .rotation-speed__value {
+    display: none;
+  }
+
   > i {
     font-size: 13px;
     line-height: 1;
@@ -242,7 +258,7 @@ function handleSpeedInput(event) {
   .is-embedded & {
     flex: 1 1 auto;
     width: auto;
-    min-width: 0;
+    min-width: 30px;
   }
   height: 18px;
   margin: 0;

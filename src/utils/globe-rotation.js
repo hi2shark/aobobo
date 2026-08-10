@@ -19,13 +19,15 @@ function clampSpeed(value) {
 }
 
 /**
- * @returns {{ autoRotate: boolean, rotateSpeed: number }}
+ * @returns {{ autoRotate: boolean, rotateSpeed: number, showConnParticles: boolean, showNetRays: boolean }}
  */
 export function loadGlobeRotation() {
   if (typeof window === 'undefined') {
     return {
       autoRotate: DEFAULT_AUTO_ROTATE,
       rotateSpeed: DEFAULT_ROTATE_SPEED,
+      showConnParticles: true,
+      showNetRays: true,
     };
   }
 
@@ -35,6 +37,8 @@ export function loadGlobeRotation() {
       return {
         autoRotate: DEFAULT_AUTO_ROTATE,
         rotateSpeed: DEFAULT_ROTATE_SPEED,
+        showConnParticles: true,
+        showNetRays: true,
       };
     }
     const parsed = JSON.parse(raw);
@@ -42,22 +46,28 @@ export function loadGlobeRotation() {
       return {
         autoRotate: DEFAULT_AUTO_ROTATE,
         rotateSpeed: DEFAULT_ROTATE_SPEED,
+        showConnParticles: true,
+        showNetRays: true,
       };
     }
     return {
       autoRotate: parsed.autoRotate !== false,
       rotateSpeed: clampSpeed(parsed.rotateSpeed),
+      showConnParticles: parsed.showConnParticles !== false,
+      showNetRays: parsed.showNetRays !== false,
     };
   } catch {
     return {
       autoRotate: DEFAULT_AUTO_ROTATE,
       rotateSpeed: DEFAULT_ROTATE_SPEED,
+      showConnParticles: true,
+      showNetRays: true,
     };
   }
 }
 
 /**
- * @param {{ autoRotate?: boolean, rotateSpeed?: number }} prefs
+ * @param {{ autoRotate?: boolean, rotateSpeed?: number, showConnParticles?: boolean, showNetRays?: boolean }} prefs
  */
 export function persistGlobeRotation(prefs) {
   if (typeof window === 'undefined' || !prefs) {
@@ -71,6 +81,8 @@ export function persistGlobeRotation(prefs) {
         v: GLOBE_ROTATION_STORAGE_VERSION,
         autoRotate: prefs.autoRotate !== false,
         rotateSpeed: clampSpeed(prefs.rotateSpeed),
+        showConnParticles: prefs.showConnParticles !== false,
+        showNetRays: prefs.showNetRays !== false,
       }),
     );
   } catch {

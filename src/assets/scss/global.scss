@@ -372,9 +372,10 @@ html[data-theme='light'] {
   --net-speed-out-color: #4383ff;
   --conn-tcp-color: #4383ff;
   --conn-udp-color: var(--accent-primary);
-  /* Soft cyan / lavender particles — distinct from peach/periwinkle traffic rays. */
-  --globe-effect-tcp: #5eb3c9;
-  --globe-effect-udp: #a78bfa;
+  /* Amber / gold particles — same family as the online marker (#ffae00) but
+     deliberately off its exact tone; rays keep their peach/periwinkle hues. */
+  --globe-effect-tcp: #e08e00;
+  --globe-effect-udp: #ffc44d;
   --globe-effect-net-in: #f0a07a;
   --globe-effect-net-out: #8fa2f5;
   --load-color: #2a9fd6;

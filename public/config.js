@@ -28,6 +28,8 @@ window.$$aoboboConfig = {
 
   // 首页地球节点连接汇入 / 流量射线特效（默认开启）
   // globeActivityEffects: true,
+  // 连接数粒子方向：in = 从外向内聚拢（默认）；out = 从内向外发散
+  // globeConnParticleDirection: 'in',
 
   // GPU 名称中包含以下关键字时过滤掉
   // filterGPUKeywords: ['Virtual Display'],
