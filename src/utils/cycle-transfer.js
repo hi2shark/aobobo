@@ -371,6 +371,55 @@ async function loadV1CycleTransferMap() {
   return normalizeV1CycleTransferMap(cycleTransferStats);
 }
 
+// santaizi 公开接口返回按策略平铺的数组，复用 v1 的条目构建逻辑
+async function loadStzCycleTransferMap(serverList = []) {
+  let url = config.aobobo.stzApiCycleTransferPath;
+  if (serverList.length === 1 && serverList[0]?.ID) {
+    url += `${url.includes('?') ? '&' : '?'}server_id=${encodeURIComponent(serverList[0].ID)}`;
+  }
+  const res = await request({
+    url,
+    type: 'GET',
+  });
+  if (!res || res.status !== 200) {
+    return {};
+  }
+
+  const list = res.data?.data;
+  if (!Array.isArray(list)) {
+    return {};
+  }
+
+  const byServerId = {};
+  list.forEach((item) => {
+    const serverKey = String(item?.server_id ?? '');
+    const usedValue = Number(item?.used_bytes);
+    if (!serverKey || !Number.isFinite(usedValue)) {
+      return;
+    }
+    const statsLike = {
+      name: item?.name,
+      max: item?.quota_bytes,
+      min: item?.warning_bytes,
+      from: item?.window_start,
+      to: item?.window_end,
+      next_update: { [serverKey]: item?.next_reset_at },
+    };
+    if (!byServerId[serverKey]) {
+      byServerId[serverKey] = [];
+    }
+    const cycleItem = buildCycleTransferItem(item?.policy_id ?? item?.name, statsLike, serverKey, usedValue);
+    cycleItem.source = 'santaizi';
+    byServerId[serverKey].push(cycleItem);
+  });
+
+  Object.keys(byServerId).forEach((serverId) => {
+    byServerId[serverId] = sortCycleTransferList(byServerId[serverId]);
+  });
+
+  return byServerId;
+}
+
 async function loadV0CycleTransferMap(serverList) {
   const res = await fetch(getV0ServiceUrl());
   if (!res.ok) {
@@ -384,6 +433,9 @@ async function loadV0CycleTransferMap(serverList) {
 export async function loadCycleTransferMap(serverList = []) {
   if (config.aobobo.nezhaVersion === 'v1') {
     return loadV1CycleTransferMap();
+  }
+  if (config.aobobo.nezhaVersion === 'santaizi') {
+    return loadStzCycleTransferMap(serverList);
   }
   return loadV0CycleTransferMap(serverList);
 }

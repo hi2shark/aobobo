@@ -186,6 +186,7 @@ const store = useStore();
 const userLogin = computed(() => store.state.profile?.username);
 const chartMode = computed(() => store.state.resolvedTheme || 'dark');
 const isV1 = computed(() => config.aobobo.nezhaVersion === 'v1');
+const isStz = computed(() => config.aobobo.nezhaVersion === 'santaizi');
 const canUseLongPeriods = computed(() => !!userLogin.value && hasTsdb(store));
 
 const minute = ref(1440);
@@ -445,12 +446,14 @@ async function loadMonitor() {
     } else {
       url = config.aobobo.v1ApiMonitorPathFallback.replace('{id}', props.info.ID);
     }
+  } else if (isStz.value) {
+    url = config.aobobo.stzApiNetworkPath.replace('{id}', props.info.ID);
   } else {
     url = config.aobobo.apiMonitorPath.replace('{id}', props.info.ID);
   }
   try {
     const res = await request({ url });
-    const list = isV1.value ? res?.data?.data : res?.data?.result;
+    const list = (isV1.value || isStz.value) ? res?.data?.data : res?.data?.result;
     if (Array.isArray(list)) {
       monitorData.value = list;
     }

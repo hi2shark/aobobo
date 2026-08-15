@@ -9,6 +9,7 @@ import {
 import loadNezhaV0Config, {
   loadServerGroup as loadNezhaV0ServerGroup,
 } from '@/utils/load-nezha-v0-config';
+import loadStzBootstrap from '@/utils/load-stz-config';
 import loadAvailability from '@/utils/load-availability';
 import { msg } from '@/ws';
 import {
@@ -190,6 +191,22 @@ const store = createStore({
     },
     async initServerInfo({ commit }, params) {
       firstSetServers = true;
+      if (config.aobobo.nezhaVersion === 'santaizi') {
+        const { route } = params || {};
+        loadStzBootstrap().then((res) => {
+          if (!res) return;
+          commit('SET_SETTING', { site_name: res.brand });
+          // 仅在未通过运行时配置指定标题时，才使用后端的品牌名
+          if (!(window.$$aoboboConfig?.title ?? window.$$nazhuaConfig?.title) && res.brand) {
+            config.aobobo.title = res.brand;
+            if (route?.name === 'Home' || !route) {
+              document.title = res.brand;
+            }
+          }
+        });
+        // 服务器列表由 WS 推送；分组在首帧后按 Tag 派生（见 watchWsMsg）
+        return;
+      }
       if (config.aobobo.nezhaVersion === 'v1') {
         const { route } = params || {};
         loadNezhaV1ServerGroup().then((res) => {

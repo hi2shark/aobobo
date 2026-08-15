@@ -11,7 +11,7 @@ AoBoBo 通过 `config.js` 注入运行时常量，部署时只需替换该文件
 | 配置项 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `title` | `string` | `'哪吒监控'` | 网站标题，会显示在浏览器标签页与页面头部。 |
-| `nezhaVersion` | `'v0' / 'v1' / null` | `null` | 强制指定哪吒版本。`v0` 使用页面抓取 + WS，`v1` 使用 REST API + WS；不填则运行时自动探测。 |
+| `nezhaVersion` | `'v0' / 'v1' / 'santaizi' / null` | `null` | 强制指定后端兼容版本。`v0` 使用页面抓取 + WS，`v1` 使用 REST API + WS，`santaizi` 适配三太子公开 API（`/api/v2/public/*`）；不填则运行时自动探测。 |
 
 ## 监控与详情页
 
@@ -75,6 +75,24 @@ AoBoBo 通过 `config.js` 注入运行时常量，部署时只需替换该文件
 | `v1DashboardUrl` | `string` | `'/dashboard'` | v1 版本管理后台地址，顶部登录入口跳转目标。 |
 | `v1HideNezhaDashboardBtn` | `boolean` | `false` | 是否隐藏顶部的管理后台/登录入口。仅在 `nezhaVersion` 为 `v1` 时生效。 |
 
+## santaizi（三太子）接口路径（一般无需修改）
+
+仅在 `nezhaVersion` 为 `'santaizi'` 时生效，对应三太子公开 API（`/api/v2/public/*`）。
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `stzBootstrapPath` | `string` | `'/api/v2/public/bootstrap'` | santaizi 站点引导配置接口路径，用于版本自动探测与站点标题。 |
+| `stzWsPath` | `string` | `'/ws/v2/public/runtime'` | santaizi WebSocket 实时数据路径。 |
+| `stzApiNetworkPath` | `string` | `'/api/v2/public/network/{id}'` | santaizi 网络监控（延迟）历史接口路径，`{id}` 为服务器 ID 占位符。 |
+| `stzApiMetricsPath` | `string` | `'/api/v2/public/metrics/{id}'` | santaizi 资源历史（CPU/内存/磁盘/网速）接口路径，`{id}` 为服务器 ID 占位符。 |
+| `stzApiCycleTransferPath` | `string` | `'/api/v2/public/cycle-transfer'` | santaizi 周期流量接口路径，单服务器查询时自动附加 `server_id` 参数。 |
+
+说明：
+
+- 服务器分组由 `tag` 字段在前端派生，无需单独接口。
+- 可用性数据沿用 v0 兼容接口 `/api/v1/server/availability`，设置 `showAvailability: true` 后启用。
+- 资源历史的时间范围：24 小时内使用 `1m` 粒度，7 天/30 天自动改用 `1h` 粒度。
+
 ---
 
 ## 完整示例
@@ -124,6 +142,13 @@ window.$$aoboboConfig = {
 
   v1DashboardUrl: '/dashboard',
   v1HideNezhaDashboardBtn: false,
+
+  // santaizi（nezhaVersion: 'santaizi' 时生效）
+  stzBootstrapPath: '/api/v2/public/bootstrap',
+  stzWsPath: '/ws/v2/public/runtime',
+  stzApiNetworkPath: '/api/v2/public/network/{id}',
+  stzApiMetricsPath: '/api/v2/public/metrics/{id}',
+  stzApiCycleTransferPath: '/api/v2/public/cycle-transfer',
 };
 ```
 

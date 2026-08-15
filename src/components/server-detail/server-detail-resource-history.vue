@@ -201,13 +201,16 @@ const chartMode = computed(() => store.state.resolvedTheme || 'dark');
 const userLogin = computed(() => store.state.profile?.username);
 const serverId = computed(() => props.info?.ID);
 const tsdbEnabled = computed(() => isTsdbEnabled(store));
-const canUseLongPeriods = computed(() => !!userLogin.value && hasTsdb(store));
+const isStz = computed(() => config.aobobo.nezhaVersion === 'santaizi');
+const canUseLongPeriods = computed(() => (!!userLogin.value && hasTsdb(store)) || isStz.value);
 const availableTimeRanges = computed(() => TIME_RANGE_OPTIONS.filter((item) => {
   if (item.period !== '1d') return canUseLongPeriods.value;
   if (item.hideWhenLong && canUseLongPeriods.value) return false;
   return true;
 }));
-const isSupported = computed(() => config.aobobo.nezhaVersion === 'v1' && tsdbEnabled.value);
+const isSupported = computed(() => (
+  (config.aobobo.nezhaVersion === 'v1' && tsdbEnabled.value) || isStz.value
+));
 const timeRange = ref(readStoredTimeRange());
 const metricHistory = ref(createEmptyMetricMap());
 const loading = ref(false);
@@ -486,10 +489,12 @@ async function loadMetrics(options = {}) {
 
   try {
     const fetchPeriod = getFetchPeriod(timeRange.value);
-    const metricEntries = await Promise.all(METRIC_KEYS.map(async (metricKey) => {
-      const history = await loadMetricHistory(currentServerId, metricKey, fetchPeriod);
-      return [metricKey, normalizeMetricHistory(metricKey, history)];
-    }));
+    const metricEntries = isStz.value
+      ? await loadStzMetricEntries(currentServerId, fetchPeriod)
+      : await Promise.all(METRIC_KEYS.map(async (metricKey) => {
+        const history = await loadMetricHistory(currentServerId, metricKey, fetchPeriod);
+        return [metricKey, normalizeMetricHistory(metricKey, history)];
+      }));
 
     if (serial !== requestSerial) {
       return;
@@ -546,6 +551,40 @@ async function loadMetricHistory(id, metricKey, periodValue) {
   const data = res?.data?.data || {};
   const dataPoints = data?.data_points || data?.dataPoints || data?.DataPoints;
   return Array.isArray(dataPoints) ? dataPoints : [];
+}
+
+// santaizi 公开 metrics 接口按时间点聚合返回全部指标字段，一次请求即可
+const STZ_METRIC_FIELD_MAP = {
+  cpu: 'cpu',
+  memory: 'mem_used',
+  disk: 'disk_used',
+  net_in_speed: 'net_in_speed',
+  net_out_speed: 'net_out_speed',
+};
+
+function getStzMetricsQuery(periodValue) {
+  // 1m 粒度仅保留 30 天；7d/30d 改用 1h 粒度（最长 365 天）
+  if (periodValue === '7d') return { resolution: '1h', hours: 24 * 7 };
+  if (periodValue === '30d') return { resolution: '1h', hours: 24 * 30 };
+  return { resolution: '1m', hours: 24 };
+}
+
+async function loadStzMetricEntries(id, periodValue) {
+  const baseUrl = config.aobobo.stzApiMetricsPath.replace('{id}', id);
+  const query = new URLSearchParams(getStzMetricsQuery(periodValue)).toString();
+  const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${query}`;
+  const res = await request({ url });
+  const points = Array.isArray(res?.data?.data) ? res.data.data : [];
+  return METRIC_KEYS.map((metricKey) => {
+    const field = STZ_METRIC_FIELD_MAP[metricKey];
+    const history = field
+      ? points.map((point) => ({
+        ts: Date.parse(point?.window_start || ''),
+        value: point?.[field],
+      }))
+      : [];
+    return [metricKey, normalizeMetricHistory(metricKey, history)];
+  });
 }
 
 function normalizeMetricHistory(metricKey, history) {

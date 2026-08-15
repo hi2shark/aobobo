@@ -3,12 +3,12 @@
     <p class="app-footer__text">
       <span class="app-footer__prefix">{{ poweredText }}</span>
       <a
-        :href="resolvedNezhaUrl"
+        :href="resolvedPoweredUrl"
         class="app-footer__link"
         target="_blank"
         rel="noopener noreferrer"
       >
-        哪吒监控
+        {{ resolvedPoweredName }}
       </a>
       <span class="app-footer__sep" aria-hidden="true">·</span>
       <span class="app-footer__prefix">{{ themeText }}</span>
@@ -30,8 +30,16 @@ import { computed } from 'vue';
 import { version as pkgVersion } from '../../package.json';
 import config from '@/config';
 
+const NEZHA_SITE_URL = 'https://nezha.wiki';
+const SANTAIZI_REPO_URL = 'https://github.com/hi2shark/santaizi-dashboard';
+const AOBOBO_REPO_URL = 'https://github.com/hi2shark/aobobo';
+
 const props = defineProps({
   nezhaUrl: {
+    type: String,
+    default: null,
+  },
+  poweredName: {
     type: String,
     default: null,
   },
@@ -57,11 +65,19 @@ const props = defineProps({
   },
 });
 
-const resolvedNezhaUrl = computed(() => props.nezhaUrl
-  || 'https://nezha.wiki');
+const isSantaizi = computed(() => config.aobobo.nezhaVersion === 'santaizi');
+
+const resolvedPoweredName = computed(() => props.poweredName
+  || config.aobobo.poweredByName
+  || (isSantaizi.value ? '三太子监控' : '哪吒监控'));
+
+const resolvedPoweredUrl = computed(() => props.nezhaUrl
+  || config.aobobo.poweredByUrl
+  || (isSantaizi.value ? SANTAIZI_REPO_URL : NEZHA_SITE_URL));
 
 const resolvedAoboboUrl = computed(() => props.aoboboUrl
-  || 'https://github.com/hi2shark/aobobo');
+  || config.aobobo.aoboboUrl
+  || AOBOBO_REPO_URL);
 
 const resolvedVersion = computed(() => {
   if (!props.showVersion) return null;

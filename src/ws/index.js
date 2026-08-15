@@ -1,12 +1,15 @@
 import config from '@/config';
 import MessageSubscribe from '@/utils/subscribe';
 import v1TransformV0 from '@/utils/transform-v1-2-v0';
+import stzTransformV0 from '@/utils/transform-stz-2-v0';
 import WSService, { WS_CONNECTION_STATUS } from './service';
 
 function getWsApiPath() {
   let url = config?.aobobo?.wsPath;
   if (config?.aobobo?.nezhaVersion === 'v1') {
     url = config?.aobobo?.v1WsPath;
+  } else if (config?.aobobo?.nezhaVersion === 'santaizi') {
+    url = config?.aobobo?.stzWsPath;
   }
   const a = document.createElement('a');
   a.href = url;
@@ -28,6 +31,11 @@ function createWsService() {
           msg.emit('servers', {
             now: data.now,
             servers: data?.servers?.map?.((server) => v1TransformV0(server)) || [],
+          });
+        } else if (config.aobobo.nezhaVersion === 'santaizi') {
+          msg.emit('servers', {
+            now: data.now,
+            servers: data?.servers?.map?.((server) => stzTransformV0(server)) || [],
           });
         } else {
           msg.emit('servers', data);

@@ -1,5 +1,6 @@
 import { reactive } from 'vue';
 import { loadProfile as loadNezhaV1Profile } from '@/utils/load-nezha-v1-config';
+import loadStzBootstrap from '@/utils/load-stz-config';
 
 const defaultNezhaVersion = import.meta.env.VITE_NEZHA_VERSION;
 
@@ -10,7 +11,7 @@ const config = reactive({
   init: false,
   aobobo: {
     title: '哪吒监控',
-    nezhaVersion: ['v0', 'v1'].includes(defaultNezhaVersion) ? defaultNezhaVersion : null,
+    nezhaVersion: ['v0', 'v1', 'santaizi'].includes(defaultNezhaVersion) ? defaultNezhaVersion : null,
     apiMonitorPath: '/api/v1/monitor/{id}',
     showAvailability: false,
     apiAvailabilityPath: '/api/v1/server/availability',
@@ -29,6 +30,11 @@ const config = reactive({
     v1ApiProfilePath: '/api/v1/profile',
     v1DashboardUrl: '/dashboard',
     v1HideNezhaDashboardBtn: false,
+    stzBootstrapPath: '/api/v2/public/bootstrap',
+    stzWsPath: '/ws/v2/public/runtime',
+    stzApiNetworkPath: '/api/v2/public/network/{id}',
+    stzApiMetricsPath: '/api/v2/public/metrics/{id}',
+    stzApiCycleTransferPath: '/api/v2/public/cycle-transfer',
     detailCycleTransferRefreshTime: 60,
     hideDetailCycleTransfer: false,
     hideDetailServerGlobe: false,
@@ -65,6 +71,13 @@ window.$mergeNazhuaConfig = mergeAoboboConfig;
 export default config;
 
 export const init = async () => {
+  // 依次探测：santaizi 公开 bootstrap → v1 profile → 回退 v0
+  const isStz = await loadStzBootstrap(true);
+  if (isStz) {
+    config.aobobo.nezhaVersion = 'santaizi';
+    config.init = true;
+    return;
+  }
   await loadNezhaV1Profile(true).then((res) => {
     config.aobobo.nezhaVersion = res ? 'v1' : 'v0';
   });

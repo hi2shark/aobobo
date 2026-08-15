@@ -4,49 +4,14 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import eslintPlugin from 'vite-plugin-eslint';
 import packageJson from './package';
+import { createAoboboDevProxy } from './vite.dev-proxy';
 
 let proxy;
 if (process.env.NODE_ENV === 'development') {
   dotenv.config({
     path: '.env.development.local',
   });
-
-  proxy = {
-    '/api': {
-      target: process.env.API_HOST,
-      changeOrigin: true,
-    },
-    '/ws': {
-      target: process.env.PROXY_WS_HOST || process.env.WS_HOST,
-      changeOrigin: true,
-      ws: true,
-      rewrite: (e) => {
-        if (process.env.PROXY_WS_HOST) {
-          return `/proxy?wsPath=${process.env.WS_HOST}`;
-        }
-        return e;
-      },
-    },
-    '/api/v1/ws/server': {
-      target: process.env.PROXY_WS_HOST || process.env.WS_HOST,
-      changeOrigin: true,
-      ws: true,
-      rewrite: (e) => {
-        if (process.env.PROXY_WS_HOST) {
-          return `/proxy?wsPath=${process.env.WS_HOST}`;
-        }
-        return e;
-      },
-    },
-  };
-
-  if (process.env.VITE_BASE_PATH === '/' || !process.env.VITE_BASE_PATH) {
-    proxy['/nezha/'] = {
-      target: process.env.NEZHA_HOST,
-      changeOrigin: true,
-      rewrite: (e) => e.replace(/^\/nezha/, ''),
-    };
-  }
+  proxy = createAoboboDevProxy(process.env);
 }
 
 // 读取版本号
