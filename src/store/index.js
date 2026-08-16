@@ -1,6 +1,6 @@
 import { createStore } from 'vuex';
 import dayjs from 'dayjs';
-import config from '@/config';
+import config, { hasRuntimeShowAvailability } from '@/config';
 import {
   loadServerGroup as loadNezhaV1ServerGroup,
   loadSetting as loadNezhaV1Setting,
@@ -9,7 +9,7 @@ import {
 import loadNezhaV0Config, {
   loadServerGroup as loadNezhaV0ServerGroup,
 } from '@/utils/load-nezha-v0-config';
-import loadStzBootstrap from '@/utils/load-stz-config';
+import loadStzBootstrap, { loadStzServers } from '@/utils/load-stz-config';
 import loadAvailability from '@/utils/load-availability';
 import { msg } from '@/ws';
 import {
@@ -37,6 +37,8 @@ const defaultState = () => ({
   showAvailability: config.aobobo.showAvailability !== false,
   profile: {},
   setting: {},
+  stzBootstrap: null,
+  viewPasswordRequired: false,
   themeMode: THEME_MODES.AUTO,
   resolvedTheme: 'dark',
   globeFocus: null,
@@ -48,6 +50,30 @@ function isOnline(LastActive, currentTime = Date.now()) {
     return -1;
   }
   return 1;
+}
+
+function resolveOnline(server, currentTime = Date.now()) {
+  if (config.aobobo.nezhaVersion === 'santaizi' && (server?.online === 1 || server?.online === -1)) {
+    return server.online;
+  }
+  return isOnline(server?.LastActive, currentTime);
+}
+
+function applyStzSiteMeta(commit, bootstrap, route) {
+  if (!bootstrap) {
+    return;
+  }
+  commit('SET_STZ_BOOTSTRAP', bootstrap);
+  commit('SET_SETTING', { site_name: bootstrap.brand });
+  if (!hasRuntimeShowAvailability) {
+    commit('SET_SHOW_AVAILABILITY', bootstrap.show_availability === true);
+  }
+  if (!(window.$$aoboboConfig?.title ?? window.$$nazhuaConfig?.title) && bootstrap.brand) {
+    config.aobobo.title = bootstrap.brand;
+    if (route?.name === 'Home' || route?.name === 'ViewPassword' || !route) {
+      document.title = bootstrap.brand;
+    }
+  }
 }
 
 function handleServerCount(servers) {
@@ -131,6 +157,15 @@ const store = createStore({
     SET_SETTING(state, setting) {
       state.setting = setting;
     },
+    SET_STZ_BOOTSTRAP(state, bootstrap) {
+      state.stzBootstrap = bootstrap || null;
+    },
+    SET_VIEW_PASSWORD_REQUIRED(state, required) {
+      state.viewPasswordRequired = !!required;
+    },
+    SET_SHOW_AVAILABILITY(state, enabled) {
+      state.showAvailability = !!enabled;
+    },
     SET_THEME_MODE(state, themeMode) {
       state.themeMode = themeMode;
     },
@@ -189,23 +224,35 @@ const store = createStore({
       commit('SET_RESOLVED_THEME', resolvedTheme);
       applyResolvedTheme(resolvedTheme);
     },
-    async initServerInfo({ commit }, params) {
+    async initServerInfo({ commit, dispatch }, params) {
       firstSetServers = true;
       if (config.aobobo.nezhaVersion === 'santaizi') {
         const { route } = params || {};
-        loadStzBootstrap().then((res) => {
-          if (!res) return;
-          commit('SET_SETTING', { site_name: res.brand });
-          // 仅在未通过运行时配置指定标题时，才使用后端的品牌名
-          if (!(window.$$aoboboConfig?.title ?? window.$$nazhuaConfig?.title) && res.brand) {
-            config.aobobo.title = res.brand;
-            if (route?.name === 'Home' || !route) {
-              document.title = res.brand;
-            }
-          }
-        });
-        // 服务器列表由 WS 推送；分组在首帧后按 Tag 派生（见 watchWsMsg）
-        return;
+        const bootstrap = await loadStzBootstrap();
+        if (!bootstrap) {
+          return { needsPassword: false };
+        }
+        applyStzSiteMeta(commit, bootstrap, route);
+        const needsPassword = bootstrap.requires_view_password === true
+          && bootstrap.view_password_verified !== true;
+        commit('SET_VIEW_PASSWORD_REQUIRED', needsPassword);
+        if (needsPassword) {
+          return { needsPassword: true };
+        }
+        const servers = await loadStzServers();
+        if (Array.isArray(servers)) {
+          const now = Date.now();
+          const mapped = servers.map((server) => ({
+            ...server,
+            online: resolveOnline(server, now),
+          }));
+          firstSetServers = false;
+          commit('SET_SERVERS', mapped);
+          const group = loadNezhaV0ServerGroup(mapped);
+          if (group) commit('SET_SERVER_GROUP', group);
+          dispatch('refreshAvailability');
+        }
+        return { needsPassword: false };
       }
       if (config.aobobo.nezhaVersion === 'v1') {
         const { route } = params || {};
@@ -227,12 +274,12 @@ const store = createStore({
         loadNezhaV1Profile().then((res) => {
           if (res) commit('SET_PROFILE', res);
         });
-        return;
+        return { needsPassword: false };
       }
       const serverResult = await loadNezhaV0Config();
       if (!serverResult) {
         console.error('load server config failed');
-        return;
+        return { needsPassword: false };
       }
       const servers = serverResult.servers?.map?.((i) => ({
         ...i,
@@ -242,12 +289,17 @@ const store = createStore({
       if (res) commit('SET_SERVER_GROUP', res);
       firstSetServers = false;
       commit('SET_SERVERS', servers);
+      return { needsPassword: false };
     },
     async refreshAvailability({ commit, state }) {
       if (!state.showAvailability) {
         return;
       }
-      const availability = await loadAvailability();
+      const availability = await loadAvailability(state.serverList);
+      if (availability?.hidden) {
+        commit('SET_SHOW_AVAILABILITY', false);
+        return;
+      }
       if (availability) {
         commit('SET_AVAILABILITY', availability);
         // 重新合并到当前服务器列表
@@ -260,7 +312,7 @@ const store = createStore({
           if (res.now) commit('SET_SERVER_TIME', res.now);
           const servers = res.servers?.map?.((i) => ({
             ...i,
-            online: isOnline(i.LastActive, res.now),
+            online: resolveOnline(i, res.now),
           })) || [];
           if (firstSetServers) {
             firstSetServers = false;

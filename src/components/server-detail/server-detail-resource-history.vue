@@ -560,6 +560,9 @@ const STZ_METRIC_FIELD_MAP = {
   disk: 'disk_used',
   net_in_speed: 'net_in_speed',
   net_out_speed: 'net_out_speed',
+  process_count: 'process_count',
+  tcp_conn: 'tcp_conn_count',
+  udp_conn: 'udp_conn_count',
 };
 
 function getStzMetricsQuery(periodValue) {

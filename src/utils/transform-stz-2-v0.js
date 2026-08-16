@@ -20,7 +20,7 @@ export default function (stzData) {
   if (!publicNote || typeof publicNote !== 'object' || Array.isArray(publicNote) || !Object.keys(publicNote).length) {
     publicNote = null;
   }
-  return {
+  const mapped = {
     ID: stzData.id,
     Name: stzData.name,
     Tag: stzData.tag || '',
@@ -30,4 +30,8 @@ export default function (stzData) {
     LastActive: stzData.last_active,
     PublicNote: publicNote,
   };
+  if (typeof stzData.online === 'boolean') {
+    mapped.online = stzData.online ? 1 : -1;
+  }
+  return mapped;
 }

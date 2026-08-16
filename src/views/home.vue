@@ -1281,6 +1281,18 @@ watch(
 );
 
 watch(
+  () => store.state.showAvailability,
+  (enabled) => {
+    if (enabled && store.state.init) {
+      refreshAvailabilityOnce();
+      startAvailabilityTimer();
+      return;
+    }
+    stopAvailabilityTimer();
+  },
+);
+
+watch(
   [globeAutoRotate, globeRotateSpeed, globeShowConnParticles, globeShowNetRays],
   ([autoRotate, rotateSpeed, showConnParticles, showNetRays]) => {
     persistGlobeRotation({

@@ -22,7 +22,7 @@ AoBoBo 是一个为 [哪吒监控](https://nezha.wiki/) 设计的纯前端 3D �
 - AoBoBo 只是前端主题，不包含哪吒 Dashboard 或 Agent。
 - v0 部署通常需要代理 `/nezha/`、`/ws`、`/api/v1/monitor/{id}`。
 - v1 部署通常需要代理 `/api` 与 `/api/v1/ws/server`。
-- santaizi 部署通常需要代理 `/api/v2/public/*` 与 `/ws/v2/public/runtime`。
+- santaizi 部署通常需要代理 `/api/v2/public/*` 与 `/ws/v2/public/runtime`。站点若启用查看密码，前端会走 `/view-password`。
 - 如需启用周期流量展示，v0 还需保证服务页可通过 `nezhaPath/service` 访问。
 - H5 路由模式需要 Web 服务将普通页面路径回退到 `index.html`，但静态资源路径应保留真实 404。
 
@@ -91,14 +91,15 @@ window.$$aoboboConfig = {
 
 | 数据类型 | v0 | v1 | santaizi |
 | --- | --- | --- | --- |
-| 全量配置 | 从 `/nezha/` 页面解析服务器列表与 `PublicNote` | `/api/v1/setting` 等 REST API | `/api/v2/public/bootstrap` |
+| 全量配置 | 从 `/nezha/` 页面解析服务器列表与 `PublicNote` | `/api/v1/setting` 等 REST API | `/api/v2/public/bootstrap` + `/api/v2/public/servers` |
 | 实时数据 | `/ws` | `/api/v1/ws/server` | `/ws/v2/public/runtime` |
 | 监控数据 | `/api/v1/monitor/{id}` | `/api/v1/server/{id}/service`（兼容 `/api/v1/service/{id}`） | `/api/v2/public/network/{id}` |
 | 资源历史 | 不支持 | `/api/v1/server/{id}/metrics` | `/api/v2/public/metrics/{id}` |
-| 可用性数据 | `/api/v1/server/availability`（可选扩展接口） | `/api/v1/server/availability`（可选扩展接口） | `/api/v1/server/availability`（v0 兼容接口） |
+| 可用性数据 | `/api/v1/server/availability`（可选扩展接口） | `/api/v1/server/availability`（可选扩展接口） | `/api/v2/public/servers/{id}/availability` |
 | 周期流量 | `/service` 页面解析 | `/api/v1/service` | `/api/v2/public/cycle-transfer` |
 | 分组数据 | 服务器 `Tag` 字段 | `/api/v1/server-group` | 服务器 `tag` 字段 |
 | 站点配置 | `config.js` / 公开备注 | `config.js` / `/api/v1/setting` 的 `site_name` | `config.js` / `/api/v2/public/bootstrap` 的 `brand` |
+| 查看密码 | 无 | 无 | `/api/v2/public/view-password/session` |
 
 ## 本地开发
 

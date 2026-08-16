@@ -61,8 +61,11 @@ window.$$aoboboConfig = {
   // santaizi（三太子）公开 API 路径配置（nezhaVersion: 'santaizi' 时生效，一般无需修改）
   // stzBootstrapPath: '/api/v2/public/bootstrap',
   // stzWsPath: '/ws/v2/public/runtime',
+  // stzApiServersPath: '/api/v2/public/servers',
   // stzApiNetworkPath: '/api/v2/public/network/{id}',
   // stzApiMetricsPath: '/api/v2/public/metrics/{id}',
   // stzApiCycleTransferPath: '/api/v2/public/cycle-transfer',
-  // 可用性数据沿用 v0 兼容接口 /api/v1/server/availability，需 showAvailability: true 开启
+  // stzApiAvailabilityPath: '/api/v2/public/servers/{id}/availability',
+  // stzViewPasswordPath: '/api/v2/public/view-password/session',
+  // 可用性默认跟随 bootstrap.show_availability；config.js 显式设置 showAvailability 时优先生效
 };

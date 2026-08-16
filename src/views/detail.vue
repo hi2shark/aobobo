@@ -122,6 +122,18 @@ watch(
   },
 );
 
+watch(
+  () => store.state.showAvailability,
+  (enabled) => {
+    if (enabled && store.state.init) {
+      refreshAvailabilityOnce();
+      startAvailabilityTimer();
+      return;
+    }
+    stopAvailabilityTimer();
+  },
+);
+
 onMounted(() => {
   if (store.state.init) {
     refreshAvailabilityOnce();

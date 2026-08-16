@@ -22,8 +22,13 @@ function processQueue() {
 }
 
 function request(config) {
+  const axiosConfig = { ...config };
+  if (!axiosConfig.method && axiosConfig.type) {
+    axiosConfig.method = axiosConfig.type;
+  }
+  delete axiosConfig.type;
   return new Promise((resolve, reject) => {
-    requestQueue.push({ config, resolve, reject });
+    requestQueue.push({ config: axiosConfig, resolve, reject });
     processQueue();
   });
 }

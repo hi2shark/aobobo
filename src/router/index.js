@@ -12,6 +12,11 @@ const routes = [
     component: () => import('@/views/detail.vue'),
   },
   {
+    path: '/view-password',
+    name: 'ViewPassword',
+    component: () => import('@/views/view-password.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/',
   },

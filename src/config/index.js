@@ -32,9 +32,12 @@ const config = reactive({
     v1HideNezhaDashboardBtn: false,
     stzBootstrapPath: '/api/v2/public/bootstrap',
     stzWsPath: '/ws/v2/public/runtime',
+    stzApiServersPath: '/api/v2/public/servers',
     stzApiNetworkPath: '/api/v2/public/network/{id}',
     stzApiMetricsPath: '/api/v2/public/metrics/{id}',
     stzApiCycleTransferPath: '/api/v2/public/cycle-transfer',
+    stzApiAvailabilityPath: '/api/v2/public/servers/{id}/availability',
+    stzViewPasswordPath: '/api/v2/public/view-password/session',
     detailCycleTransferRefreshTime: 60,
     hideDetailCycleTransfer: false,
     hideDetailServerGlobe: false,
@@ -67,6 +70,11 @@ export function mergeAoboboConfig(customConfig) {
 export const mergeNazhuaConfig = mergeAoboboConfig;
 window.$mergeAoboboConfig = mergeAoboboConfig;
 window.$mergeNazhuaConfig = mergeAoboboConfig;
+
+export const hasRuntimeShowAvailability = Object.prototype.hasOwnProperty.call(
+  runtimeConfig,
+  'showAvailability',
+);
 
 export default config;
 
